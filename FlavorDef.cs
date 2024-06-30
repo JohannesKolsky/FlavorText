@@ -8,6 +8,6 @@ namespace FlavorText
 {
     public class FlavorDef : Def
     {
-        public List<string> ingredients;
+        public List<string> foodStuffs;
     }
 }
