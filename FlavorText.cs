@@ -112,9 +112,10 @@ namespace FlavorText
             return finalFlavorDef;*/
 
             FlavorDef bestFlavorDef = null;
-             if (matchingFlavorDefs.Count > 0)
+            if (matchingFlavorDefs.Count > 0)
             {
                 bestFlavorDef = ChooseBestFlavorDef(ingredientsToSearchFor, matchingFlavorDefs);
+                Log.Message("first ingredient cat is: " + bestFlavorDef.ingredients[0].filter.OverrideRootNode);
             }
             if (bestFlavorDef != null)
             {
@@ -162,6 +163,11 @@ namespace FlavorText
                 }
             }
             return matches;
+        }
+
+        public class Matches
+        {
+
         }
         
         private FlavorDef ChooseBestFlavorDef(List<ThingDef> ingredientsToSearchFor, List<FlavorDef> validFlavorDefs)  // rank valid flavor defs to choose the best
