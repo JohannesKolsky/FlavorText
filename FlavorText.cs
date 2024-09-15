@@ -37,8 +37,6 @@ namespace FlavorText
 
         public static readonly List<FlavorDef> flavorDefList = (List<FlavorDef>)DefDatabase<FlavorDef>.AllDefs;  // compile a list of all FlavorDefs
 
-        private static readonly List<string> wordBitsToDelete = ["raw ", " raw", "meat ", " meat"];
-
 
         /*private string GetFlavorOld(List<ThingDef> ingredientList)  // find a flavor label based on the ingredients
         {
@@ -102,7 +100,7 @@ namespace FlavorText
             List<FlavorDef> matchingFlavorDefs = [];
              foreach (FlavorDef flavorDef in flavorDefList)
             {
-                 if (IsMatchingFlavorDef(ingredientsToSearchFor, flavorDef))
+                if (IsMatchingFlavorDef(ingredientsToSearchFor, flavorDef))
                 {
                     matchingFlavorDefs.Add(flavorDef);
                 }
@@ -119,14 +117,10 @@ namespace FlavorText
             }
             if (bestFlavorDef != null)
             {
-                List<ThingDef> ingredientsClean = CleanIngredientLabels(ingredientsToSearchFor);  // remove stuff like "raw" from ingredient labels
-                string bestFlavor = FillinMeatLabels(bestFlavorDef, ingredientsClean);  // fill placeholders like {FoodRaw} with the ingredients actually used for the meal
+                string bestFlavor = FillInMeatNames(bestFlavorDef.label, ingredientsToSearchFor);
                 return bestFlavor;
             }
-            else
-            { 
-                Log.Error("No matching FlavorDefs found."); return null; 
-            }
+            else { Log.Error("No matching FlavorDefs found."); return null; }
         }
 
         private bool IsMatchingFlavorDef(List<ThingDef> ingredientsToSearchFor, FlavorDef flavorDef)  // check if the ingredients match the given FlavorDef
@@ -175,27 +169,10 @@ namespace FlavorText
             if (validFlavorDefs != null && validFlavorDefs.Count != 0)
             {
                 validFlavorDefs.SortBy(v => v.specificity);
-                return validFlavorDefs.LastOrDefault();
+                return validFlavorDefs.FirstOrDefault();
             }
             Log.Error("no valid flavorDefs to choose from");
             return null;
-        }
-
-        private List<ThingDef> CleanIngredientLabels(List<ThingDef> ingredients)
-        {
-            List<ThingDef> ingredientsClean = (from ingredient in ingredients select ingredient).ToList();
-            foreach (ThingDef ingredientClean in ingredientsClean)
-            {
-                foreach (string bit in wordBitsToDelete)
-                {
-                    ingredientClean.label = ingredientClean.label.Replace(bit, string.Empty);
-                }
-                if (ingredientClean.defName == "Meat_Megaspider")
-                {
-                    ingredientClean.label = "bug";
-                }
-            }
-            return ingredientsClean;
         }
 
         private string CleanupFlavorName(List<ThingDef> ingredients, string name)  // make the flavor label look nicer and replace placeholder text
@@ -248,17 +225,13 @@ namespace FlavorText
             return input;
         }
 
-        private string FillinMeatLabels(FlavorDef flavorDef, List<ThingDef> ingredients)
+        private string FillInMeatNames(string flavor, List<ThingDef> ingredients)
         {
-            string flavorLabelFilled = flavorDef.label;
             foreach (ThingDef ingredient in ingredients)
             {
-                if (ingredient.thingCategories[0] == DefDatabase<ThingCategoryDef>.GetNamed("MeatRaw"))
-                {
-                    flavorLabelFilled = flavorLabelFilled.Formatted(ingredient.label.Named("MEATRAW"));
-                }
+                flavor = flavor.Formatted(ingredient.label);
             }
-            return flavorLabelFilled;
+            return flavor;
         }
 
         private string JoinFlavorNames(List<string> nameList)  // combine the found flavor labels into a single flavor label
@@ -275,13 +248,13 @@ namespace FlavorText
         {
             if (flavor == null)  // if no flavor name, find one
             {
-                ingredientComp = parent.GetComp<CompIngredients>();  // get the ingredients comp of the parent meal
+                 ingredientComp = parent.GetComp<CompIngredients>();  // get the ingredients comp of the parent meal
                 List<ThingDef> ingredientList = ingredientComp.ingredients;  // list of ingredients
-                string bestFlavorLabel = GetFlavor(ingredientList, flavorDefList);  // single best Flavor Def from all Flavor Defs available
-                if (bestFlavorLabel != null)
+                string bestFlavor = GetFlavor(ingredientList, flavorDefList);  // single best Flavor Def from all Flavor Defs available
+                if (bestFlavor != null)
                 {
-                    bestFlavorLabel = GenText.CapitalizeAsTitle(bestFlavorLabel);
-                    return bestFlavorLabel;
+                    flavor = GenText.CapitalizeAsTitle(bestFlavor);
+                    return flavor;
                 }
             }
             if (flavor != null) { return flavor; }  // assuming you found a flavor name, transform the meal's original label to that
