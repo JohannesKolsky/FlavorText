@@ -3,44 +3,32 @@ using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
-using System.Reflection;
-using System.Text;
-using System.Collections;
-using System.Threading.Tasks;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
 
+
 namespace FlavorText
 {
-
     /// <summary>
     /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/ingredient categories will be given each particular name.
     /// </summary>
     /// 
+    public class FlavorThingFilter : ThingFilter
+    {
+
+    }
     public class FlavorDef : RecipeDef
     {
-/*        public List<FlavorIngredientCount> ingredients = new();*/
 
         public int specificity = -1;
-/*        public FlavorDef()
-        {
-            foreach (FlavorIngredientCount ingredientCount in this.ingredients)  // calculate how many ThingDefs satisfy this flavor name, the fewer the more specific and therefore better the flavor name is
-            {
-                specificity += ingredientCount.filter.AllowedDefCount;
-            }
-            *//*Type typ = typeof(FlavorDef);*//*
-        }  */     
-        
         public FlavorDef()
         {
             foreach (IngredientCount ingredientCount in this.ingredients)  // calculate how many ThingDefs satisfy this flavor name, the fewer the more specific and therefore better the flavor name is
             {
                 specificity += ingredientCount.filter.AllowedDefCount;
             }
-            /*Type typ = typeof(FlavorDef);*/
         }
-
 
 
 
