@@ -67,6 +67,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FlavorIngredientCount.cs" />
+    <Compile Include="FlavorThingFilter.cs" />
     <Compile Include="FlavorDef.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
