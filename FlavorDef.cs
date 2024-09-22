@@ -14,17 +14,14 @@ namespace FlavorText
     /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/ingredient categories will be given each particular name.
     /// </summary>
     /// 
-    public class FlavorThingFilter : ThingFilter
-    {
-
-    }
     public class FlavorDef : RecipeDef
     {
 
         public int specificity = -1;
         public FlavorDef()
         {
-            foreach (IngredientCount ingredientCount in this.ingredients)  // calculate how many ThingDefs satisfy this flavor name, the fewer the more specific and therefore better the flavor name is
+            Log.Message(this.defName);
+            foreach (IngredientCount ingredientCount in this.ingredients)  // calculate how many ThingDefs satisfy this FlavorDef, the fewer the more specific and therefore better the FlavorDef is
             {
                 specificity += ingredientCount.filter.AllowedDefCount;
             }
