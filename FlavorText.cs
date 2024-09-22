@@ -23,10 +23,26 @@ using Verse;
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
 //fixedIngredient: used if fixedIngredientFilter.Count == 1
 
+
 namespace FlavorText
 {
+    /*    [StaticConstructorOnStartup]
+        public static class HarmonyPatches
+        {
+            private static readonly Type patchType = typeof(HarmonyPatches);
+
+            static HarmonyPatches()
+            {
+                var harmony = new Harmony(id: "rimworld.hekmo.flavortext");
+                Harmony.DEBUG = true;
+
+                harmony.Patch(AccessTools.Method(typeof(ThingFilter), nameof(ThingFilter.categories)), postfix: new HarmonyMethod(patchType, nameof(ThingFilter.customSummary)));
+            }
+        }*/
+
     public class CompFlavor : ThingComp
     {
+
         public CompProperties_Flavor Props => (CompProperties_Flavor)this.props;  // simplify fetching this Comp's Properties
 
         public CompIngredients ingredientComp;
@@ -96,7 +112,7 @@ namespace FlavorText
                 return null;
             }
 
-            //see which FlavorDefs match with the ingredients in the meal
+            //see which FlavorDefs match with the ingredients in the meal, and make a list of them all
             List<FlavorDef> matchingFlavorDefs = [];
              foreach (FlavorDef flavorDef in flavorDefList)
             {
@@ -106,14 +122,15 @@ namespace FlavorText
                 }
             }
 
-            /*FlavorDef finalFlavorDef = ChooseBestFlavorDef(matchingFlavorDefs);
-            return finalFlavorDef;*/
-
             FlavorDef bestFlavorDef = null;
-             if (matchingFlavorDefs.Count > 0)
+
+            // pick the most specific matching FlavorDef
+            if (matchingFlavorDefs.Count > 0)
             {
-                bestFlavorDef = ChooseBestFlavorDef(ingredientsToSearchFor, matchingFlavorDefs);
+                 bestFlavorDef = ChooseBestFlavorDef(matchingFlavorDefs);
             }
+
+            // fill in placeholder names in the label
             if (bestFlavorDef != null)
             {
                 string bestFlavor = FillInMeatNames(bestFlavorDef.label, ingredientsToSearchFor);
@@ -124,41 +141,52 @@ namespace FlavorText
 
         private bool IsMatchingFlavorDef(List<ThingDef> ingredientsToSearchFor, FlavorDef flavorDef)  // check if the ingredients match the given FlavorDef
         {
-            if (ingredientsToSearchFor.Count == flavorDef.ingredients.Count)  // length must match
+            if (ingredientsToSearchFor.Count >= flavorDef.ingredients.Count)  // FlavorDef can't have more ingredients than the meal has
             {
-                List<bool> stored_matches = (from c in Enumerable.Range(0, flavorDef.ingredients.Count) select false).ToList();  // list tracking which ingredients fit
-                for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check for each searched ingredient
+                List<bool> matches = (from c in Enumerable.Range(0, flavorDef.ingredients.Count) select false).ToList();  // keeps track of how much of the FlavorDef you've matched so far
+                for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check each ingredient you're searching for with the FlavorDef
                 {
-                    List<bool> new_matches = (from s in stored_matches select s).ToList();  // make a new copy of matches so original isn't edited
-                    new_matches = BestIngredientMatch(ingredientsToSearchFor[i], flavorDef, new_matches);  // see if the ingredient fits and if it does, find the most specific match
-                    if (stored_matches.SequenceEqual(new_matches))
-                    {
-                        return false;  // an ingredient didn't fit, so flavorDef is invalid
-                    }
-                    stored_matches = (from n in new_matches select n).ToList();
+                    matches = BestIngredientMatch(ingredientsToSearchFor[i], flavorDef, matches);  // see if the ingredient fits and if it does, find the most specific match
                 }
-                return true;
+                if (matches.Contains(false) || matches.Count == 0)
+                {
+                    return false; // the FlavorDef doesn't match
+                }
+                return true;  // the FlavorDef matches completely
             }
-            return false;
+            return false;  // FlavorDef had too many ingredients
         }
 
-        private List<bool> BestIngredientMatch(ThingDef ingredient, FlavorDef flavorDef, List<bool> matches)  // find the best matching ingredient for the current ingredient in the current FlavorDef (preferrring specific ingredients over ingredient categories)
+        private List<bool> BestIngredientMatch(ThingDef ingredient, FlavorDef flavorDef, List<bool> matches)  // find the best match for the current single ingredient in the current FlavorDef
         {
-            for (int j = 0; j < flavorDef.ingredients.Count; j++)  // compare the given ingredient to the FlavorDef's recipe
+            int bestIndex = -1;
+
+            for (int index = 0; index < flavorDef.ingredients.Count && matches[index] == false; index++)  // compare the given ingredient to the FlavorDef's ingredients to see which it matches best with
             {
-                if (flavorDef.ingredients[j].filter.Allows(ingredient) && matches[j] == false)
+                if (flavorDef.ingredients[index].filter.Allows(ingredient))
                 {
-                    matches[j] = true;
-                    if (flavorDef.ingredients[j].IsFixedIngredient)  // if you matched with a fixed ingredient, you're done
+                    // if you matched with a fixed ingredient, that's the best
+                    if (flavorDef.ingredients[index].IsFixedIngredient)
                     {
+                        matches[index] = true;
                         return matches;
                     }
+                    else if (bestIndex != -1)
+                    {  
+                        // if the current FlavorDef ingredient is the most specific so far, mark its index
+                        if (flavorDef.ingredients[index].filter.AllowedDefCount < flavorDef.ingredients[bestIndex].filter.AllowedDefCount)
+                        {
+                            bestIndex = index;
+                        }
+                    }
+                    else { bestIndex = index; }  // if this is the first match, mark the index
                 }
             }
+            if (bestIndex != -1) { matches[bestIndex] = true;}  // you found a match
             return matches;
         }
         
-        private FlavorDef ChooseBestFlavorDef(List<ThingDef> ingredientsToSearchFor, List<FlavorDef> validFlavorDefs)  // rank valid flavor defs to choose the best
+        private FlavorDef ChooseBestFlavorDef(List<FlavorDef> validFlavorDefs)  // rank valid flavor defs to choose the best
         {
             if (validFlavorDefs != null && validFlavorDefs.Count != 0)
             {
@@ -242,7 +270,7 @@ namespace FlavorText
         {
             if (flavor == null)  // if no flavor name, find one
             {
-                 ingredientComp = parent.GetComp<CompIngredients>();  // get the ingredients comp of the parent meal
+                ingredientComp = parent.GetComp<CompIngredients>();  // get the ingredients comp of the parent meal
                 List<ThingDef> ingredientList = ingredientComp.ingredients;  // list of ingredients
                 string bestFlavor = GetFlavor(ingredientList, flavorDefList);  // single best Flavor Def from all Flavor Defs available
                 if (bestFlavor != null)
