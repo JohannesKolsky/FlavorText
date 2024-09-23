@@ -141,7 +141,7 @@ namespace FlavorText
 
         private bool IsMatchingFlavorDef(List<ThingDef> ingredientsToSearchFor, FlavorDef flavorDef)  // check if the ingredients match the given FlavorDef
         {
-            if (ingredientsToSearchFor.Count >= flavorDef.ingredients.Count)  // FlavorDef can't have more ingredients than the meal has
+            if (ingredientsToSearchFor.Count == flavorDef.ingredients.Count)  // FlavorDef can't have more ingredients than the meal has
             {
                 List<bool> matches = (from c in Enumerable.Range(0, flavorDef.ingredients.Count) select false).ToList();  // keeps track of how much of the FlavorDef you've matched so far
                 for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check each ingredient you're searching for with the FlavorDef
@@ -161,8 +161,9 @@ namespace FlavorText
         {
             int bestIndex = -1;
 
-            for (int index = 0; index < flavorDef.ingredients.Count && matches[index] == false; index++)  // compare the given ingredient to the FlavorDef's ingredients to see which it matches best with
+            for (int index = 0; index < flavorDef.ingredients.Count; index++)  // compare the given ingredient to the FlavorDef's ingredients to see which it matches best with
             {
+                if (matches[index] == true) { continue; }
                 if (flavorDef.ingredients[index].filter.Allows(ingredient))
                 {
                     // if you matched with a fixed ingredient, that's the best
@@ -190,7 +191,7 @@ namespace FlavorText
         {
             if (validFlavorDefs != null && validFlavorDefs.Count != 0)
             {
-                validFlavorDefs.SortBy(v => v.specificity);
+                 validFlavorDefs.SortBy(v => v.specificity);
                 return validFlavorDefs.FirstOrDefault();
             }
             Log.Error("no valid flavorDefs to choose from");
