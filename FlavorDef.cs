@@ -1,6 +1,4 @@
-﻿using JetBrains.Annotations;
-using RimWorld;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Verse;
 
@@ -16,10 +14,10 @@ namespace FlavorText
     /// 
     public class FlavorDef : RecipeDef
     {
-
         public int specificity = -1;
-        public FlavorDef()
+        public override void ResolveReferences()
         {
+            base.ResolveReferences();
             Log.Message(this.defName);
             foreach (IngredientCount ingredientCount in this.ingredients)  // calculate how many ThingDefs satisfy this FlavorDef, the fewer the more specific and therefore better the FlavorDef is
             {
