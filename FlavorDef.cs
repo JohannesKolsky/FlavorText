@@ -1,64 +1,65 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Verse;
+using HarmonyLib;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
+//TODO: spreadsheet descriptions are misaligned
 
 
 namespace FlavorText
 {
     /// <summary>
-    /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/ingredient categories will be given each particular name.
+    /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/categories will be given each particular name.
     /// </summary>
     /// 
     public class FlavorDef : RecipeDef
     {
-        public int specificity = -1;
+        public int specificity = 0;
         public override void ResolveReferences()
         {
             base.ResolveReferences();
-            Log.Message(this.defName);
-            foreach (IngredientCount ingredientCount in this.ingredients)  // calculate how many ThingDefs satisfy this FlavorDef, the fewer the more specific and therefore better the FlavorDef is
+            foreach (IngredientCount ingredient in ingredients)
             {
-                specificity += ingredientCount.filter.AllowedDefCount;
-            }
-        }
-
-
-
-        private List<ThingCategoryDef> CategoryChain(ThingDef thingDef)  // make a list from the current ingredient to the Root of ThingCategories
-        {
-            if (thingDef.thingCategories.Count > 1) // DEBUG: if ingredient has multiple categories make an Error Log of which ones they are
-            {
-                string allCats = "";
-                for (int i = 0; i < thingDef.thingCategories.Count; i++)
+                List<string> categories = GetRecipeCategories(ingredient.filter);
+                foreach (string categoryString in categories)
                 {
-                    allCats += thingDef.thingCategories[i].defName;
-                    if (i != thingDef.thingCategories.Count) { allCats += ", "; }
+                    ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
+                    while (true)
+                    {
+                        specificity += 1;
+                        if (thingCategoryDef.childCategories.NullOrEmpty() || thingCategoryDef.childCategories.Count == 0 ) { break; }
+                        thingCategoryDef = thingCategoryDef.childCategories[0];
+                    }
                 }
-                Log.Error("ingredient belongs in multiple categories: " + allCats);
             }
-
-            List<ThingCategoryDef> categoryChain = [];
-            ThingCategoryDef currentCat = thingDef.thingCategories.FirstOrDefault();  // (probably will need to change this allow multiple categories)
-            while (currentCat != DefDatabase<ThingCategoryDef>.GetNamed("Root"))
-            {
-                categoryChain.Add(currentCat);
-                currentCat = currentCat.parent;
-            }
-            return categoryChain;
         }
 
-        private List<ThingCategoryDef> CategoryChain(ThingCategoryDef currentCat)  // make a list from the current ingredient to the Root of ThingCategories
+
+        public List<string> GetRecipeCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
         {
-            List<ThingCategoryDef> categoryChain = [];
-            while (currentCat != DefDatabase<ThingCategoryDef>.GetNamed("Root"))
+            FieldInfo categories = filter.GetType().GetField("categories", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
+            if (categories != null)
             {
-                categoryChain.Add(currentCat);
-                currentCat = currentCat.parent;
+                List<string> categoriesList = (List<string>)categories.GetValue(filter);  // knowing its type, find the field value in filter
+                return categoriesList;
             }
-            return categoryChain;
+            Log.Message("filter contains no ThingCategoryDefs");
+            return null;
+        }
+
+        public List<ThingDef> GetRecipeIngredients(ThingFilter filter)  // get all ThingDefs from within the given filter
+        {
+            FieldInfo thingDefs = filter.GetType().GetField("thingDefs", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
+            if (thingDefs != null)
+            {
+                List<ThingDef> thingDefsList = (List<ThingDef>)thingDefs.GetValue(filter);  // knowing its type, find the field value in filter
+                return thingDefsList;
+            }
+            Log.Message("filter contains no ThingDefs");
+            return null;
         }
     }
 }
