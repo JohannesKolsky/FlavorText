@@ -68,7 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FlavorDef.cs" />
-    <Compile Include="FlavorText.cs" />
+    <Compile Include="CompFlavor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
