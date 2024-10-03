@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Verse;
-using HarmonyLib;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
@@ -23,14 +21,14 @@ namespace FlavorText
             base.ResolveReferences();
             foreach (IngredientCount ingredient in ingredients)
             {
-                List<string> categories = GetRecipeCategories(ingredient.filter);
+                List<string> categories = GetFilterCategories(ingredient.filter);
                 foreach (string categoryString in categories)
                 {
                     ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
                     while (true)
                     {
                         specificity += 1;
-                        if (thingCategoryDef.childCategories.NullOrEmpty() || thingCategoryDef.childCategories.Count == 0 ) { break; }
+                        if (thingCategoryDef.childCategories.NullOrEmpty() || thingCategoryDef.childCategories.Count == 0) { break; }
                         thingCategoryDef = thingCategoryDef.childCategories[0];
                     }
                 }
@@ -38,7 +36,7 @@ namespace FlavorText
         }
 
 
-        public List<string> GetRecipeCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
+        public List<string> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
         {
             FieldInfo categories = filter.GetType().GetField("categories", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
             if (categories != null)
@@ -50,7 +48,7 @@ namespace FlavorText
             return null;
         }
 
-        public List<ThingDef> GetRecipeIngredients(ThingFilter filter)  // get all ThingDefs from within the given filter
+        public List<ThingDef> GetFilterIngredients(ThingFilter filter)  // get all ThingDefs from within the given filter
         {
             FieldInfo thingDefs = filter.GetType().GetField("thingDefs", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
             if (thingDefs != null)
