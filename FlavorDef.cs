@@ -1,6 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 using Verse;
+using RimWorld;
+using System.Globalization;
+using System.Text;
+using System.Linq;
+using UnidecodeSharpFork;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
@@ -22,19 +27,25 @@ namespace FlavorText
             foreach (IngredientCount ingredient in ingredients)
             {
                 List<string> categories = GetFilterCategories(ingredient.filter);
-                foreach (string categoryString in categories)
+                if (categories != null)
                 {
-                    ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
-                    while (true)
+                    foreach (string categoryString in categories)
                     {
-                        specificity += 1;
-                        if (thingCategoryDef.childCategories.NullOrEmpty() || thingCategoryDef.childCategories.Count == 0) { break; }
-                        thingCategoryDef = thingCategoryDef.childCategories[0];
+                        ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
+                        while (true)
+                        {
+                            specificity += 1;
+                            if (thingCategoryDef.childCategories.NullOrEmpty() || thingCategoryDef.childCategories.Count == 0) { break; }
+                            thingCategoryDef = thingCategoryDef.childCategories[0];
+                        }
                     }
+
                 }
             }
-        }
 
+            defName = Remove.RemoveDiacritics(defName);
+
+        }
 
         public List<string> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
         {
@@ -58,6 +69,26 @@ namespace FlavorText
             }
             Log.Message("filter contains no ThingDefs");
             return null;
+        }
+    }
+
+    public static class Remove  //TODO: add more special chars, like ø
+    {
+        public static string RemoveDiacritics(string stIn)
+        {
+            string stFormD = stIn.Normalize(NormalizationForm.FormD);
+            StringBuilder sb = new StringBuilder();
+
+            for (int ich = 0; ich < stFormD.Length; ich++)
+            {
+                UnicodeCategory uc = CharUnicodeInfo.GetUnicodeCategory(stFormD[ich]);
+                if (uc != UnicodeCategory.NonSpacingMark)
+                {
+                    sb.Append(stFormD[ich]);
+                }
+            }
+
+            return (sb.ToString().Normalize(NormalizationForm.FormC));
         }
     }
 }
