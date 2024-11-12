@@ -5,7 +5,6 @@ using RimWorld;
 using System.Globalization;
 using System.Text;
 using System.Linq;
-using UnidecodeSharpFork;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
@@ -15,7 +14,7 @@ using UnidecodeSharpFork;
 namespace FlavorText
 {
     /// <summary>
-    /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/categories will be given each particular name.
+    /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/categories will be given each particular name
     /// </summary>
     /// 
     public class FlavorDef : RecipeDef
