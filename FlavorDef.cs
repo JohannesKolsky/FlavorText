@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Reflection;
-using Verse;
-using RimWorld;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Linq;
 
@@ -63,10 +61,15 @@ namespace FlavorText
             FieldInfo thingDefs = filter.GetType().GetField("thingDefs", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
             if (thingDefs != null)
             {
-                List<ThingDef> thingDefsList = (List<ThingDef>)thingDefs.GetValue(filter);  // knowing its type, find the field value in filter
+                List<ThingDef> thingDefsList = [];
+                try  // knowing its type, find the field value in filter}
+                {
+                    thingDefsList = (List<ThingDef>)thingDefs.GetValue(filter);
+                }
+                catch { Log.Error("Could not examine thingDefs using filter."); return null; }
                 return thingDefsList;
             }
-            Log.Message("filter contains no ThingDefs");
+            Log.Message("Filter contains no ThingDefs or is null.");
             return null;
         }
     }

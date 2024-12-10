@@ -8,6 +8,7 @@ namespace FlavorText
         static FlavorText()
         {
             Log.Message("[Flavor Text] mod is now active.");
+            DefDatabase<ThingCategoryDef>.ResolveAllReferences();
         }
     }
 }

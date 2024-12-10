@@ -67,9 +67,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CompFlavor.cs" />
+    <Compile Include="CompProperties_Flavor.cs" />
+    <Compile Include="FlavorCategoryModExtension.cs" />
+    <Compile Include="HarmonyPatches.cs" />
+    <Compile Include="IngredientFlavor.cs" />
+    <Compile Include="FlavorWithIndices.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />
-    <Compile Include="CompFlavor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
