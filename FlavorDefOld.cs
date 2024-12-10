@@ -2,7 +2,11 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+<<<<<<< Updated upstream
+using System.Linq;
+=======
 using Verse;
+>>>>>>> Stashed changes
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
@@ -15,7 +19,7 @@ namespace FlavorText
     /// Effectively recipes, and is a subclass of RecipeDef. These show what combination of ingredients/categories will be given each particular name
     /// </summary>
     /// 
-    public class FlavorDef : RecipeDef
+    public class FlavorDefOld : RecipeDef
     {
         public int specificity = 0;
         public override void ResolveReferences()
@@ -61,6 +65,12 @@ namespace FlavorText
             FieldInfo thingDefs = filter.GetType().GetField("thingDefs", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
             if (thingDefs != null)
             {
+<<<<<<< Updated upstream
+                List<ThingDef> thingDefsList = (List<ThingDef>)thingDefs.GetValue(filter);  // knowing its type, find the field value in filter
+                return thingDefsList;
+            }
+            Log.Message("filter contains no ThingDefs");
+=======
                 List<ThingDef> thingDefsList = [];
                 try  // knowing its type, find the field value in filter}
                 {
@@ -70,6 +80,7 @@ namespace FlavorText
                 return thingDefsList;
             }
             Log.Message("Filter contains no ThingDefs or is null.");
+>>>>>>> Stashed changes
             return null;
         }
     }
