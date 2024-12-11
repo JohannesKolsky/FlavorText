@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text;
-using Verse;
+using System.Linq;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
