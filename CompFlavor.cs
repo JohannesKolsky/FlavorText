@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
+using Verse.Grammar;
 
 //--TODO: make flavor entries a class
 //--TODO: eggs + eggs makes weird names like omlette w/eggs
@@ -22,6 +23,8 @@ using Verse;
 //--TODO: check if contains parent category
 //-TODO: fish?
 //--TODO: flavor descriptions
+//--TODO: buttered "and" is disappearing again X(
+//--TODO: learn RulePacks
 
 //RELEASE: check for that null bug again
 
@@ -30,13 +33,14 @@ using Verse;
 //TODO: VegetableGarden: Garden Meats
 //TODO: Vanilla Expanded compat: canned meat -> canned (special case), gourmet meals (condiment is an ingredient), desserts (derived from ResourceBase), etc
 //TODO: baby food is derived from OrganicProductBase
-//TODO: noun, plural, adj form of each resource (if none given, use regular label); this can then replace all the rearranging with meats and such; you can use the defName stripped of Raw and stuff as a stand-in for singular; cannibal and twisted appear in descriptions
+//TODO: noun, plural, adj form of each resource (if none given, use regular label); this can then replace all the rearranging with meats and such; cross-reference label and defName to get singular form; cannibal and twisted appear in descriptions
 //TODO: \n not working in descriptions?
-//TODO: buttered "and" is disappearing again X(
-//TODO: learn RulePacks  // nested rules: sausage --> [sausage] --> [meat] // 3-ingredients -> 2[1]
 //TODO: generalize meat substitution
+//TODO: meat doesn't get sorted to the front when there's a veggie {Root} in front of it
 //TODO: different eggs don't merge
 //TODO: specific meat type overrides (and overrides in general)
+//TODO: nested rules: sausage --> [sausage] --> [meat] // 3-ingredients -> 2[1]
+//TODO: split {Root} category from {FoodRaw}; this will allow for easy special treatment of non {FoodRaw} ingredients
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter

@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text;
-using System.Linq;
+using Verse;
 
 //TODO: recipe parent hierarchy
 //TODO: stuffCategoriesToAllow?
@@ -21,6 +21,7 @@ namespace FlavorText
         public override void ResolveReferences()
         {
             base.ResolveReferences();
+            // find the specificity by seeing how many different ingredients fit into the meal (fewer is more specific)
             foreach (IngredientCount ingredient in ingredients)
             {
                 List<string> categories = GetFilterCategories(ingredient.filter);
