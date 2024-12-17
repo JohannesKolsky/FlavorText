@@ -1,14 +1,14 @@
 ﻿using Verse;
 
-namespace FlavorText
+namespace FlavorText;
+
+// startup message
+[StaticConstructorOnStartup]
+public class FlavorText
 {
-    [StaticConstructorOnStartup]
-    public class FlavorText
+    static FlavorText()
     {
-        static FlavorText()
-        {
-            Log.Message("[Flavor Text] mod is now active.");
-            DefDatabase<ThingCategoryDef>.ResolveAllReferences();
-        }
+        Log.Message("[Flavor Text] mod is now active.");
+        DefDatabase<ThingCategoryDef>.ResolveAllReferences();  // TODO: this attempts to avoid having to ResolveReferences in CompFlavor, but rn I don't think this does anything
     }
 }

@@ -1,7 +1,6 @@
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Verse;
 
 namespace FlavorText;
@@ -14,8 +13,8 @@ public static class HarmonyPatches
     static HarmonyPatches()
     {
         patchType = typeof(HarmonyPatches);
-        Harmony harmony = new Harmony("rimworld.hekmo.FlavorText");
-        harmony.Patch((MethodBase)AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", (Type[])null, (Type[])null), (HarmonyMethod)null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", (Type[])null), (HarmonyMethod)null, (HarmonyMethod)null);
+        Harmony harmony = new("rimworld.hekmo.FlavorText");
+        harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", null, null), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", null),null, null);
     }
 
     // retrieve list of ingredients from meal as it's being made
@@ -28,9 +27,10 @@ public static class HarmonyPatches
         Log.Message("Adding ingredients from MakeRecipeProducts to CompFlavor");
         foreach (Thing product in __result)
         {
-            product.TryGetComp<CompFlavor>().ingredients = ingredients;
+            product.TryGetComp<CompFlavor>().Ingredients = ingredients;
             Log.Message("product found");
             Log.Message("product ID is " + product.ThingID);
+            product.TryGetComp<CompFlavor>().parent.BroadcastCompSignal("IngredientsRegistered");
             yield return product;
         }
     }
