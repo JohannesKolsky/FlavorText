@@ -43,6 +43,8 @@ using static FlavorText.CompProperties_Flavor;
 //TODO: different eggs don't merge
 //TODO: specific meat type overrides (and overrides in general)
 //TODO: nested rules: sausage --> [sausage] --> [meat] // 3-ingredients -> 2[1]
+//TODO: allow old label to show up in map searchd
+//TODO: change job string? does this add anything?
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
@@ -69,15 +71,7 @@ public class CompFlavor : ThingComp
 
     public List<FlavorDef> finalFlavorDefs = [];  // final chosen FlavorDef for the meal
 
-    private const int MaxNumIngredientsFlavor = 3;  // max number of ingredients used to find flavors, default 3; changing this requires a rewrite
-
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
-
-    static CompFlavor()
-    {
-        FlavorTextUtilities.CompileFlavorCategories();  // get FlavorText-related ThingCategoryDefs
-        FlavorTextUtilities.GetFlavorCategoryChildren();  // assign all relevant ThingsDefs and ThingCategoryDefs to a FlavorText ThingCategoryDef
-    }
 
     // when MakeRecipeProducts notifies you that the meal ingredients are available to be read, make all the Flavor Text names
     public override void ReceiveCompSignal(string signal)
@@ -85,18 +79,6 @@ public class CompFlavor : ThingComp
         base.ReceiveCompSignal(signal);
         if (signal == "IngredientsRegistered")
         {
-            List<ThingCategoryDef> allThingCategoryDefs = (List<ThingCategoryDef>)DefDatabase<ThingCategoryDef>.AllDefs;
-            for (int i = 0; i < allThingCategoryDefs.Count; i++)
-            {
-                if (allThingCategoryDefs[i].defName.StartsWith("FT_"))
-                {
-                    Log.Warning("Found FT_Category called " +  allThingCategoryDefs[i].defName);
-                    foreach (ThingDef childThingDef in allThingCategoryDefs[i].childThingDefs)
-                    {
-                        Log.Message(childThingDef.defName);
-                    }
-                }
-            }
             GetFlavorText();
         }
     }
@@ -106,7 +88,10 @@ public class CompFlavor : ThingComp
     {
         if (finalFlavorLabel != null && finalFlavorLabel != "" && finalFlavorLabel != "FAIL")
         {
-            return finalFlavorLabel;
+            StringBuilder stringBuilder = new();
+            stringBuilder.AppendLine(GenText.CapitalizeAsTitle(finalFlavorLabel));
+/*            stringBuilder.AppendInNewLine(GenText.CapitalizeAsTitle(label)); // old label in new line so it shows up in search results but not on the label // TODO: the newline shows up in other places like when a pawn is carrying the meal */
+            return stringBuilder.ToString().TrimEndNewlines();
         }
         return label;
     }
@@ -158,20 +143,20 @@ public class CompFlavor : ThingComp
             Log.Error("Ingredients to search for are null");
             return null;
         }
-        if (CompProperties_Flavor.FlavorDefs == null)
+        if (FlavorDefs == null)
         {
             Log.Error("List of Flavor Defs is null");
             return null;
         }
-        if (CompProperties_Flavor.FlavorDefs.Count == 0)
+        if (FlavorDefs.Count == 0)
         {
             Log.Error("List of Flavor Defs is empty");
             return null;
         }
 
         //see which FlavorDefs match with the ingredients in the meal
-        List<FlavorWithIndices> matchingFlavors = new List<FlavorWithIndices>();
-        foreach (FlavorDef flavorDef in CompProperties_Flavor.FlavorDefs)
+        List<FlavorWithIndices> matchingFlavors = [];
+        foreach (FlavorDef flavorDef in FlavorDefs)
         {
             FlavorWithIndices matchingFlavor = IsMatchingFlavor(ingredientsToSearchFor, flavorDef);
             if (matchingFlavor != null && matchingFlavor.indices.Count == ingredientsToSearchFor.Count)
@@ -200,9 +185,9 @@ public class CompFlavor : ThingComp
     {
         FlavorWithIndices matchingFlavor = new(flavorDef, [])
         {
-            def = flavorDef
+            flavorDef = flavorDef
         };
-        if (ingredientsToSearchFor.Count == matchingFlavor.def.ingredients.Count)  // FlavorDef recipe must be same # ingredients as meal
+        if (ingredientsToSearchFor.Count == matchingFlavor.flavorDef.ingredients.Count)  // FlavorDef recipe must be same # ingredients as meal
         {
             for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check each ingredient you're searching for with the FlavorDef
             {
@@ -219,26 +204,26 @@ public class CompFlavor : ThingComp
     private FlavorWithIndices BestIngredientMatch(Thing ingredient, FlavorWithIndices matchingFlavor)  // find the best match for the current single ingredient in the current FlavorDef
     {
         int lowestIndex = -1;
-        for (int j = 0; j < matchingFlavor.def.ingredients.Count; j++)  // compare the given ingredient to the FlavorDef's ingredients to see which it matches best with
+        for (int j = 0; j < matchingFlavor.flavorDef.ingredients.Count; j++)  // compare the given ingredient to the FlavorDef's ingredients to see which it matches best with
         {
             // if this FlavorDef ingredient was already matched with, skip it
             if (matchingFlavor.indices.Contains(j))
             {
                 continue;
             }
-            ThingFilter filter = matchingFlavor.def.ingredients[j].filter;
-            List<string> categories = matchingFlavor.def.GetFilterCategories(filter);
+            ThingFilter filter = matchingFlavor.flavorDef.ingredients[j].filter;
+            List<string> categories = matchingFlavor.flavorDef.GetFilterCategories(filter);
             if (categories != null)
             {
                 filter.ResolveReferences();  // TODO: find a way to get rid of this
             }
-            if (!matchingFlavor.def.ingredients[j].filter.Allows(ingredient))
+            if (!matchingFlavor.flavorDef.ingredients[j].filter.Allows(ingredient))
             {
                 continue;
             }
 
             // if you matched with a fixed ingredient, that's the best
-            if (matchingFlavor.def.ingredients[j].IsFixedIngredient)
+            if (matchingFlavor.flavorDef.ingredients[j].IsFixedIngredient)
             {
                 lowestIndex = j;
                 break;
@@ -246,9 +231,9 @@ public class CompFlavor : ThingComp
             if (lowestIndex != -1)
             {
                 // if the current FlavorDef ingredient is the most specific so far, mark its index
-                if (matchingFlavor.def.ingredients[j].filter.AllowedDefCount < matchingFlavor.def.ingredients[lowestIndex].filter.AllowedDefCount)
+                if (matchingFlavor.flavorDef.ingredients[j].filter.AllowedDefCount < matchingFlavor.flavorDef.ingredients[lowestIndex].filter.AllowedDefCount)
                 {
-                    Log.Message("found new best ingredient " + matchingFlavor.def.ingredients[j]);
+                    Log.Message("found new best ingredient " + matchingFlavor.flavorDef.ingredients[j]);
                     lowestIndex = j;
                 }
             }
@@ -267,8 +252,9 @@ public class CompFlavor : ThingComp
     {
         if (!matchingFlavors.NullOrEmpty())
         {
-            matchingFlavors.SortByDescending((FlavorWithIndices entry) => entry.def.specificity);
-            return new FlavorWithIndices(matchingFlavors.Last().def, matchingFlavors.Last().indices);
+            matchingFlavors.SortByDescending((FlavorWithIndices entry) => entry.flavorDef.specificity);
+            foreach (FlavorWithIndices entry in matchingFlavors) {Log.Message(entry.flavorDef.label + " = " +  entry.flavorDef.specificity); }
+            return new FlavorWithIndices(matchingFlavors.Last().flavorDef, matchingFlavors.Last().indices);
         }
         Log.Error("No valid flavorDefs to choose from");
         return null;
@@ -276,7 +262,7 @@ public class CompFlavor : ThingComp
 
     private List<string> CleanupIngredientLabels(FlavorWithIndices flavor, List<Thing> ingredients, string flag)  // remove unnecessary bits of the ingredient labels, like "meat" and "raw"; may edit flavor label and description strings
     {
-        string unfilledString = flavor.def.GetType().GetField(flag).GetValue(flavor.def)
+        string unfilledString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef)
             .ToString();
         List<string> ingredientLabels = [];
         for (int i = 0; i < ingredients.Count; i++)
@@ -304,7 +290,7 @@ public class CompFlavor : ThingComp
                         else
                         {
                             unfilledString = Regex.Replace(unfilledString, @"(?i)(\{" + i + @"\}) and ", "$1 ");  // remove any "and" following the placeholder
-                            flavor.def.GetType().GetField(flag).SetValue(flavor.def, unfilledString);
+                            flavor.flavorDef.GetType().GetField(flag).SetValue(flavor.flavorDef, unfilledString);
                             cleanLabel = "twisted";
                         }
                         break;
@@ -313,11 +299,11 @@ public class CompFlavor : ThingComp
                 case "Meat_Human":
                     {
                         if (flag == "description") { cleanLabel = "human meat"; }
-                        else if (Regex.IsMatch(flavor.def.label, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "long pork"; }
+                        else if (Regex.IsMatch(flavor.flavorDef.label, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "long pork"; }
                         else
                         {
                             unfilledString = Regex.Replace(unfilledString, @"(?i)(\{" + i + @"\}) and ", "$1 ");
-                            flavor.def.GetType().GetField(flag).SetValue(flavor.def, unfilledString);
+                            flavor.flavorDef.GetType().GetField(flag).SetValue(flavor.flavorDef, unfilledString);
                             cleanLabel = "cannibal";
                         }
                         break;
@@ -326,11 +312,11 @@ public class CompFlavor : ThingComp
                 case "Meat_Megaspider":
                     {
                         if (flag == "description") { cleanLabel = "bug guts"; }
-                        else if (Regex.IsMatch(flavor.def.label, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "bug guts"; }
+                        else if (Regex.IsMatch(flavor.flavorDef.label, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "bug guts"; }
                         else
                         {
                             unfilledString = Regex.Replace(unfilledString, @"(?i)(\{" + i + @"\}) and ", "$1 ");
-                            flavor.def.GetType().GetField(flag).SetValue(flavor.def, unfilledString);
+                            flavor.flavorDef.GetType().GetField(flag).SetValue(flavor.flavorDef, unfilledString);
                             cleanLabel = "bug";
                         }
                         break;
@@ -348,7 +334,7 @@ public class CompFlavor : ThingComp
         {
             try
             {
-                string unfilledString = flavor.def.GetType().GetField(flag).GetValue(flavor.def)
+                string unfilledString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef)
                     .ToString();
                 string format = unfilledString;
                 int num = 0;
@@ -435,9 +421,9 @@ public class CompFlavor : ThingComp
                     while (ingredientsCopy.Count > 0)
                     {
                         List<Thing> ingredientGroup = [];
-                        for (int j = 0; j < MaxNumIngredientsFlavor; j++)
+                        for (int j = 0; j < maxNumIngredientsFlavor; j++)
                         {
-                            pseudo = new Random(CompProperties_Flavor.WorldSeed + pseudo).Next(ingredientsCopy.Count); // get a pseudorandom index that isn't bigger than the ingredients list count
+                            pseudo = new Random(WorldSeed + pseudo).Next(ingredientsCopy.Count); // get a pseudorandom index that isn't bigger than the ingredients list count
                             int indexPseudoRand = (int)Math.Floor((float)pseudo);
                             ingredientGroup.Add(ingredientsCopy[indexPseudoRand]);
                             ingredientsCopy.Remove(ingredientsCopy[indexPseudoRand]);
@@ -471,7 +457,7 @@ public class CompFlavor : ThingComp
                     // sort things by category, then sort meat in a specific order for grammar's sake
                     if (bestFlavors[i] != null)
                     {
-                        finalFlavorDefs.Add(bestFlavors[i].def);
+                        finalFlavorDefs.Add(bestFlavors[i].flavorDef);
                         List<Thing> ingredientGroupSorted = SortIngredientsAndFlavor(bestFlavors[i], ingredientsSplit[i]);
                         List<string> ingredientLabelsForLabel = CleanupIngredientLabels(bestFlavors[i], ingredientGroupSorted, "label");  // change ingredient labels to fit better in the upcoming flavorLabel
                         string flavorLabel = FillInCategories(bestFlavors[i], ingredientLabelsForLabel, "label");  // replace placeholders in the flavor label with the corresponding ingredient in the meal
@@ -488,7 +474,7 @@ public class CompFlavor : ThingComp
                         string flavorDescription = FillInCategories(bestFlavors[i], ingredientLabelsForDescription, "description");  // replace placeholders in the flavor description with the corresponding ingredient in the meal
                         flavorDescription = flavorDescription.EndWithPeriod();
                         Log.Message("Wrote up label");
-                        int pseudo = GenText.StableStringHash(bestFlavors[i].def.defName);
+                        int pseudo = GenText.StableStringHash(bestFlavors[i].flavorDef.defName);
 
                         // first description
                         if (i == 0)
