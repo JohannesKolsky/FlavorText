@@ -1,14 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using Verse;
 
-//TODO: recipe parent hierarchy
-//TODO: stuffCategoriesToAllow?
-//TODO: spreadsheet descriptions are misaligned
-
-
+//--TODO: recipe parent hierarchy
+//--TODO: spreadsheet descriptions are misaligned
 namespace FlavorText;
 
 /// <summary>
@@ -19,30 +17,31 @@ namespace FlavorText;
 public class FlavorDef : RecipeDef
 {
     public int specificity = 0;
-    public override void ResolveReferences()
+
+
+    // set the specificity by seeing how many possible different ingredients could fit into the FlavorDef (fewer is more specific); overlaps are counted
+    public static void SetSpecificities()
     {
-        base.ResolveReferences();
-        // find the specificity by seeing how many different ingredients fit into the meal (fewer is more specific)
-        foreach (IngredientCount ingredient in ingredients)
+        foreach (FlavorDef flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
-            List<string> categories = GetFilterCategories(ingredient.filter);
-            if (categories != null)
+            foreach (IngredientCount ingredient in flavorDef.ingredients)
             {
-                foreach (string categoryString in categories)
+                List<string> categories = flavorDef.GetFilterCategories(ingredient.filter);
+                if (categories != null)
                 {
-                    ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
-                    while (true)
+                    foreach (string categoryString in categories)
                     {
-                        specificity += 1;
-                        if (thingCategoryDef.childCategories.NullOrEmpty() || thingCategoryDef.childCategories.Count == 0) { break; }
-                        thingCategoryDef = thingCategoryDef.childCategories[0];
+                        ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
+                        List<ThingDef> allDefs = thingCategoryDef.DescendantThingDefs.ToList();
+                        allDefs.RemoveDuplicates();
+                        flavorDef.specificity += allDefs.Count();
                     }
+
                 }
-
             }
-        }
 
-        defName = Remove.RemoveDiacritics(defName);
+            flavorDef.defName = Remove.RemoveDiacritics(flavorDef.defName);
+        }
 
     }
 
