@@ -13,7 +13,5 @@ public class FlavorCategoryModExtension : DefModExtension
 
     public List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
 
-    public List<ThingDef> flavorChildThingDefs = [];  // this will be copied to childThingDefs, since ThingCategoryDef's constructor clears childThingDefs
-
-    public List<ThingCategoryDef> flavorSisterCategories = []; // corresponding vanilla ThingCategory; FT_ThingCategories are their own separate tree under Root
+    public List<ThingCategoryDef> flavorSisterCategories = []; // other Categories that correspond to the FT_Category; usually just 1 but more are supported; FT_ThingCategories are their own separate tree under Root
 }

@@ -7,6 +7,10 @@ using Verse;
 
 //--TODO: recipe parent hierarchy
 //--TODO: spreadsheet descriptions are misaligned
+
+//TODO: blank ingredient option
+
+
 namespace FlavorText;
 
 /// <summary>
@@ -26,7 +30,7 @@ public class FlavorDef : RecipeDef
         {
             foreach (IngredientCount ingredient in flavorDef.ingredients)
             {
-                List<string> categories = flavorDef.GetFilterCategories(ingredient.filter);
+                List<string> categories = FlavorDef.GetFilterCategories(ingredient.filter);
                 if (categories != null)
                 {
                     foreach (string categoryString in categories)
@@ -45,7 +49,7 @@ public class FlavorDef : RecipeDef
 
     }
 
-    public List<string> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
+    public static List<string> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
     {
         FieldInfo categories = filter.GetType().GetField("categories", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
         if (categories != null)
@@ -57,7 +61,7 @@ public class FlavorDef : RecipeDef
         return null;
     }
 
-    public List<ThingDef> GetFilterIngredients(ThingFilter filter)  // get all ThingDefs from within the given filter
+    public static List<ThingDef> GetFilterThingDefs(ThingFilter filter)  // get all ThingDefs from within the given filter
     {
         FieldInfo thingDefs = filter.GetType().GetField("thingDefs", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
         if (thingDefs != null)
