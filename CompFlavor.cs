@@ -30,6 +30,8 @@ using static FlavorText.CompProperties_Flavor;
 //--TODO: \n not working in descriptions?
 //--TODO: merging stacks doesn't change the meal name
 //--TODO: merge->pickup erases flavor data (is it because when you merge the one merged in loses all its data?)
+//--TODO: specific meat type overrides (and overrides in general)
+//xxTODO: noun, plural, adj form of each resource (if none given, use regular label); this can then replace all the rearranging with meats and such; cross-reference label and defName to get singular form; cannibal and twisted appear in descriptions
 
 //RELEASE: check for that null bug again
 //RELEASE: check add to game
@@ -41,17 +43,16 @@ using static FlavorText.CompProperties_Flavor;
 //TODO: VegetableGarden: Garden Meats
 //TODO: Vanilla Expanded compat: canned meat -> canned (special case), gourmet meals (condiment is an ingredient), desserts (derived from ResourceBase), etc
 //TODO: baby food is derived from OrganicProductBase
-//TODO: noun, plural, adj form of each resource (if none given, use regular label); this can then replace all the rearranging with meats and such; cross-reference label and defName to get singular form; cannibal and twisted appear in descriptions
 //TODO: generalize meat substitution
 //TODO: meat doesn't get sorted to the front when there's a veggie {Food} in front of it
 //TODO: different eggs don't merge
-//TODO: specific meat type overrides (and overrides in general)
 //TODO: nested rules: sausage --> [sausage] --> [meat] // 3-ingredients -> 2[1]
 //TODO: allow old label to show up in map search
 //TODO: change job string? does this add anything?
 //TODO: RawMeat simplification mod: "raw meat" shows up as "raw"
 //TODO: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
 //TODO: hyperlinks to FlavorDefs
+//TODO: overrides
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
@@ -74,14 +75,8 @@ public class CompFlavor : ThingComp
     private List<Thing> ingredients = [];
     public List<Thing> Ingredients
     {
-        get
-        {
-            return ingredients;
-        }
-        set
-        {
-            ingredients = value;
-        }
+        get => ingredients;
+        set => ingredients = value;
     }
 
     public List<string> flavorLabels = [];
@@ -292,101 +287,61 @@ public class CompFlavor : ThingComp
         return null;
     }
 
-    private List<string> CleanupIngredientLabels(FlavorWithIndices flavor, List<Thing> ingredients, string flag)  // remove unnecessary bits of the ingredient labels, like "meat" and "raw"; may edit flavor label and description strings
+    private string FormatFlavorString(FlavorWithIndices flavor, List<Thing> ingredients, string flag)  // clean up ingredient labels (removing bits like "meat" and "raw"), then replace placehodlers in flavor label/description with the correctly inflected ingredient label
     {
-        string unfilledString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef)
-            .ToString();
-        List<string> ingredientLabels = [];
-        for (int i = 0; i < ingredients.Count; i++)
+        try
         {
-            string cleanLabel = ingredients[i].def.label;
-            cleanLabel = Regex.Replace(cleanLabel, "(?i)([\\b\\- ]meat)|(meat[\\b\\- ])", "");  // remove "meat"
-            cleanLabel = Regex.Replace(cleanLabel, "(?i)([\\b\\- ]raw)|(raw[\\b\\- ])", "");  // remove "raw"
-            cleanLabel = Regex.Replace(cleanLabel, "(?i)([\\b\\- ]fruit)|(fruit[\\b\\- ])", ""); // remove "fruit"
-            foreach (ThingCategoryDef thingCategoryDef in ingredients[i].def.thingCategories)
+            // get label or description depending on "flag"
+            string flavorString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef).ToString();
+            Log.Message($"flavorString is {flavorString}");
+            for (int i = 0; i < ingredients.Count; i++)
             {
-                // all eggs -> "egg"
-                if (thingCategoryDef.defName == "EggsUnfertilized" || thingCategoryDef.defName == "EggsFertilized")
+                // get ingredient inflections and replace placeholders with appropriate inflections
+                Tuple<string, string, string> inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i].def];
+                if (inflections != null)
                 {
-                    cleanLabel = "egg";
+                    string place = i.ToString();  // placeholder #
+                    Log.Message($"place is {place}");
+                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_plur\\}", inflections.Item1);
+                    Log.Message($"flavorString is {flavorString}");
+                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_sing\\}", inflections.Item2);
+                    Log.Message($"flavorString is {flavorString}");
+                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_adj\\}", inflections.Item3);
+                    Log.Message($"flavorString is {flavorString}");
                 }
             }
-
-            // specific replacements for special meats
-            switch (ingredients[i].def.defName)
-            {
-                case "Meat_Twisted":
-                    {
-                        if (flag == "description") { cleanLabel = "twisted flesh"; }  // use full name in description
-                        else if (Regex.IsMatch(unfilledString, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "twisted meat"; }  // if the placeholder isn't in a good adjective spot (end of line, before conjunction, before punctuation)
-                        else
-                        {
-                            unfilledString = Regex.Replace(unfilledString, @"(?i)(\{" + i + @"\}) and ", "$1 ");  // remove any "and" following the placeholder
-                            flavor.flavorDef.GetType().GetField(flag).SetValue(flavor.flavorDef, unfilledString);
-                            cleanLabel = "twisted";
-                        }
-                        break;
-                    }
-
-                case "Meat_Human":
-                    {
-                        if (flag == "description") { cleanLabel = "human meat"; }
-                        else if (Regex.IsMatch(flavor.flavorDef.label, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "long pork"; }
-                        else
-                        {
-                            unfilledString = Regex.Replace(unfilledString, @"(?i)(\{" + i + @"\}) and ", "$1 ");
-                            flavor.flavorDef.GetType().GetField(flag).SetValue(flavor.flavorDef, unfilledString);
-                            cleanLabel = "cannibal";
-                        }
-                        break;
-                    }
-
-                case "Meat_Megaspider":
-                    {
-                        if (flag == "description") { cleanLabel = "bug guts"; }
-                        else if (Regex.IsMatch(flavor.flavorDef.label, @"(?i)\{" + i + @"\}($| with[^a-zA-Z]|[^a-zA-Z ])")) { cleanLabel = "bug guts"; }
-                        else
-                        {
-                            unfilledString = Regex.Replace(unfilledString, @"(?i)(\{" + i + @"\}) and ", "$1 ");
-                            flavor.flavorDef.GetType().GetField(flag).SetValue(flavor.flavorDef, unfilledString);
-                            cleanLabel = "bug";
-                        }
-                        break;
-                    }
-                default: break;
-            }
-            ingredientLabels.Add(cleanLabel);
+            return flavorString;
         }
-        return ingredientLabels;
+        catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); return "FAIL"; }
     }
 
-    private string FillInCategories(FlavorWithIndices flavor, List<string> ingredientLabels, string flag)  // replace placeholder categories with the corresponding ingredient names
-    {
-        if (ingredientLabels != null)
+    /*    private string FillInCategories(FlavorWithIndices flavor, List<string> ingredientLabels, string flag)  // replace placeholder categories with the corresponding ingredient names
         {
-            try
+            if (ingredientLabels != null)
             {
-                string unfilledString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef)
-                    .ToString();
-                string format = unfilledString;
-                int num = 0;
-                object[] array = new object[ingredientLabels.Count];
-                foreach (string ingredientLabel in ingredientLabels)
+                try
                 {
-                    array[num] = ingredientLabel;
-                    num++;
+                    string unfilledString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef)
+                        .ToString();
+                    string format = unfilledString;
+                    int num = 0;
+                    object[] array = new object[ingredientLabels.Count];
+                    foreach (string ingredientLabel in ingredientLabels)
+                    {
+                        array[num] = ingredientLabel;
+                        num++;
+                    }
+                    return string.Format(format, array);  // fill in placeholders; error if labels < placeholders
                 }
-                return string.Format(format, array);  // fill in placeholders; error if labels < placeholders
+                catch (Exception ex)
+                {
+                    Log.Error("Error when filling in ingredient category placeholders. Reason was: " + ex);
+                    return null;
+                }
             }
-            catch (Exception ex)
-            {
-                Log.Error("Error when filling in ingredient category placeholders. Reason was: " + ex);
-                return null;
-            }
-        }
-        Log.Error("List of labels to fill in ingredient category placeholders was null.");
-        return null;
-    }
+            Log.Error("List of labels to fill in ingredient category placeholders was null.");
+            return null;
+        }*/
 
     private List<Thing> SortIngredientsAndFlavor(FlavorWithIndices flavor, List<Thing> ingredientGroup)  // sort ingredients by the flavor indices, then the placeholders, then the indices themselves
     {
@@ -494,13 +449,12 @@ public class CompFlavor : ThingComp
                     {
                         flavorDefs.Add(bestFlavors[i].flavorDef);
                         List<Thing> ingredientGroupSorted = SortIngredientsAndFlavor(bestFlavors[i], ingredientsSplit[i]);
-                        List<string> ingredientLabelsForLabel = CleanupIngredientLabels(bestFlavors[i], ingredientGroupSorted, "label");  // make flavor labels look nicer for main label
-                        string flavorLabel = FillInCategories(bestFlavors[i], ingredientLabelsForLabel, "label");  // replace placeholders in the flavor label with the corresponding ingredient in the meal
+                        string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "label");  // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient in the meal
+                        if (flavorLabel == "FAIL") { fail = true; return; }
                         flavorLabels.Add(flavorLabel);
                         CompileFlavorLabels();
 
-                        List<string> ingredientLabelsForDescription = CleanupIngredientLabels(bestFlavors[i], ingredientGroupSorted, "description");  // make flavor labels look nicer for main description
-                        string flavorDescription = FillInCategories(bestFlavors[i], ingredientLabelsForDescription, "description");  // replace placeholders in the flavor description with the corresponding ingredient in the meal
+                        string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "description");  // make flavor labels look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient in the meal
                         flavorDescriptions.Add(flavorDescription);
                         int pseudo = GenText.StableStringHash(bestFlavors[i].flavorDef.defName);
                         CompileFlavorDescriptions();

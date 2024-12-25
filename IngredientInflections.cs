@@ -1,14 +1,13 @@
-﻿using Verse;
-using System.Collections.Generic;
+﻿using JetBrains.Annotations;
+using Verse;
+using System;
 
 namespace FlavorText;
 
 
 // variations on ingredient names to make labels and descriptions more grammatically correct
-class IngredientInflections : Dictionary<ThingDef, string>
+public class IngredientInflections(string plur, string sing)
 {
-    public ThingDef ingredient;
-    public string singular;
-    public string plural;
-    public string adjective;
+    public string plural = plur;
+    public string singular = sing;
 }
