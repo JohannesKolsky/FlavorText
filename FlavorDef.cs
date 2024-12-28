@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using Verse;
 
 //--TODO: recipe parent hierarchy
@@ -76,25 +74,5 @@ public class FlavorDef : RecipeDef
         }
         Log.Message("Filter contains no ThingDefs or is null.");
         return null;
-    }
-}
-
-public static class Remove  //TODO: add more special chars, like ø
-{
-    public static string RemoveDiacritics(string stIn)
-    {
-        string stFormD = stIn.Normalize(NormalizationForm.FormD);
-        StringBuilder sb = new StringBuilder();
-
-        for (int ich = 0; ich < stFormD.Length; ich++)
-        {
-            UnicodeCategory uc = CharUnicodeInfo.GetUnicodeCategory(stFormD[ich]);
-            if (uc != UnicodeCategory.NonSpacingMark)
-            {
-                sb.Append(stFormD[ich]);
-            }
-        }
-
-        return (sb.ToString().Normalize(NormalizationForm.FormC));
     }
 }

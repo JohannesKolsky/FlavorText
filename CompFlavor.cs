@@ -1,3 +1,4 @@
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,6 +7,7 @@ using System.Text.RegularExpressions;
 using Verse;
 using Verse.Grammar;
 using static FlavorText.CompProperties_Flavor;
+using static Verse.Dialog_InfoCard;
 
 //--TODO: make flavor entries a class
 //--TODO: eggs + eggs makes weird names like omlette w/eggs
@@ -32,16 +34,19 @@ using static FlavorText.CompProperties_Flavor;
 //--TODO: merge->pickup erases flavor data (is it because when you merge the one merged in loses all its data?)
 //--TODO: specific meat type overrides (and overrides in general)
 //xxTODO: noun, plural, adj form of each resource (if none given, use regular label); this can then replace all the rearranging with meats and such; cross-reference label and defName to get singular form; cannibal and twisted appear in descriptions
+//--TODO: Vanilla Expanded compat: canned meat -> canned (special case), gourmet meals (condiment is an ingredient), desserts (derived from ResourceBase), etc
+//--TODO: RawMeat simplification mod: "raw meat" shows up as "raw"
 
 //RELEASE: check for that null bug again
 //RELEASE: check add to game
 //RELEASE: check remove from game
 //RELEASE: check new game
 //RELEASE: check save and reload game
+//RELEASE: check updating FlavorText on save
+//RELEASE: merge bug is happening again
 
 //TODO: options to prevent merging meals
 //TODO: VegetableGarden: Garden Meats
-//TODO: Vanilla Expanded compat: canned meat -> canned (special case), gourmet meals (condiment is an ingredient), desserts (derived from ResourceBase), etc
 //TODO: baby food is derived from OrganicProductBase
 //TODO: generalize meat substitution
 //TODO: meat doesn't get sorted to the front when there's a veggie {Food} in front of it
@@ -49,7 +54,6 @@ using static FlavorText.CompProperties_Flavor;
 //TODO: nested rules: sausage --> [sausage] --> [meat] // 3-ingredients -> 2[1]
 //TODO: allow old label to show up in map search
 //TODO: change job string? does this add anything?
-//TODO: RawMeat simplification mod: "raw meat" shows up as "raw"
 //TODO: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
 //TODO: hyperlinks to FlavorDefs
 //TODO: overrides
@@ -280,7 +284,7 @@ public class CompFlavor : ThingComp
         {
             matchingFlavors.SortByDescending((FlavorWithIndices entry) => entry.flavorDef.specificity);
             foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.flavorDef.label + " = " + entry.flavorDef.specificity); }
-            Log.Warning($"Best flavor was {matchingFlavors.Last().flavorDef.label}");
+            Log.Message($"Best flavor was {matchingFlavors.Last().flavorDef.label}");
             return new FlavorWithIndices(matchingFlavors.Last().flavorDef, matchingFlavors.Last().indices);
         }
         Log.Error("No valid flavorDefs to choose from");
@@ -296,23 +300,40 @@ public class CompFlavor : ThingComp
             Log.Message($"flavorString is {flavorString}");
             for (int i = 0; i < ingredients.Count; i++)
             {
+                Tuple<string, string, string, string> inflections;
                 // get ingredient inflections and replace placeholders with appropriate inflections
-                Tuple<string, string, string> inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i].def];
+                if (ingredients[i].HasComp<CompFlavor>() && ingredients[i].TryGetComp<CompFlavor>().finalFlavorLabel != null)  // if the ingredient has a flavor label use that and try and make a basic singular/adjectival form
+                {
+                    Log.Warning($"Generating new inflections for {ingredients[i].def.label} with Thing label {ingredients[i].Label}:");
+                    string plur = ingredients[i].TryGetComp<CompFlavor>().finalFlavorLabel;
+                    string sing = plur;
+                    sing = Regex.Replace(sing, "ies$", "y");
+                    sing = Regex.Replace(sing, "sses$", "ss");
+                    sing = Regex.Replace(sing, "s$", "");
+                    inflections = Tuple.Create(plur, plur, sing, sing);
+                    Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");
+
+                }
+
+                else  // otherwise use the stored ingredient label
+                {
+                    Log.Warning($"found stored inflections:");
+                    inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i].def];
+                    Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");
+                }
                 if (inflections != null)
                 {
                     string place = i.ToString();  // placeholder #
-                    Log.Message($"place is {place}");
                     flavorString = Regex.Replace(flavorString, "\\{" + place + "_plur\\}", inflections.Item1);
-                    Log.Message($"flavorString is {flavorString}");
-                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_sing\\}", inflections.Item2);
-                    Log.Message($"flavorString is {flavorString}");
-                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_adj\\}", inflections.Item3);
+                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_coll\\}", inflections.Item2);
+                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_sing\\}", inflections.Item3);
+                    flavorString = Regex.Replace(flavorString, "\\{" + place + "_adj\\}", inflections.Item4);
                     Log.Message($"flavorString is {flavorString}");
                 }
             }
             return flavorString;
         }
-        catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); return "FAIL"; }
+        catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); fail = true;  return null; }
     }
 
     /*    private string FillInCategories(FlavorWithIndices flavor, List<string> ingredientLabels, string flag)  // replace placeholder categories with the corresponding ingredient names
@@ -385,21 +406,29 @@ public class CompFlavor : ThingComp
             // if you haven't tried to find a label before, do so
             if (flavorLabels.NullOrEmpty() && fail == false)
             {
-                Log.Message("Getting ingredients");
                 if (Ingredients.Count == 0 || Ingredients == null)
                 {
-                    Log.Warning("Meal has no ingredients, returning original label");
+                    Log.Error("List of ingredients for the meal was empty or null, cancelling the search.");
                     Log.Message(Ingredients);
                     fail = true;
                     return;
                 }
-                Ingredients = [.. Ingredients.OrderBy((Thing ing) => ing, new IngredientComparer())];  // sort the ingredients by category
+                // make a new list of ingredients that are in flavorRoot (default FT_Foods)
+                List<Thing> ingredientsFoods = [];
+                foreach (Thing ingredient in Ingredients)
+                {
+                    if (ThingCategoryDefUtilities.flavorRoot.ContainedInThisOrDescendant(ingredient.def))
+                    {
+                        ingredientsFoods.Add(ingredient);
+                    }
+                }
+                ingredientsFoods = [.. ingredientsFoods.OrderBy((Thing ing) => ing, new IngredientComparer())];  // sort the ingredients by category
 
-                // TODO: simplify this section
+                // TODO: simplify this section so you don't have to use a copy of the ingredients list
                 // divide the ingredients into groups by pseudorandomly pulling ingredients from the ingredient list
-                List<Thing> ingredientsCopy = Ingredients.Select((Thing ingredient) => ingredient).ToList();
+                List<Thing> ingredientsCopy = ingredientsFoods.Select((Thing ingredient) => ingredient).ToList();
                 List<List<Thing>> ingredientsSplit = [];
-                foreach (Thing ing in Ingredients)
+                foreach (Thing ing in ingredientsFoods)
                 {
                     Log.Message($"ing: {ing.Label}");
                 }
@@ -427,15 +456,15 @@ public class CompFlavor : ThingComp
                         ingredientsSplit.Add(ingredientGroup);  // add the group of 3 ingredients (default) to a list of ingredient groups
                     }
                 }
-                Log.Message("Split ingredients into groups");
                 List<FlavorWithIndices> bestFlavors = [];
-                foreach (List<Thing> ingredientGroup in ingredientsSplit)
+                for (int k = 0; k < ingredientsSplit.Count; k++)
                 {
+                    List<Thing> ingredientGroup = ingredientsSplit[k];
                     FlavorWithIndices bestFlavor = AcquireFlavor(ingredientGroup);  // get best Flavor Def from all possible matching Flavor Defs
                     if (bestFlavor == null)
                     {
-                        fail = true;
-                        return;
+                        Log.Error($"AcquireFlavor failed to find a best flavor for the ingredient group with index of {k}, skipping that ingredient group.");
+                        continue;
                     }
                     bestFlavors.Add(bestFlavor);
                 }
@@ -450,33 +479,37 @@ public class CompFlavor : ThingComp
                         flavorDefs.Add(bestFlavors[i].flavorDef);
                         List<Thing> ingredientGroupSorted = SortIngredientsAndFlavor(bestFlavors[i], ingredientsSplit[i]);
                         string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "label");  // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient in the meal
-                        if (flavorLabel == "FAIL") { fail = true; return; }
+                        if (flavorLabel.NullOrEmpty()) { Log.Error($"FormatFlavorString failed to get a formatted flavor label for the ingredient group with index of {i}, skipping that ingredient group."); continue; }
                         flavorLabels.Add(flavorLabel);
-                        CompileFlavorLabels();
 
                         string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "description");  // make flavor labels look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient in the meal
                         flavorDescriptions.Add(flavorDescription);
                         int pseudo = GenText.StableStringHash(bestFlavors[i].flavorDef.defName);
-                        CompileFlavorDescriptions();
 
                     }
                     else
                     {
-                        Log.Error("One of the chosen FlavorDefs is null, skipping.");
+                        Log.Error($"A chosen FlavorDef with index of {i} is null, skipping it and continuing with the rest.");
+                        continue;
                     }
                 }
+                CompileFlavorLabels();
+                CompileFlavorDescriptions();
             }
 
-            // if you failed to find a label, return FAIL so you don't try again later
+            // if you failed to find a label, set fail so you don't try again later
             if (finalFlavorLabel.NullOrEmpty())
             {
+                Log.Error($"The final compiled and formatted flavor label was null or empty, cancelling the search.");
                 fail = true;
+                return;
             }
         }
         catch (Exception e)
         {
-            Log.Error("Encountered an error transforming the label, returning original label. Error was: " + e);
+            Log.Error("Encountered an error transforming the original label to a flavor label, cancelling the search. Error was: " + e);
             fail = true;
+            return;
         }
     }
 
@@ -507,29 +540,36 @@ public class CompFlavor : ThingComp
             for (int j = 0; j < flavorDescriptions.Count; j++)
             {
                 string flavorDescription = "";
-                if (j == 0)  // if it's the 1st description, use the full description
+                if (j == 0)  // if it's the 1st description, use the description
                 {
-                    flavorDescription = flavorDescriptions[j];
+                    flavorDescription = FormatDescription(flavorDescriptions[j]);
+                    stringBuilder.Append(flavorDescription);
                 }
-                else if (j > 0)  // if it's the 2nd+ description, use the label instead and connect it with a side dish connector clause
+                else if (j > 0)  // if it's the 2nd+ description, in a new paragraph, use a side dish connector clause, then the description
                 {
                     RulePackDef sideDishClauses = Props.sideDishClauses;
                     GrammarRequest request = default;
                     if (sideDishClauses != null) { request.Includes.Add(sideDishClauses); }
                     string sideDishText = GrammarResolver.Resolve("sidedish", request);  // get a random connector sentence
-                    flavorDescription = string.Format(sideDishText, flavorLabels[j]);  // place the current flavor description in its placeholder spot within the sentence
-                }
-
-                if (!flavorDescription.NullOrEmpty())
-                {
-                    flavorDescription = flavorDescription.Trim(',', ' ');
-                    flavorDescription = flavorDescription.EndWithPeriod();
-                    flavorDescription = GenText.CapitalizeSentences(flavorDescription);
-                    stringBuilder.AppendWithSeparator(flavorDescription, " ");
+                    string flavorDescriptionConnector = string.Format(sideDishText, flavorLabels[j]);  // place the current flavor label in its placeholder spot within the sentence
+                    flavorDescriptionConnector = FormatDescription(flavorDescriptionConnector);
+                    stringBuilder.AppendWithSeparator(flavorDescriptionConnector, " ");
                 }
             }
             finalFlavorDescription = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
+    }
+
+    private static string FormatDescription(string flavorDescription)
+    {
+        if (!flavorDescription.NullOrEmpty())
+        {
+            flavorDescription = flavorDescription.Trim(',', ' ');
+            flavorDescription = flavorDescription.EndWithPeriod();
+            flavorDescription = GenText.CapitalizeSentences(flavorDescription);
+        }
+
+        return flavorDescription;
     }
 
     // merge 4 flavor variables: Ingredients, label, description, FlavorDefs, then recalculate finalFlavorLabel and finalFlavorDescription
