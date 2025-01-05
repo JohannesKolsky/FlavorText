@@ -18,31 +18,26 @@ namespace FlavorText;
 /// 
 public class FlavorDef : RecipeDef
 {
-    public int specificity = 0;
+    public int specificity;
 
-
-    // set the specificity by seeing how many possible different ingredients could fit into the FlavorDef (fewer is more specific); overlaps are counted
-    public static void SetSpecificities()
+    // about how many possible ingredients could fulfill this FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
+    static public void SetSpecificities()
     {
         foreach (FlavorDef flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
             foreach (IngredientCount ingredient in flavorDef.ingredients)
             {
-                List<string> categories = FlavorDef.GetFilterCategories(ingredient.filter);
+                List<string> categories = GetFilterCategories(ingredient.filter);
                 if (categories != null)
                 {
                     foreach (string categoryString in categories)
                     {
                         ThingCategoryDef thingCategoryDef = DefDatabase<ThingCategoryDef>.GetNamed(categoryString);
-                        List<ThingDef> allDefs = thingCategoryDef.DescendantThingDefs.ToList();
-                        allDefs.RemoveDuplicates();
-                        flavorDef.specificity += allDefs.Count();
+                        flavorDef.specificity += thingCategoryDef.GetModExtension<FlavorCategoryModExtension>().specificity;
                     }
 
                 }
             }
-
-            flavorDef.defName = Remove.RemoveDiacritics(flavorDef.defName);
         }
 
     }

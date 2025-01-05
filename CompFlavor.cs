@@ -1,4 +1,3 @@
-using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +6,6 @@ using System.Text.RegularExpressions;
 using Verse;
 using Verse.Grammar;
 using static FlavorText.CompProperties_Flavor;
-using static Verse.Dialog_InfoCard;
 
 //--TODO: make flavor entries a class
 //--TODO: eggs + eggs makes weird names like omlette w/eggs
@@ -24,7 +22,7 @@ using static Verse.Dialog_InfoCard;
 //--TODO: handle arbitrary # ingredients: give each ingredient ranked-choice of what it matches with; assign most accurate matches first; if ingredients remain run again with remainder; join all final labels together
 //--TODO: swapping an ingredient with another of the same category should result in the same dish; sort by categories, not hash codes
 //--TODO: check if contains parent category
-//-TODO: fish?
+//--TODO: fish?
 //--TODO: flavor descriptions
 //--TODO: buttered "and" is disappearing again X(
 //--TODO: learn RulePacks
@@ -37,13 +35,15 @@ using static Verse.Dialog_InfoCard;
 //--TODO: Vanilla Expanded compat: canned meat -> canned (special case), gourmet meals (condiment is an ingredient), desserts (derived from ResourceBase), etc
 //--TODO: RawMeat simplification mod: "raw meat" shows up as "raw"
 
-//RELEASE: check for that null bug again
-//RELEASE: check add to game
-//RELEASE: check remove from game
-//RELEASE: check new game
-//RELEASE: check save and reload game
-//RELEASE: check updating FlavorText on save
-//RELEASE: merge bug is happening again
+//--RELEASE: check for that null bug again
+//--RELEASE: check add to game
+//--RELEASE: check remove from game  //xxRELEASE: throws error on float menu for new meals until save and reload in vanilla  xx not from FlavorText
+//--RELEASE: check new game
+//--RELEASE: check save and reload game
+//--RELEASE: check updating FlavorText on save
+//--RELEASE: merge bug is happening again
+//--RELEASE: eggs aren't getting into FT_Eggs
+//--RELEASE: update XML files
 
 //TODO: options to prevent merging meals
 //TODO: VegetableGarden: Garden Meats
@@ -57,6 +57,8 @@ using static Verse.Dialog_InfoCard;
 //TODO: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
 //TODO: hyperlinks to FlavorDefs
 //TODO: overrides
+//TODO: CompFlavor only applies to direct child ThingDefs of FoodMeals
+//TODO: trigger GetFlavorText on finding a non-empty ingredients list
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
@@ -91,7 +93,10 @@ public class CompFlavor : ThingComp
 
     public List<FlavorDef> flavorDefs = [];  // final chosen FlavorDef for the meal
 
-    public bool fail = false;
+    public bool fail = false;  // has an attempt been made to find a flavorLabel and failed? if so, don't ever try again
+
+    // should FlavorText apply to this meal? Not everything with a CompFlavor gets FlavorText (yes this is messy, but it's the easiest way atm)
+    public bool HasFlavorText => ThingCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(parent.def);
 
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
@@ -101,7 +106,6 @@ public class CompFlavor : ThingComp
         base.ReceiveCompSignal(signal);
         if (signal == "IngredientsRegistered")
         {
-            Log.Message("getting flavor text...");
             GetFlavorText();
         }
     }
@@ -115,7 +119,7 @@ public class CompFlavor : ThingComp
             return finalFlavorLabel;
         }
         // otherwise return the original label
-        return label;
+        return base.TransformLabel(label);
     }
 
     // if you've successfully created a new flavor label, move the original name down
@@ -134,14 +138,15 @@ public class CompFlavor : ThingComp
     // display the FlavorDef description
     public override string GetDescriptionPart()
     {
-        if (finalFlavorLabel.NullOrEmpty())
+        if (fail == true) { return base.GetDescriptionPart(); }
+        else if (finalFlavorLabel.NullOrEmpty())
         {
-            Log.Error("Could not get FlavorText description because FlavorText label is blank or null");
+            Log.Message("->Could not get FlavorText description because FlavorText label is blank or null");
             return "";
         }
-        if (finalFlavorDescription.NullOrEmpty())
+        else if (finalFlavorDescription.NullOrEmpty())
         {
-            Log.Error("Could not get FlavorText description because FlavorText description is blank or null.");
+            Log.Message("->Could not get FlavorText description because FlavorText description is blank or null.");
             return "";
         }
         return finalFlavorDescription;
@@ -302,25 +307,27 @@ public class CompFlavor : ThingComp
             {
                 Tuple<string, string, string, string> inflections;
                 // get ingredient inflections and replace placeholders with appropriate inflections
-                if (ingredients[i].HasComp<CompFlavor>() && ingredients[i].TryGetComp<CompFlavor>().finalFlavorLabel != null)  // if the ingredient has a flavor label use that and try and make a basic singular/adjectival form
-                {
-                    Log.Warning($"Generating new inflections for {ingredients[i].def.label} with Thing label {ingredients[i].Label}:");
-                    string plur = ingredients[i].TryGetComp<CompFlavor>().finalFlavorLabel;
-                    string sing = plur;
-                    sing = Regex.Replace(sing, "ies$", "y");
-                    sing = Regex.Replace(sing, "sses$", "ss");
-                    sing = Regex.Replace(sing, "s$", "");
-                    inflections = Tuple.Create(plur, plur, sing, sing);
-                    Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");
+                /*                if (ingredients[i].HasComp<CompFlavor>() && ingredients[i].TryGetComp<CompFlavor>().finalFlavorLabel != null)  // if the ingredient has a flavor label use that and try and make a basic singular/adjectival form
+                                {
+                                    Log.Warning($"Generating new inflections for {ingredients[i].def.label} with Thing label {ingredients[i].Label}:");
+                                    string plur = ingredients[i].TryGetComp<CompFlavor>().finalFlavorLabel;
+                                    string sing = plur;
+                                    sing = Regex.Replace(sing, "ies$", "y");
+                                    sing = Regex.Replace(sing, "sses$", "ss");
+                                    sing = Regex.Replace(sing, "s$", "");
+                                    inflections = Tuple.Create(plur, plur, sing, sing);
+                *//*                    Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");*//*
 
-                }
+                                }
 
-                else  // otherwise use the stored ingredient label
-                {
-                    Log.Warning($"found stored inflections:");
-                    inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i].def];
-                    Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");
-                }
+                                else  // otherwise use the stored ingredient label
+                                {
+                                    Log.Warning($"found stored inflections:");
+                                    inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i].def];
+                *//*                    Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");*//*
+                                }*/
+                inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i].def];
+                Log.Message($"plur = {inflections.Item1}"); Log.Message($"coll = {inflections.Item2}"); Log.Message($"sing = {inflections.Item3}"); Log.Message($"adj = {inflections.Item4}");
                 if (inflections != null)
                 {
                     string place = i.ToString();  // placeholder #
@@ -330,10 +337,16 @@ public class CompFlavor : ThingComp
                     flavorString = Regex.Replace(flavorString, "\\{" + place + "_adj\\}", inflections.Item4);
                     Log.Message($"flavorString is {flavorString}");
                 }
+                else
+                {
+                    Log.Error($"Failed to find inflections for {ingredients[i].def.defName} when formatting {flag}, cancelling search.");
+                    fail = true;
+                    return null;
+                }
             }
             return flavorString;
         }
-        catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); fail = true;  return null; }
+        catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); fail = true; return null; }
     }
 
     /*    private string FillInCategories(FlavorWithIndices flavor, List<string> ingredientLabels, string flag)  // replace placeholder categories with the corresponding ingredient names
@@ -403,13 +416,19 @@ public class CompFlavor : ThingComp
                 return;
             }
 
+            if (!HasFlavorText)
+            {
+                Log.Message($"Parent should not receive flavor text, cancelling the search.");
+                fail = true;
+                return;
+            }
+
             // if you haven't tried to find a label before, do so
-            if (flavorLabels.NullOrEmpty() && fail == false)
+            if (flavorLabels.NullOrEmpty())
             {
                 if (Ingredients.Count == 0 || Ingredients == null)
                 {
-                    Log.Error("List of ingredients for the meal was empty or null, cancelling the search.");
-                    Log.Message(Ingredients);
+                    Log.Message("List of ingredients for the meal was empty or null, cancelling the search.");
                     fail = true;
                     return;
                 }
@@ -523,8 +542,10 @@ public class CompFlavor : ThingComp
             for (int j = 0; j < flavorLabels.Count; j++)
             {
                 if (j == 0) { conj = ""; }
-                else if (j == 1) { conj = " with "; }
-                else { conj = " and "; }
+                else
+                {
+                    conj = j == 1 ? " with " : " and ";
+                }
                 stringBuilder.Append(conj + GenText.CapitalizeAsTitle(flavorLabels[j]));
                 /*stringBuilder.AppendInNewLine(GenText.CapitalizeAsTitle(label)); // old label in new line so it shows up in search results but not on the label // TODO: the newline shows up in other places like when a pawn is carrying the meal */
             }
@@ -627,11 +648,7 @@ public class CompFlavor : ThingComp
             foreach (ThingCategoryDef cat in a.def.thingCategories)
             {
                 // if the ingredients share a category, group them and sort them by shortHash
-                if (b.def.thingCategories.Contains(cat))
-                {
-                    return a.def.shortHash.CompareTo(b.def.shortHash);
-                }
-                return a.def.defName.CompareTo(b.def.defName);
+                return b.def.thingCategories.Contains(cat) ? a.def.shortHash.CompareTo(b.def.shortHash) : a.def.defName.CompareTo(b.def.defName);
             }
             Log.Error("Unable to compare some ingredients, missing defName or bad thingCategories");
             return 0;
