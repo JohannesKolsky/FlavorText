@@ -57,6 +57,7 @@ public static class ThingCategoryDefUtilities
         SetCategorySpecificities();  // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
         FlavorDef.SetSpecificities(); // get total specificity for each FlavorDef
         GetIngredientInflections();
+        Debug();
     }
 
     private static void GetIngredientInflections()
@@ -77,32 +78,27 @@ public static class ThingCategoryDefUtilities
 
     static void Debug()
     {
-        /*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
+        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
+        {
+            if (flavorRoot.ContainedInThisOrDescendant(thing))
+            {
+                if (thing.defName.ToLower().Contains("agave"))
                 {
-                    if (flavorRoot.ContainedInThisOrDescendant(thing))
+                    Log.Message($">{thing.defName} is in categories:");
+                    foreach (ThingCategoryDef category in thing.thingCategories)
                     {
-                        if (thing.defName.ToLower().Contains("meal"))
+                        Log.Message($"{category.defName}");
+                    }
+                }
+            }
+            /*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
+                    {
+                        if (thing.HasComp<CompFlavor>() && ThingCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thing))
                         {
-                            Log.Message($">{thing.defName} is in categories:");
-                            foreach (ThingCategoryDef category in thing.thingCategories)
-                            {
-                                Log.Message($"{category.defName}");
-                            }
+                            Log.Warning($">>>{thing.defName} has CompFlavor and is in FT_MealsFlavor");
                         }
                     }*/
-        /*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
-                {
-                    if (thing.HasComp<CompFlavor>() && ThingCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thing))
-                    {
-                        Log.Warning($">>>{thing.defName} has CompFlavor and is in FT_MealsFlavor");
-                    }
-                }*/
-
-
-        var ftEgg = ThingCategoryDef.Named("FT_Egg");
-        Log.Warning($"Found treeNode of FT_Egg as {ftEgg.treeNode}");
-        Log.Warning($"Found parent treeNode of FT_Egg as {ftEgg.treeNode.parentNode}");
-        Log.Warning($"Found parent of FT_Egg as {ftEgg.treeNode.children[0]}");
+        }
     }
 
     // get all FlavorText ThingCategoryDefs under flavorRoot and store them in flavorCategories
@@ -193,9 +189,6 @@ public static class ThingCategoryDefUtilities
         defNames = Regex.Replace(defNames, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words
         defNames = Regex.Replace(defNames, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences
 
-
-        // VCE candy
-        // V
         defNames = defNames.ToLower();
         if (tag) { Log.Message($"defNames = {defNames}"); }
         string[] splitDefNames = defNames.Split(' ');
@@ -212,8 +205,8 @@ public static class ThingCategoryDefUtilities
     // figure out what the best FT_Category is for a ThingDef or ThingCategoryDef; ingredient may already be in it; returns null if no new fitting FT_Category found
     public static ThingCategoryDef NewParentRecursive(List<string> splitNames, Def searchedDef, List<ThingCategoryDef> parentCategories)
     {
-        /*        tag = false;*/
-        /*        if (searchedDef.defName.ToLower().Contains("whiskey")) { tag = true; }*/
+        tag = false;
+        if (searchedDef.defName.ToLower().Contains("agave")) { tag = true; }
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding NewParent for {searchedDef.defName}"); }
         ThingCategoryDef bestFlavorCategory = GetBestFlavorCategory(splitNames, searchedDef, flavorCategories);
 
