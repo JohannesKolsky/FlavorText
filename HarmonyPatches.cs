@@ -16,8 +16,8 @@ public static class HarmonyPatches
         patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", null, null), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", null), null, null);
-/*        harmony.Patch(AccessTools.Method(typeof(ThingComp), "Initialize", null, null), null, new HarmonyMethod(patchType, "InitializePostFix", null), null, null);*/
         harmony.Patch(AccessTools.Method(typeof(CompIngredients), "PostExposeData", null, null), null, new HarmonyMethod(patchType, "CompIngredientsPostExposeDataPostFix", null), null, null);
+/*        harmony.Patch(AccessTools.Method(typeof(DefGenerator), "GenerateImpliedDefs_PreResolve", null, null), null, new HarmonyMethod(patchType, "GenerateImpliedDefs_PreResolvePostFix", null), null, null);*/
     }
 
     // after making a product with CompIngredients, broadcast a signal saying it's done so CompFlavor can do its thing
@@ -47,14 +47,12 @@ public static class HarmonyPatches
         }
     }
 
-/*    // after CompIngredients initializes, broadcast a signal saying it's done
-    public static void InitializePostFix(CompProperties props, ThingComp __instance)
+/*    public static void GenerateImpliedDefs_PreResolvePostFix()
     {
-        Log.Message($"Initialized a ThingComp");
-        if (props.compClass == typeof(CompIngredients))
+        foreach (ThingDef item in DefDatabase<ThingDef>.AllDefs)
         {
-            Log.Error($"Initialized CompIngredients");
-            __instance.parent.BroadcastCompSignal("IngredientsRegistered");
+            if (item.IsWithinCategory(FT_MealsFlavor))
         }
     }*/
+
 }
