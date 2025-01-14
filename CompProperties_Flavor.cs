@@ -8,7 +8,7 @@ public class CompProperties_Flavor : CompProperties
 {
 
     public const int maxNumIngredientsFlavor = 3;  // max number of ingredients used to find flavors, default 3; changing this requires a rewrite
-    public RulePackDef sideDishClauses;
+    public RulePackDef sideDishClauses = RulePackDef.Named("SideDishClauses");
 
     public CompProperties_Flavor()
     {
