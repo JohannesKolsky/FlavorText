@@ -28,6 +28,7 @@ using HarmonyLib;
 //TODO: RC2 Chili peppers are in FT_Foods
 //TODO: condiments shouldn't be a full ingredient (FT_Foods -> FT_FoodRaw)
 //TODO: make patch that adds CompFlavor more precise
+//TODO: sunflower seeds show up as sunflower
 
 namespace FlavorText;
 
@@ -433,7 +434,7 @@ public static class ThingCategoryDefUtilities
             // if ingredient isn't a special def from above, attempt to generate accurate inflections
             else
             {
-                    List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
+                    List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("([aeiouy]sh)es$", "$1"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
 
                     string label = ingredient.label;
                     if (tag) { Log.Warning($">>>starting label is {label}"); }

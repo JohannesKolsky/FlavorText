@@ -57,6 +57,7 @@ using static FlavorText.CompProperties_Flavor;
 //--RELEASE: check updating FlavorText on save
 //--RELEASE: merging vanilla blank with FT meals
 //--RELEASE: vanilla blank meals  --> load from save, name still appears (is this bad?)  xx moot point
+//RELEASE: clean out log messages
 
 //TODO: options to prevent merging meals
 //TODO: baby food is derived from OrganicProductBase
@@ -71,6 +72,7 @@ using static FlavorText.CompProperties_Flavor;
 //TODO: revise fail system
 //TODO: variety matters warnings and errors?
 //TODO: add nutrient paste meals to CompFlavor
+//TODO: meals > than a single stack sent in a drop pod split into 2 stacks, one of which fails to get a flavor name despite keeping its ingredients
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
@@ -167,8 +169,8 @@ public class CompFlavor : ThingComp
     public override void PostExposeData()
     {
         /*        Log.Warning($"PostExposeData for {parent.ThingID}");*/
-/*        base.PostExposeData();
-        Scribe_Values.Look(ref fail, "fail");*/
+        /*        base.PostExposeData();
+                Scribe_Values.Look(ref fail, "fail");*/
 
         /*        Scribe_Collections.Look(ref ingredients, "ingredientsFlavor", LookMode.Def);
                 if (Scribe.mode == LoadSaveMode.PostLoadInit && ingredients.NullOrEmpty())
@@ -185,23 +187,23 @@ public class CompFlavor : ThingComp
                     catch (Exception) { throw; }
                 }*/
 
-/*        Scribe_Collections.Look(ref flavorDefs, "flavorDefs");
-        if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorDefs == null)
-        {
-            flavorDefs = [];
-        }
-        Scribe_Collections.Look(ref flavorLabels, "flavorLabels");
-        if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorLabels == null)
-        {
-            flavorLabels = [];
-        }
-        Scribe_Collections.Look(ref flavorDescriptions, "flavorDescriptions");
-        if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorDescriptions == null)
-        {
-            flavorDescriptions = [];
-        }
-        Scribe_Values.Look(ref finalFlavorLabel, "finalFlavorLabel");
-        Scribe_Values.Look(ref finalFlavorDescription, "finalFlavorDescription");*/
+        /*        Scribe_Collections.Look(ref flavorDefs, "flavorDefs");
+                if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorDefs == null)
+                {
+                    flavorDefs = [];
+                }
+                Scribe_Collections.Look(ref flavorLabels, "flavorLabels");
+                if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorLabels == null)
+                {
+                    flavorLabels = [];
+                }
+                Scribe_Collections.Look(ref flavorDescriptions, "flavorDescriptions");
+                if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorDescriptions == null)
+                {
+                    flavorDescriptions = [];
+                }
+                Scribe_Values.Look(ref finalFlavorLabel, "finalFlavorLabel");
+                Scribe_Values.Look(ref finalFlavorDescription, "finalFlavorDescription");*/
     }
 
 
@@ -337,35 +339,78 @@ public class CompFlavor : ThingComp
         {
             // get label or description depending on "flag"
             string flavorString = flavor.flavorDef.GetType().GetField(flag).GetValue(flavor.flavorDef).ToString();
-            Log.Message($"flavorString is {flavorString}");
 
-            // find placeholders and replace them with appropriate ingredient and inflection
-            List<string> flavorStringSplit = [.. flavorString.Split(' ')];
+            // find placeholders and replace them with the appropriate inflection of the right ingredient
             List<string> temp = [];
             Tuple<string, string, string, string> inflections;
-            for (int i = 0; i < flavorStringSplit.Count; i++)
+            Match placeholder;
+            for (int i = 0; i < ingredients.Count; i++)
             {
-                Match digits = Regex.Match(flavorStringSplit[i], "\\d+");
-                if (digits.Success)
+                inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[i]];
+                while (true)
                 {
-                    int index = int.Parse(digits.Value);
-                    inflections = ThingCategoryDefUtilities.ingredientInflections[ingredients[index]];
-                    Log.Message($"ingredient was {ingredients[index]}");
+                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");
+                    if (placeholder.Success)
+                    {
+                        string inflection = RemoveRepeatedWords(inflections.Item1, placeholder);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_plur\\}", inflection);
+                        continue;
+                    }
+                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_coll\\} *([^ ]*)");
+                    if (placeholder.Success)
+                    {
+                        string inflection = RemoveRepeatedWords(inflections.Item2, placeholder);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_coll\\}", inflection);
+                        continue;
+                    }
+                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_sing\\} *([^ ]*)");
+                    if (placeholder.Success)
+                    {
+                        string inflection = RemoveRepeatedWords(inflections.Item3, placeholder);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_sing\\}", inflection);
+                        continue;
+                    }
 
-                    flavorStringSplit[i] = Regex.Replace(flavorStringSplit[i], "\\{" + index + "_plur\\}", inflections.Item1);
-                    flavorStringSplit[i] = Regex.Replace(flavorStringSplit[i], "\\{" + index + "_coll\\}", inflections.Item2);
-                    flavorStringSplit[i] = Regex.Replace(flavorStringSplit[i], "\\{" + index + "_sing\\}", inflections.Item3);
-                    flavorStringSplit[i] = Regex.Replace(flavorStringSplit[i], "\\{" + index + "_adj\\}", inflections.Item4);
-                }
-
-                // remove words repeated directly after each other
-                if (temp.NullOrEmpty() || Remove.RemoveDiacritics(flavorStringSplit[i]).ToLower() != Remove.RemoveDiacritics(temp.Last()).ToLower())
-                {
-                    temp.Add(flavorStringSplit[i]);
+                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_adj\\} *([^ ]*)");
+                    if (placeholder.Success)
+                    {
+                        string inflection = RemoveRepeatedWords(inflections.Item4, placeholder);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_adj\\}", inflection);
+                        continue;
+                    }
+                    break;
                 }
             }
-            flavorString = string.Join(" ", temp);
+
             return flavorString;
+
+
+            // remove words repeated directly after each other
+            static string RemoveRepeatedWords(string inflection, Match placeholder)
+            {
+                List<string> inflectionSplit = [.. inflection.Split(' ')];
+
+                // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
+                if (placeholder.Groups.Count > 1)
+                {
+                    if (Remove.RemoveDiacritics(placeholder.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit[0]).ToLower())
+                    {
+                        inflectionSplit.RemoveAt(0);
+                    }
+                }
+
+                // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
+                if (placeholder.Groups.Count > 2)
+                {
+                    if (Remove.RemoveDiacritics(placeholder.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit[inflectionSplit.Count - 1]).ToLower())
+                    {
+                        inflectionSplit.RemoveAt(inflectionSplit.Count - 1);
+                    }
+                }
+
+                inflection = string.Join(" ", inflectionSplit);
+                return inflection;
+            }
         }
         catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); fail = true; return null; }
     }
@@ -427,7 +472,7 @@ public class CompFlavor : ThingComp
                     fail = true;
                     return;
                 }
-                // make a new list of ingredients that are in flavorRoot (default FT_Foods)
+                // pull out ingredients that are in flavorRoot (default FT_Foods)
                 List<ThingDef> ingredientsFoods = [];
                 foreach (ThingDef ingredient in Ingredients)
                 {
@@ -436,36 +481,9 @@ public class CompFlavor : ThingComp
                         ingredientsFoods.Add(ingredient);
                     }
                 }
-                ingredientsFoods = [.. ingredientsFoods.OrderBy((ThingDef ing) => ing, new IngredientComparer())];  // sort the ingredients by category
 
-                // TODO: simplify this section so you don't have to use a copy of the ingredients list
-                // divide the ingredients into groups by pseudorandomly pulling ingredients from the ingredient list
-                List<ThingDef> ingredientsCopy = ingredientsFoods.Select((ThingDef ingredient) => ingredient).ToList();
-                List<List<ThingDef>> ingredientsSplit = [];
-                if (ingredientsCopy.Count > 0)
-                {
-                    int pseudo = GenText.StableStringHash(ingredientsCopy[0].defName);
-
-                    // form groups of size 3 (default)
-                    while (ingredientsCopy.Count > 0)
-                    {
-                        List<ThingDef> ingredientGroup = [];
-                        for (int j = 0; j < maxNumIngredientsFlavor; j++)
-                        {
-                            pseudo = new Random(WorldSeed + pseudo).Next(ingredientsCopy.Count); // get a pseudorandom index that isn't bigger than the ingredients list count
-                            int indexPseudoRand = (int)Math.Floor((float)pseudo);
-                            ingredientGroup.Add(ingredientsCopy[indexPseudoRand]);
-                            ingredientsCopy.Remove(ingredientsCopy[indexPseudoRand]);
-
-                            // if you removed the last ingredient but haven't finished the current ingredient group, you're done
-                            if (ingredientsCopy.Count == 0)
-                            {
-                                break;
-                            }
-                        }
-                        ingredientsSplit.Add(ingredientGroup);  // add the group of 3 ingredients (default) to a list of ingredient groups
-                    }
-                }
+                // divide the ingredients into groups of size n and get a flavorDef for each group
+                List<List<ThingDef>> ingredientsSplit = DivideIntoChunks(Ingredients, maxNumIngredientsFlavor);
                 List<FlavorWithIndices> bestFlavors = [];
                 for (int k = 0; k < ingredientsSplit.Count; k++)
                 {
@@ -494,7 +512,6 @@ public class CompFlavor : ThingComp
 
                         string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "description");  // make flavor labels look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient in the meal
                         flavorDescriptions.Add(flavorDescription);
-                        int pseudo = GenText.StableStringHash(bestFlavors[i].flavorDef.defName);
 
                     }
                     else
@@ -523,6 +540,14 @@ public class CompFlavor : ThingComp
         }
     }
 
+    List<List<T>> DivideIntoChunks<T>(IList<T> source, int length)
+    {
+        return Enumerable
+            .Range(0, (source.Count + length - 1) / length)
+            .Select(n => source.Skip(n * length).Take(length).ToList())
+            .ToList();
+    }
+
     private void CompileFlavorLabels()
     {
         // compile the flavor labels into one long displayed flavor label
@@ -548,21 +573,23 @@ public class CompFlavor : ThingComp
             for (int j = 0; j < flavorDescriptions.Count; j++)
             {
                 string flavorDescription = "";
-                if (j == 0)  // if it's the 1st description, use the description
+
+                if (j == 0)  // if it's the first description, just use the description
                 {
                     flavorDescription = FormatDescription(flavorDescriptions[j]);
                     stringBuilder.Append(flavorDescription);
                 }
-                else if (j > 0)  // if it's the 2nd+ description, in a new paragraph, use a side dish connector clause, then the description
+                if (j > 0)  // if it's the 2nd+ description, in a new paragraph, use a side dish connector clause with the label, then the description
                 {
-                    RulePackDef sideDishClauses = Props.sideDishClauses;
+                    RulePackDef sideDishClauses = RulePackDef.Named("SideDishClauses");
                     GrammarRequest request = default;
                     if (sideDishClauses != null) { request.Includes.Add(sideDishClauses); }
                     string sideDishText = GrammarResolver.Resolve("sidedish", request);  // get a random connector sentence
-                    string flavorDescriptionConnector = string.Format(sideDishText, flavorLabels[j]);  // place the current flavor label in its placeholder spot within the sentence
-                    flavorDescriptionConnector = FormatDescription(flavorDescriptionConnector);
-                    stringBuilder.AppendWithSeparator(flavorDescriptionConnector, " ");
+                    sideDishText = string.Format(sideDishText, flavorLabels[j], flavorDescriptions[j]);  // place the current flavor label and descriptions in their placeholder spots within the sentence
+                    sideDishText = FormatDescription(sideDishText);
+                    stringBuilder.AppendWithSeparator(sideDishText, "\n\n");
                 }
+
             }
             finalFlavorDescription = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
@@ -595,25 +622,25 @@ public class CompFlavor : ThingComp
             fail = false;
             GetFlavorText();
 
-/*
-            if (otherCompFlavor.fail == false) { fail = false; }
+            /*
+                        if (otherCompFlavor.fail == false) { fail = false; }
 
-            foreach (FlavorDef otherFlavorDef in otherCompFlavor.flavorDefs)
-            {
-                if (!flavorDefs.Contains(otherFlavorDef)) { flavorDefs.Add(otherFlavorDef); }
-            }
+                        foreach (FlavorDef otherFlavorDef in otherCompFlavor.flavorDefs)
+                        {
+                            if (!flavorDefs.Contains(otherFlavorDef)) { flavorDefs.Add(otherFlavorDef); }
+                        }
 
-            for (int i = 0; i < otherCompFlavor.flavorLabels.Count; i++)
-            {
-                string otherFlavorLabel = otherCompFlavor.flavorLabels[i];
-                if (!flavorLabels.Contains(otherFlavorLabel))
-                {
-                    flavorLabels.Prepend(otherFlavorLabel);
-                    flavorDescriptions.Prepend(otherCompFlavor.flavorDescriptions[i]);
-                }
-            }
-            CompileFlavorLabels();
-            CompileFlavorDescriptions();*/
+                        for (int i = 0; i < otherCompFlavor.flavorLabels.Count; i++)
+                        {
+                            string otherFlavorLabel = otherCompFlavor.flavorLabels[i];
+                            if (!flavorLabels.Contains(otherFlavorLabel))
+                            {
+                                flavorLabels.Prepend(otherFlavorLabel);
+                                flavorDescriptions.Prepend(otherCompFlavor.flavorDescriptions[i]);
+                            }
+                        }
+                        CompileFlavorLabels();
+                        CompileFlavorDescriptions();*/
 
         }
         catch (Exception e) { Log.Error($"Failed to merge stacks properly, reason: {e}"); }
