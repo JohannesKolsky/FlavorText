@@ -13,7 +13,7 @@ namespace FlavorText;
 
 /// <summary>
 ///     Effectively recipes
-///     show what combination of ingredients/categories are needed for each particular name
+///     show what combination of ingredients/categories are needed for each particular flavor label
 /// </summary>
 /// 
 public class FlavorDef : RecipeDef
