@@ -29,12 +29,8 @@ public static class HarmonyPatches
             {
 /*                product.TryGetComp<CompFlavor>().Ingredients = (from Thing thing in ingredients select thing.def).ToList();*/
                 product.TryGetComp<CompFlavor>().parent.BroadcastCompSignal("IngredientsRegistered");
-                yield return product;
             }
-            else
-            {
-                yield return product;
-            }
+            yield return product;
         }
     }
 
