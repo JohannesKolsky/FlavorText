@@ -22,12 +22,12 @@ using HarmonyLib;
 //--TODO: VGP defNames are sing: bean, lentil, beet
 //xxTODO: if an ingredient has subingredients, use the subingredients instead of the main ingredient (VCE canned stuff, GAB pickled stuff, meals, etc)
 //--RELEASE: Flavor Text is still showing up in bills
+//--TODO: make patch that adds CompFlavor more precise
 
 //TODO: allow for adding multiple FT_Categories at a time?
 //TODO: VGE watermelon is in candy
 //TODO: RC2 Chili peppers are in FT_Foods
 //TODO: condiments shouldn't be a full ingredient (FT_Foods -> FT_FoodRaw)
-//TODO: make patch that adds CompFlavor more precise
 //TODO: sunflower seeds show up as sunflower
 
 namespace FlavorText;
@@ -56,7 +56,7 @@ public static class ThingCategoryDefUtilities
         SetCategorySpecificities();  // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
         FlavorDef.SetSpecificities(); // get total specificity for each FlavorDef
         GetIngredientInflections();
-        Debug();
+/*        Debug();*/
     }
 
     private static void GetIngredientInflections()
@@ -75,9 +75,9 @@ public static class ThingCategoryDefUtilities
         }
     }
 
-    static void Debug()
+/*    static void Debug()
     {
-/*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
+        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
         {
             if (flavorRoot.ContainedInThisOrDescendant(thing))
             {
@@ -97,8 +97,8 @@ public static class ThingCategoryDefUtilities
                     Log.Warning($">>>{thing.defName} has CompFlavor and is in FT_MealsFlavor");
                 }
             }
-        }*/
-    }
+        }
+    }*/
 
     // get all FlavorText ThingCategoryDefs under flavorRoot and store them in flavorCategories
     public static void CompileCategories()
@@ -152,9 +152,10 @@ public static class ThingCategoryDefUtilities
         }
 
         // if it's in FT_FoodMeals, give it a CompFlavor
+        //TODO: this picks up RC2_JoyDrinks atm
         static ThingCategoryDef AddCompFlavor(ThingDef ingredient, List<string> splitNames, ThingCategoryDef newParent)
         {
-            if (newParent == ThingCategoryDef.Named("FT_FoodMeals"))
+            if (newParent == ThingCategoryDef.Named("FT_FoodMeals") || newParent.Parents.Contains(ThingCategoryDef.Named("FT_FoodMeals")))
             {
                 if (tag) { Log.Message($"Testing if {ingredient.defName} fits in MealsFlavor"); foreach (string name in splitNames) { Log.Message(name); } }
                 ThingCategoryDef mealsFlavor = ThingCategoryDef.Named("FT_MealsFlavor");

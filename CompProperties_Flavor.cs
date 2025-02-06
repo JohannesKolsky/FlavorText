@@ -15,7 +15,7 @@ public class CompProperties_Flavor : CompProperties
     }
 
     // all FlavorDefs
-    public static List<FlavorDef> FlavorDefs
+    public static List<FlavorDef> AllFlavorDefsList
     {
         get
         {
