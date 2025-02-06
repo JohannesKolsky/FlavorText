@@ -16,7 +16,7 @@ public static class HarmonyPatches
         patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", null, null), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", null), null, null);
-        harmony.Patch(AccessTools.Method(typeof(CompIngredients), "PostExposeData", null, null), null, new HarmonyMethod(patchType, "CompIngredientsPostExposeDataPostFix", null), null, null);
+/*        harmony.Patch(AccessTools.Method(typeof(CompIngredients), "PostExposeData", null, null), null, new HarmonyMethod(patchType, "CompIngredientsPostExposeDataPostFix", null), null, null);*/
 /*        harmony.Patch(AccessTools.Method(typeof(DefGenerator), "GenerateImpliedDefs_PreResolve", null, null), null, new HarmonyMethod(patchType, "GenerateImpliedDefs_PreResolvePostFix", null), null, null);*/
     }
 
@@ -34,14 +34,15 @@ public static class HarmonyPatches
         }
     }
 
-    // after loading CompIngredients from save, broadcast a signal saying it's done loading so CompFlavor can do its thing
+/*    // after loading CompIngredients from save, broadcast a signal saying it's done loading so CompFlavor can do its thing
     public static void CompIngredientsPostExposeDataPostFix(CompIngredients __instance)
     {
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
+            Log.Error("CompIngredientsPostExposeDataPostFix");
             __instance.parent.BroadcastCompSignal("IngredientsRegistered");
         }
-    }
+    }*/
 
 /*    public static void GenerateImpliedDefs_PreResolvePostFix()
     {
