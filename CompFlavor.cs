@@ -200,7 +200,7 @@ public class CompFlavor : ThingComp
         List<FlavorWithIndices> matchingFlavors = [];
         foreach (FlavorDef flavorDef in flavorDefsToSearch)
         {
-            FlavorWithIndices matchingFlavor = IsMatchingFlavor(ingredientsToSearchFor, flavorDef);
+            FlavorWithIndices matchingFlavor = CheckIfFlavorMatches(ingredientsToSearchFor, flavorDef);
             if (matchingFlavor != null && matchingFlavor.indices.Count == ingredientsToSearchFor.Count)
             {
                 matchingFlavors.Add(matchingFlavor);
@@ -223,23 +223,22 @@ public class CompFlavor : ThingComp
         return null;
     }
 
-    private FlavorWithIndices IsMatchingFlavor(List<ThingDef> ingredientsToSearchFor, FlavorDef flavorDef)  // check if all the ingredients match the given FlavorDef
+    private FlavorWithIndices CheckIfFlavorMatches(List<ThingDef> ingredientsToSearchFor, FlavorDef flavorDef)  // check if all the ingredients match the given FlavorDef
     {
-        FlavorWithIndices matchingFlavor = new(flavorDef, [])
+        FlavorWithIndices matchingFlavor = new(flavorDef, []) {flavorDef = flavorDef};
+
+        if (ingredientsToSearchFor.Count != matchingFlavor.flavorDef.ingredients.Count) { return null; }  // if flavorDef length doesn't match ingredient list length, cancel
+        if (!ingredientsToSearchFor.All(flavorDef.lowestCommonIngredientCategory.ContainedInThisOrDescendant)) { return null; }  // if ingredients aren't wholly contained within the FlavorDefs lowest common category of ingredients, cancel
+        
+        for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check each ingredient you're searching for with the FlavorDef
         {
-            flavorDef = flavorDef
-        };
-        if (ingredientsToSearchFor.Count == matchingFlavor.flavorDef.ingredients.Count)  // FlavorDef recipe must be same # ingredients as meal
-        {
-            for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check each ingredient you're searching for with the FlavorDef
-            {
-                matchingFlavor = BestIngredientMatch(ingredientsToSearchFor[i], matchingFlavor);  // see if the ingredient fits and if it does, find the most specific match
-            }
-            if (!matchingFlavor.indices.Contains(-1)) // the FlavorDef matches completely return it
-            {
-                return matchingFlavor;
-            }
+            matchingFlavor = BestIngredientMatch(ingredientsToSearchFor[i], matchingFlavor);  // see if the ingredient fits and if it does, find the most specific match
         }
+        if (!matchingFlavor.indices.Contains(-1)) // the FlavorDef matches completely return it
+        {
+            return matchingFlavor;
+        }
+        
         return null;
     }
 
