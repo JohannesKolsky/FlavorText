@@ -54,7 +54,7 @@ public static class ThingCategoryDefUtilities
         AssignToFlavorCategories();  // assign all relevant ThingsDefs to a FlavorText ThingCategoryDef
         DefDatabase<ThingCategoryDef>.ResolveAllReferences();
         SetCategorySpecificities();  // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
-        FlavorDef.SetSpecificities(); // get total specificity for each FlavorDef
+        FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         GetIngredientInflections();
 /*        Debug();*/
     }
