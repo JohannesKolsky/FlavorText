@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using RimWorld;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Verse;
@@ -20,7 +21,7 @@ public class FlavorDef : RecipeDef
 {
     public int specificity;  // about how many possible ingredients could fulfill this FlavorDef?
 
-    public ThingCategoryDef lowestCommonIngredientCategory = ThingCategoryDefUtilities.flavorRoot;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
+    public ThingCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
 
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
@@ -32,7 +33,7 @@ public class FlavorDef : RecipeDef
             List<ThingCategoryDef> allCategoriesInDef = [];
             foreach (IngredientCount ingredient in flavorDef.ingredients)
             {
-                List<ThingCategoryDef> categories = (from string categoryString in GetFilterCategories(ingredient.filter) select DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
+                List<ThingCategoryDef> categories = GetFilterCategories(ingredient.filter);
                 allCategoriesInDef.AddRange(categories);
                 foreach (ThingCategoryDef category in categories)
                 {
@@ -41,17 +42,19 @@ public class FlavorDef : RecipeDef
             }
 
             // calculate the lowest category containing all the ingredients in the FlavorDef
+            flavorDef.lowestCommonIngredientCategory = ThingCategoryDefUtilities.flavorRoot;
             var allCategoriesInDefParents = (from ThingCategoryDef category in allCategoriesInDef select category.Parents.ToList()).ToList();
             if (!allCategoriesInDefParents.NullOrEmpty())
             {
+                int min = (from List<ThingCategoryDef> parents in allCategoriesInDefParents select parents.Count).Min();
                 var first = allCategoriesInDefParents[0];
-                for (int i = 0; ; i++)
+                for (int i = 0; i < min; i++)
                 {
                     // if the current index (going from last to first) has the same value in each list, that's the current lowest common category
                     // if not, you're done searching and the previous stored common category is the ultimate lowest
-                    if (allCategoriesInDefParents.All(cat => cat[cat.Count - i] == first[first.Count - i]))
+                    if (allCategoriesInDefParents.All(cat => cat[cat.Count - 1 - i] == first[first.Count - 1 - i]))
                     {
-                        flavorDef.lowestCommonIngredientCategory = first[first.Count - i];
+                        flavorDef.lowestCommonIngredientCategory = first[first.Count - 1 - i];
                         continue;
                     }
                     break;
@@ -60,12 +63,12 @@ public class FlavorDef : RecipeDef
         }
     }
 
-    public static List<string> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
+    public static List<ThingCategoryDef> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
     {
         FieldInfo categories = filter.GetType().GetField("categories", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
         if (categories != null)
         {
-            List<string> categoriesList = (List<string>)categories.GetValue(filter);  // knowing its type, find the field value in filter
+            List<ThingCategoryDef> categoriesList = (from string categoryString in (List<string>)categories.GetValue(filter) select DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
             return categoriesList;
         }
         Log.Message("filter contains no ThingCategoryDefs");
