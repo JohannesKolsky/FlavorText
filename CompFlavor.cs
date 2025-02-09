@@ -253,36 +253,37 @@ public class CompFlavor : ThingComp
                 continue;
             }
             ThingFilter filter = matchingFlavor.flavorDef.ingredients[j].filter;
-            List<string> categories = FlavorDef.GetFilterCategories(filter);
+            List<ThingCategoryDef> categories = FlavorDef.GetFilterCategories(filter);
             if (categories != null)
             {
                 filter.ResolveReferences();  // TODO: find a way to get rid of this
             }
-            if (!matchingFlavor.flavorDef.ingredients[j].filter.Allows(ingredient))
-            {
-                continue;
-            }
 
-            // if you matched with a fixed ingredient, that's the best
-            if (matchingFlavor.flavorDef.ingredients[j].IsFixedIngredient)
+            // make a list of the categories and all parents of the categories
+            List<ThingCategoryDef> thisAndParentCategories = [];
+            foreach (ThingCategoryDef category in categories)
             {
-                lowestIndex = j;
-                break;
+                thisAndParentCategories.Add(category);
+                thisAndParentCategories.AddRange(category.Parents);
             }
-            if (lowestIndex != -1)
+            // if a category in categories is present in the parent categories of the ingredient, it fits; calculate its specificity
+            if (categories.Intersect(thisAndParentCategories).Count() > 0)
             {
-                // if the current FlavorDef ingredient is the most specific so far, mark its index
-                if (matchingFlavor.flavorDef.ingredients[j].filter.AllowedDefCount < matchingFlavor.flavorDef.ingredients[lowestIndex].filter.AllowedDefCount)
+                if (lowestIndex != -1)
                 {
-/*                    Log.Message("found new best ingredient " + matchingFlavor.flavorDef.ingredients[j]);*/
+                    // if the current FlavorDef ingredient is the most specific so far, mark its index
+                    if (matchingFlavor.flavorDef.ingredients[j].filter.AllowedDefCount < matchingFlavor.flavorDef.ingredients[lowestIndex].filter.AllowedDefCount)
+                    {
+                        /*                    Log.Message("found new best ingredient " + matchingFlavor.flavorDef.ingredients[j]);*/
+                        lowestIndex = j;
+                    }
+                }
+
+                // if this is the first match, mark the index
+                else
+                {
                     lowestIndex = j;
                 }
-            }
-
-            // if this is the first match, mark the index
-            else
-            {
-                lowestIndex = j;
             }
         }
         matchingFlavor.indices.Add(lowestIndex);
