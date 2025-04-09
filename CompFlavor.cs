@@ -2,6 +2,7 @@ using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
@@ -42,6 +43,8 @@ using static FlavorText.CompProperties_Flavor;
 //--TODO: CompFlavor only applies to direct child ThingDefs of FoodMeals
 //--TODO: meals > than a single stack sent in a drop pod split into 2 stacks, one of which fails to get a flavor name despite keeping its ingredients
 //--TODO: pawn spawned with meals, those meals don't get flavor text until save and reload
+//--TODO: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
+//--TODO: no compFlavor for nutrient paste meals for now
 
 //--RELEASE: side dish clauses isn't working
 //--RELEASE: check for that null bug again
@@ -53,6 +56,11 @@ using static FlavorText.CompProperties_Flavor;
 //--RELEASE: vanilla blank meals  --> load from save, name still appears (is this bad?)  xx moot point
 //--RELEASE: when CommonSense random ingredients is enabled, random ingredients are added to cooked meals; prob caused by interference of Harmony MakeThing PostFixes
 //--RELEASE: merging vanilla blank with FT meals
+//--TODO: chicken twisted sausage: wrong meat order
+//--TODO: baby food is derived from OrganicProductBase
+//xxTODO: change job string? does this add anything?  // xx doesn't jive with hourOfDay
+//--TODO: allow old label to show up in map search
+//--TODO: overrides
 
 
 //--RELEASE: build as release build
@@ -69,21 +77,15 @@ using static FlavorText.CompProperties_Flavor;
 //--RELEASE: disable log messages
 //RELEASE: check startup impact
 //--RELEASE: check gameplay impact
+//--TODO: meat doesn't get sorted to the front when there's a veggie {Food} in front of it
 
 
 //TODO: options to prevent merging meals
-//TODO: baby food is derived from OrganicProductBase
-//TODO: meat doesn't get sorted to the front when there's a veggie {Food} in front of it
-//TODO: chicken twisted sausage: wrong meat order
-//TODO: nested rules: sausage --> [sausage] --> [meat] // 3-ingredients -> 2[1]
-//TODO: allow old label to show up in map search
-//TODO: change job string? does this add anything?
-//TODO: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
 //TODO: hyperlinks to FlavorDefs
-//TODO: overrides
 //TODO: revise fail system
 //TODO: variety matters warnings and errors?
-//TODO: no compFlavor for nutrient paste meals for now
+//TODO: full labels in flavor descriptions (inc eggs)
+//TODO: condiments shouldn't be a full ingredient (FT_Foods -> FT_FoodRaw)
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
@@ -113,7 +115,7 @@ public class CompFlavor : ThingComp
                 .Select(i => i)
                 .OrderBy(def => def.defName)
                 .ToList();
-/*            for (int i = 0; i < ingredientsSorted.Count; i++) { Log.Message($"CompIngredient slot {i} contains {ingredientsSorted[i]}"); }*/
+            /*            for (int i = 0; i < ingredientsSorted.Count; i++) { Log.Message($"CompIngredient slot {i} contains {ingredientsSorted[i]}"); }*/
             return ingredientsSorted;
         }
     }
@@ -126,12 +128,27 @@ public class CompFlavor : ThingComp
 
     public List<FlavorDef> flavorDefs = [];  // final chosen FlavorDefs for the meal
 
+    public ThingDef cookingStation;  // which station this meal was cooked on
+
+    public int hourOfDay;  // what hour of the day this meal was completed
+
+    public List<string> tags = [];
+
     public bool fail = false;  // has an attempt been made to find a flavorLabel and failed? if so, don't ever try again
 
     // should FlavorText apply to this meal? Not everything with a CompFlavor gets FlavorText (yes this is messy, but it's the easiest way atm)
     public bool HasFlavorText => parent.HasComp<CompFlavor>();
 
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
+
+    // after spawning on the map, get flavor text
+    public override void PostSpawnSetup(bool respawningAfterLoad)
+    {
+        base.PostSpawnSetup(respawningAfterLoad);
+        try { GetFlavorText(AllFlavorDefsList(parent.def).ToList()); }
+        catch (NullReferenceException ex) { Log.Error($"Error finding a valid FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}, cancelling the search. Error: {ex}"); }
+        
+    }
 
     // if there's a flavor label made, transform the original meal label into it
     public override string TransformLabel(string label)
@@ -141,7 +158,7 @@ public class CompFlavor : ThingComp
         {
             if (!finalFlavorLabel.NullOrEmpty())
             {
-/*                Log.Message($"finalFlavorLabel is {finalFlavorLabel}");*/
+                /*                Log.Message($"finalFlavorLabel is {finalFlavorLabel}");*/
                 return $"{finalFlavorLabel} ({parent.def.label})";
             }
         }
@@ -222,27 +239,22 @@ public class CompFlavor : ThingComp
         {
             return flavor;
         }
-        Log.Error("No matching FlavorDefs found.");
-        return null;
+        Log.Error($"No matching FlavorDefs found for meal {parent.ThingID}.");
+        throw new NullReferenceException();
     }
 
     private FlavorWithIndices CheckIfFlavorMatches(List<ThingDef> ingredientsToSearchFor, FlavorDef flavorDef)  // check if all the ingredients match the given FlavorDef
     {
-        FlavorWithIndices matchingFlavor = new(flavorDef, []) {flavorDef = flavorDef};
+        FlavorWithIndices matchingFlavor = new(flavorDef, []) { flavorDef = flavorDef };
 
         if (ingredientsToSearchFor.Count != matchingFlavor.flavorDef.ingredients.Count) { return null; }  // if flavorDef length doesn't match ingredient list length, cancel
         if (!ingredientsToSearchFor.All(flavorDef.lowestCommonIngredientCategory.ContainedInThisOrDescendant)) { return null; }  // if ingredients aren't wholly contained within the FlavorDefs lowest common category of ingredients, cancel
-        
+
         for (int i = 0; i < ingredientsToSearchFor.Count; i++) // check each ingredient you're searching for with the FlavorDef
         {
             matchingFlavor = BestIngredientMatch(ingredientsToSearchFor[i], matchingFlavor);  // see if the ingredient fits and if it does, find the most specific match
         }
-        if (!matchingFlavor.indices.Contains(-1)) // if the FlavorDef matches completely return it
-        {
-            return matchingFlavor;
-        }
-        
-        return null;
+        return !matchingFlavor.indices.Contains(-1) ? matchingFlavor : null;
     }
 
     private FlavorWithIndices BestIngredientMatch(ThingDef ingredient, FlavorWithIndices matchingFlavor)  // find the best match for the current single ingredient in the current FlavorDef
@@ -258,13 +270,13 @@ public class CompFlavor : ThingComp
             ThingFilter filter = matchingFlavor.flavorDef.ingredients[j].filter;
             List<ThingCategoryDef> categories = FlavorDef.GetFilterCategories(filter, "categories");
             List<ThingCategoryDef> disallowedCategories = FlavorDef.GetFilterCategories(filter, "disallowedCategories");
-            
+
             filter.ResolveReferences();  // TODO: find a way to get rid of this
 
             // if a parent category of the ingredient is present in "disallowedCategories" or a child of that, it doesn't fit; skip the category
             if (disallowedCategories.Any(cat => cat.ThisAndChildCategoryDefs.Intersect(ingredient.thingCategories).Count() > 0))
             {
-/*                Log.Message($"Ingredient {ingredient} in {matchingFlavor.flavorDef.defName} is disallowed");*/
+                /*                Log.Message($"Ingredient {ingredient} in {matchingFlavor.flavorDef.defName} is disallowed");*/
                 continue;
             }
 
@@ -277,7 +289,7 @@ public class CompFlavor : ThingComp
                     // if the current FlavorDef ingredient is the most specific so far, mark its index
                     if (matchingFlavor.flavorDef.ingredients[j].filter.AllowedDefCount < matchingFlavor.flavorDef.ingredients[lowestIndex].filter.AllowedDefCount)
                     {
-/*                        Log.Message($"found new best category match {matchingFlavor.flavorDef.ingredients[j]} for {ingredient} in {matchingFlavor.flavorDef.defName}");*/
+                        /*                        Log.Message($"found new best category match {matchingFlavor.flavorDef.ingredients[j]} for {ingredient} in {matchingFlavor.flavorDef.defName}");*/
                         lowestIndex = j;
                     }
                 }
@@ -285,7 +297,7 @@ public class CompFlavor : ThingComp
                 // if this is the first match, mark the index
                 else
                 {
-/*                    Log.Message($"found first category match {matchingFlavor.flavorDef.ingredients[j]} for {ingredient} in {matchingFlavor.flavorDef.defName}");*/
+                    /*                    Log.Message($"found first category match {matchingFlavor.flavorDef.ingredients[j]} for {ingredient} in {matchingFlavor.flavorDef.defName}");*/
                     lowestIndex = j;
                 }
             }
@@ -298,10 +310,24 @@ public class CompFlavor : ThingComp
     {
         if (!matchingFlavors.NullOrEmpty())
         {
-            matchingFlavors.SortByDescending((FlavorWithIndices entry) => entry.flavorDef.specificity);
-/*            foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.flavorDef.label + " = " + entry.flavorDef.specificity); }
-            Log.Message($"Best flavor was {matchingFlavors.Last().flavorDef.label}");*/
-            return new FlavorWithIndices(matchingFlavors.Last().flavorDef, matchingFlavors.Last().indices);
+            matchingFlavors.SortBy((FlavorWithIndices entry) => entry.flavorDef.specificity);
+            /*            foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.flavorDef.label + " = " + entry.flavorDef.specificity); }*/
+            for (int i = 0; i < matchingFlavors.Count(); i++)
+            {
+                var flavorDef = matchingFlavors[i].flavorDef;
+                if (!flavorDef.cookingStations.NullOrEmpty() && !flavorDef.cookingStations.Any(c => c.ContainedInThisOrDescendant(cookingStation)))  // if wrong cooking station, skip
+                {
+                    /*                    Log.Warning($"cooking station {flavorDef.cookingStations[0]} failed for {flavorDef.defName} because you are using {cookingStation.defName}");*/
+                    continue;
+                }
+                if (!flavorDef.hoursOfDay.Equals(new IntRange(0, 24)) && (flavorDef.hoursOfDay.min > hourOfDay || hourOfDay > flavorDef.hoursOfDay.max))  // if wrong time, skip
+                {
+                    /*                    Log.Warning($"wrong time of day: range from {flavorDef.hoursOfDay.min} to {flavorDef.hoursOfDay.max}, while the time now is {hourOfDay}");*/
+                    continue;
+                }
+                /*                Log.Message($"best flavor was {flavorDef.defName}");*/
+                return new FlavorWithIndices(flavorDef, matchingFlavors[i].indices);  // choose the current FlavorDef as the best
+            }
         }
         Log.Error("No valid flavorDefs to choose from");
         return null;
@@ -389,11 +415,13 @@ public class CompFlavor : ThingComp
         catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); fail = true; return null; }
     }
 
-    private List<ThingDef> SortIngredientsAndFlavor(FlavorWithIndices flavor, List<ThingDef> ingredientGroup)  // sort ingredients by the flavor indices, then the placeholders, then the indices themselves
+    private List<ThingDef> SortIngredientsAndFlavor(FlavorWithIndices flavor, List<ThingDef> ingredientGroup)  // sort ingredients by the flavor indices and rearrange meats so the label flows better
     {
         // sort everything by flavor indices (ascending)
         ingredientGroup = [.. ingredientGroup.OrderBy((ThingDef ing) => flavor.indices[ingredientGroup.IndexOf(ing)])];  // sort ingredients by indices
         flavor.indices.Sort();  // sort indices 0-n
+
+        // rearrange meat so special meats like human and twisted are in front and get the adjective forms (usually)
         List<ThingDef> meat = [];
         List<int> meatIndices = [];
         for (int i = 0; i < ingredientGroup.Count; i++)
@@ -406,117 +434,114 @@ public class CompFlavor : ThingComp
         }
         if (meat.Count > 1)
         {
-            meat = meat.OrderBy((ThingDef m) => m, new MeatComparer()).ToList();
+            meat = [.. meat.OrderBy((ThingDef m) => m, new MeatComparer())];
             meatIndices.Sort();
+            for (int i = 0; i < meat.Count; i++)
+            {
+                int sortedMeatIndex = meatIndices[i];
+                ingredientGroup[sortedMeatIndex] = meat[i];
+            }
         }
-        for (int i = 0; i < meat.Count; i++)
-        {
-            int sortedMeatIndex = meatIndices[i];
-            ingredientGroup[sortedMeatIndex] = meat[i];
-        }
+
         return ingredientGroup;
     }
 
-    //find a flavorLabel and apply it to the parent meal
+    //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     public void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
-        try
+        // if you've failed to find a label before, don't even try
+        if (fail == true)
         {
-            // if you've failed to find a label before, don't even try
-            if (fail == true)
-            {
-/*                Log.Warning($"Failed before, cancelling search");*/
-                return;
-            }
-
-            else if (!HasFlavorText)
-            {
-/*                Log.Warning($"Parent should not receive flavor text, cancelling the search.");*/
-                fail = true;
-                return;
-            }
-
-            // if no ingredients, fail
-            if (Ingredients.NullOrEmpty())
-            {
-/*                Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");*/
-                fail = true;
-                return;
-            }
-
-            // find a label
-            else
-            {
-                // assemble a list of the ingredients that are in flavorRoot (default FT_Foods)
-                List<ThingDef> ingredientsFoods = [];
-                foreach (ThingDef ingredient in Ingredients)
-                {
-                    if (ingredient != null && ThingCategoryDefUtilities.flavorRoot.ContainedInThisOrDescendant(ingredient))
-                    {
-                        ingredientsFoods.Add(ingredient);
-                    }
-                }
-
-                // divide the ingredients into groups of size n and get a flavorDef for each group
-                List<List<ThingDef>> ingredientsSplit = DivideIntoChunks(Ingredients, maxNumIngredientsFlavor);
-                List<FlavorWithIndices> bestFlavors = [];
-                for (int k = 0; k < ingredientsSplit.Count; k++)
-                {
-                    List<ThingDef> ingredientGroup = ingredientsSplit[k];
-                    FlavorWithIndices bestFlavor = AcquireFlavor(ingredientGroup, flavorDefsToSearch);  // get best Flavor Def from all possible matching Flavor Defs
-                    if (bestFlavor == null)
-                    {
-                        Log.Error($"AcquireFlavor failed to find a best flavor for the ingredient group with index of {k}, skipping that ingredient group.");
-                        continue;
-                    }
-                    bestFlavors.Add(bestFlavor);
-                }
-
-                // clear the flavor data
-                flavorDefs = [];
-                flavorLabels = [];
-                flavorDescriptions = [];
-
-                // assemble all the flavor labels chosen into one big label that looks nice
-                for (int i = 0; i < bestFlavors.Count; i++)
-                {
-
-                    // sort things by category, then sort meat in a specific order for grammar's sake
-                    if (bestFlavors[i] != null)
-                    {
-                        flavorDefs.Add(bestFlavors[i].flavorDef);
-                        List<ThingDef> ingredientGroupSorted = SortIngredientsAndFlavor(bestFlavors[i], ingredientsSplit[i]);
-                        string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "label");  // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient in the meal
-                        if (flavorLabel.NullOrEmpty()) { Log.Error($"FormatFlavorString failed to get a formatted flavor label for the ingredient group with index of {i}, skipping that ingredient group."); continue; }
-                        flavorLabels.Add(flavorLabel);
-
-                        string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "description");  // make flavor labels look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient in the meal
-                        flavorDescriptions.Add(flavorDescription);
-
-                    }
-                    else
-                    {
-                        Log.Error($"A chosen FlavorDef with index of {i} is null, skipping it and continuing with the rest.");
-                        continue;
-                    }
-                }
-                CompileFlavorLabels();
-                CompileFlavorDescriptions();
-
-                // if you failed to create a final label, set fail so you don't try again later
-                if (finalFlavorLabel.NullOrEmpty())
-                {
-                    Log.Error($"The final compiled and formatted flavor label was null or empty, cancelling the search.");
-                    fail = true;
-                    return;
-                }
-            }
+            Log.Warning($"Failed to get Flavor Text before, cancelling search");
+            throw new Exception("failed to get flavor text. Reason: failed before");
         }
-        catch (Exception e)
+
+        else if (!HasFlavorText)
         {
-            Log.Error("Encountered an error while attempting to get all flavor text, cancelling the search. Error was: " + e);
+            Log.Error($"Parent does not have CompFlavor, cancelling the search. Please report.");
+            fail = true;
+            throw new Exception("failed to get flavor text. Reason: no CompFlavor");
+        }
+
+        // if no ingredients, fail
+        if (Ingredients.NullOrEmpty())
+        {
+            /*                Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");*/
             fail = true;
             return;
+        }
+
+        // find a label
+        else
+        {
+            // assemble a list of the ingredients that are in flavorRoot (default FT_Foods)
+            List<ThingDef> ingredientsFoods = [];
+            foreach (ThingDef ingredient in Ingredients)
+            {
+                if (ingredient != null && ThingCategoryDefUtilities.flavorRoot.ContainedInThisOrDescendant(ingredient))
+                {
+                    ingredientsFoods.Add(ingredient);
+                }
+            }
+
+            // divide the ingredients into groups of size n and get a flavorDef for each group
+            List<List<ThingDef>> ingredientsSplit = DivideIntoChunks(Ingredients, maxNumIngredientsFlavor);
+            List<FlavorWithIndices> bestFlavors = [];
+            for (int k = 0; k < ingredientsSplit.Count; k++)
+            {
+                List<ThingDef> ingredientGroup = ingredientsSplit[k];
+                FlavorWithIndices bestFlavor = AcquireFlavor(ingredientGroup, flavorDefsToSearch);  // get best Flavor Def from all possible matching Flavor Defs
+                if (bestFlavor == null)
+                {
+                    Log.Error($"AcquireFlavor failed to find a best flavor for the ingredient group with index of {k} in meal {parent.ThingID} at {parent.PositionHeld}, skipping that ingredient group.");
+                    for (int i = 0; i < ingredientGroup.Count; i++)
+                    {
+                        ThingDef ingredient = ingredientGroup[i];
+                        Log.Warning($"group had ingredient {i} {ingredient.defName}");
+                    }
+                    throw new NullReferenceException("Could not get a FlavorDef for a given ingredient group.");
+                }
+                bestFlavors.Add(bestFlavor);
+            }
+
+            // clear the flavor data
+            flavorDefs = [];
+            flavorLabels = [];
+            flavorDescriptions = [];
+
+            // assemble all the flavor labels chosen into one big label that looks nice
+            for (int i = 0; i < bestFlavors.Count; i++)
+            {
+
+                // sort things by category, then sort meat in a specific order for grammar's sake
+                if (bestFlavors[i] != null)
+                {
+                    flavorDefs.Add(bestFlavors[i].flavorDef);
+                    List<ThingDef> ingredientGroupSorted = SortIngredientsAndFlavor(bestFlavors[i], ingredientsSplit[i]);
+                    string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "label");  // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient in the meal
+                    if (flavorLabel.NullOrEmpty()) { Log.Error($"FormatFlavorString failed to get a formatted flavor label for the ingredient group with index of {i}, skipping that ingredient group."); continue; }
+                    flavorLabels.Add(flavorLabel);
+
+                    string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "description");  // make flavor labels look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient in the meal
+                    flavorDescriptions.Add(flavorDescription);
+
+                }
+                else
+                {
+                    Log.Error($"A chosen FlavorDef with index of {i} is null, skipping it and continuing with the rest.");
+                    continue;
+                }
+            }
+            CompileFlavorLabels();
+            CompileFlavorDescriptions();
+
+            // if you failed to create a final label, set fail so you don't try again later
+            if (finalFlavorLabel.NullOrEmpty())
+            {
+                Log.Error($"The final compiled and formatted flavor label was null or empty, cancelling the search.");
+                fail = true;
+                throw new Exception($"Flavor label was empty despite getting FlavorDefs");
+            }
         }
     }
 
@@ -534,12 +559,15 @@ public class CompFlavor : ThingComp
         if (!flavorLabels.NullOrEmpty() && fail == false)
         {
             StringBuilder stringBuilder = new();
+            if (!tags.NullOrEmpty() && tags.Contains("hairy"))
+            {
+                stringBuilder.Append("hairy ");
+            }
             string conj;
             for (int j = 0; j < flavorLabels.Count; j++)
             {
                 conj = j == 0 ? "" : j == 1 ? " with " : " and ";
                 stringBuilder.Append(conj + GenText.CapitalizeAsTitle(flavorLabels[j]));
-                /*stringBuilder.AppendInNewLine(GenText.CapitalizeAsTitle(label)); // old label in new line so it shows up in search results but not on the label // TODO: the newline shows up in other places like when a pawn is carrying the meal */
             }
             finalFlavorLabel = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
@@ -556,8 +584,7 @@ public class CompFlavor : ThingComp
                 IEnumerable<string> ingredientDefNames = (from ing in Ingredients select ing.defName);
                 string ingredientDefNamesJoined = string.Join(",", ingredientDefNames);
                 int seed = ingredientDefNamesJoined.GetHashCode();
-                Rand.PushState();
-                Rand.Seed = seed;
+                Rand.PushState(seed);
 
                 RulePackDef sideDishClauses = RulePackDef.Named("SideDishClauses");
 
@@ -599,7 +626,7 @@ public class CompFlavor : ThingComp
         if (!flavorDescription.NullOrEmpty())
         {
             flavorDescription = flavorDescription.Trim(',', ' ');
-/*            flavorDescription = flavorDescription.EndWithPeriod();*/
+            /*            flavorDescription = flavorDescription.EndWithPeriod();*/
             flavorDescription = GenText.CapitalizeSentences(flavorDescription);
         }
 
@@ -607,49 +634,109 @@ public class CompFlavor : ThingComp
     }
 
 
-    // include the flavorDefs in game save files, and on reload, check if they're valid and remake the flavor text from them
+    // include flavor variables in game save files
+    // on reload, check if flavorDefs are still valid and remake the flavor text from them; this helps with compatibility on mod updates
     public override void PostExposeData()
     {
         base.PostExposeData();
 
-        Scribe_Collections.Look(ref flavorDefs, "flavorDefs");
+        Scribe_Defs.Look(ref cookingStation, "cookingStation");
+        Scribe_Values.Look(ref hourOfDay, "hourOfDay");
+
+        Scribe_Collections.Look(ref tags, "tags");
+        if (Scribe.mode == LoadSaveMode.PostLoadInit && tags == null)
+        {
+            tags = [];
+        }
+
+        // load/save flavorDefs
+        try
+        {
+            Scribe_Collections.Look(ref flavorDefs, "flavorDefs");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Invalid FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Will attempt to get new Flavor Text. Error: {ex}");
+        }
+
+        // if flavorDefs is null, make it an empty list
         if (Scribe.mode == LoadSaveMode.PostLoadInit && flavorDefs == null)
         {
             flavorDefs = [];
         }
 
-        // check if current flavorDefs are still valid, otherwise try and get new flavor text
+        // check if current flavorDefs are still valid, otherwise try and get completely new flavor text
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
-            fail = false;
-            if (!flavorDefs.NullOrEmpty())
+            if (!flavorDefs.NullOrEmpty())  // check if the current flavor defs still fit the ingredients
             {
-                GetFlavorText(flavorDefs);
-                if (fail == true)
+                fail = false;
+                try
                 {
-                    fail = false;
-                    GetFlavorText(AllFlavorDefsList);
+                    GetFlavorText(flavorDefs);
                 }
+                catch (NullReferenceException ex) { Log.Warning($"Old FlavorDefs from save for meal {parent.ThingID} at {parent.PositionHeld} no longer fit the ingredients, attempting to get new ones. Exception {ex}"); }
             }
-            else
+            if (fail == true)  // if those flavor defs didn't work or there were none, get completely new flavor text
             {
-                GetFlavorText(AllFlavorDefsList);
-            } 
+                fail = false;
+                try { GetFlavorText(AllFlavorDefsList(parent.def).ToList()); }
+                catch (Exception ex)
+                {
+                    Log.Error($"Unable to find a valid FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report. Error: {ex}");
+                    foreach (var ingredient in Ingredients)
+                    {
+                        Log.Error($"meal had ingredient {ingredient.defName} from mod {ingredient.modContentPack.Name}");
+                        Log.Error("ingredient was in the following thingCategories:");
+                        foreach (var cat in ingredient.thingCategories) { Log.Error(cat.defName); }
+                    }
+                    return;
+                }
+                if (fail == false) { Log.Warning($"Successfully got new FlavorText for meal {parent.ThingID}"); }
+            }
         }
+
     }
 
-    // merge 4 flavor variables: recalculate finalFlavorLabel and finalFlavorDescription
+    // merge flavor variables: recalculate finalFlavorLabel and finalFlavorDescription
     public override void PreAbsorbStack(Thing otherStack, int count)  // otherStack is the item being added to the stack
     {
         try
         {
+            var otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
             flavorLabels = [];
             finalFlavorLabel = null;
             flavorDescriptions = [];
             finalFlavorDescription = null;
             flavorDefs = [];
             fail = false;
-            GetFlavorText(AllFlavorDefsList);
+
+            // for cookingStation and hourOfDay, choose randomly
+            Rand.PushState(otherStack.thingIDNumber);
+            cookingStation = Rand.Element(cookingStation, otherFlavorComp.cookingStation);
+            hourOfDay = Rand.Element(hourOfDay, otherFlavorComp.hourOfDay);
+
+
+            try
+            {
+                // merge tags; if both meals have the tag, keep it, otherwise 10% for it to be deleted
+                List<string> mergedTags = [.. tags, .. otherFlavorComp.tags];
+                mergedTags.RemoveAll(tag => mergedTags.Count(t => t == tag) < 2 && Rand.Range(0, 10) == 0);
+                tags = mergedTags.Distinct().ToList();
+                Rand.PopState();
+            }
+            catch (NullReferenceException)
+            {
+                Log.Error("Error merging meals: the tag list of one of the meals was null");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error merging meals, error: {ex}");
+            }
+
+            foreach (var tag in otherFlavorComp.tags) { tags.AddDistinct(tag); }
+
+            GetFlavorText(AllFlavorDefsList(parent.def).ToList());
 
         }
         catch (Exception e) { Log.Error($"Failed to merge stacks properly, reason: {e}"); }
@@ -669,6 +756,9 @@ public class CompFlavor : ThingComp
                 piece.TryGetComp<CompFlavor>().finalFlavorLabel = finalFlavorLabel;
                 piece.TryGetComp<CompFlavor>().finalFlavorDescription = finalFlavorDescription;
                 piece.TryGetComp<CompFlavor>().fail = fail;
+                piece.TryGetComp<CompFlavor>().cookingStation = cookingStation;
+                piece.TryGetComp<CompFlavor>().hourOfDay = hourOfDay;
+                piece.TryGetComp<CompFlavor>().tags = tags;
             }
         }
         catch (Exception e)
