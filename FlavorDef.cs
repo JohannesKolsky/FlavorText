@@ -2,13 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEngine;
 using Verse;
-using Verse.Noise;
 
 //--TODO: recipe parent hierarchy
 //--TODO: spreadsheet descriptions are misaligned
-
-//TODO: blank ingredient option
+//xxTODO: blank ingredient option
 
 
 namespace FlavorText;
@@ -24,6 +23,14 @@ public class FlavorDef : RecipeDef
 
     public ThingCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
+    public string varietyTexture;  // texture to use from Food Texture Variety
+
+    public List<ThingCategoryDef> mealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means basic meals (simple, fine, lavish)
+
+    public List<ThingCategoryDef> cookingStations = [];  // which stations are allowed to cook this FlavorDef
+
+    public IntRange hoursOfDay = new(0, 24);  // what hours of the day this FlavorDef can be completed during
+
 
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
     // also calculate the lowest common category containing all ingredients for each FlavorDef
@@ -36,15 +43,26 @@ public class FlavorDef : RecipeDef
                 List<ThingCategoryDef> allAllowedCategories = [];
                 foreach (IngredientCount ingredient in flavorDef.ingredients)
                 {
-                    // add # of allowed ingredient ThingDefs to specificity (more allowed means less specific)
+                    // add together specificities of all categories (no overlap unless you wrote overlapping categories)
                     var allowedCategories = GetFilterCategories(ingredient.filter, "categories");
                     allAllowedCategories.AddRange(allowedCategories);
                     if (!allowedCategories.NullOrEmpty())
                     {
+                        // specificities of categories
                         foreach (ThingCategoryDef allowedCategory in allowedCategories)
                         {
                             flavorDef.specificity += allowedCategory.GetModExtension<FlavorCategoryModExtension>().specificity;
-                        } 
+                        }
+                        // more specific if it has a required cooking station
+                        if (!flavorDef.cookingStations.NullOrEmpty())
+                        {
+                            flavorDef.specificity -= 1;
+                        }
+                        // more specific if it has a required cooking time of day
+                        if (flavorDef.hoursOfDay != new IntRange(0, 24))
+                        {
+                            flavorDef.specificity -= 1;
+                        }
                     }
                     else { Log.Error("Error: no allowed categories when building FlavorDef static data"); }
 

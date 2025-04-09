@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Verse;
 
 namespace FlavorText;
@@ -14,12 +15,19 @@ public class CompProperties_Flavor : CompProperties
         compClass = typeof(CompFlavor);
     }
 
-    // all FlavorDefs
-    public static List<FlavorDef> AllFlavorDefsList
+    // all FlavorDefs of a given meal category (basic, paste, baby)
+    public static IEnumerable<FlavorDef> AllFlavorDefsList(ThingDef mealThingDef)
     {
-        get
+        foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
-            return (List<FlavorDef>)DefDatabase<FlavorDef>.AllDefs;
+            foreach (var mealCategory in flavorDef.mealCategories)
+            {
+                if (mealCategory.DescendantThingDefs.Contains(mealThingDef))
+                {
+                    yield return flavorDef;
+                    break;
+                }
+            }
         }
     }
 
