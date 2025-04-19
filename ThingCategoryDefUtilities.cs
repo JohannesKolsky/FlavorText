@@ -192,7 +192,7 @@ public static class ThingCategoryDefUtilities
         {
             List<ThingDef> descendants = flavorCategory.DescendantThingDefs.ToList();
             descendants.RemoveDuplicates();
-            flavorCategory.GetModExtension<FlavorCategoryModExtension>().specificity += descendants.Count();
+            flavorCategory.GetModExtension<FlavorCategoryModExtension>().specificity += descendants.Count;
         }
     }
 
@@ -460,6 +460,14 @@ public static class ThingCategoryDefUtilities
                 coll = plur;
                 sing = "Brussels sprout";
                 adj = sing;
+            }
+
+            if (ingredient.defName == "VCE_RawSpices")
+            {
+                plur = "spices";
+                coll = plur;
+                sing = "spice";
+                adj = "spicy";
             }
 
             // if ingredient isn't a special def from above, attempt to generate accurate inflections
