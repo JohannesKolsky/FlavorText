@@ -61,6 +61,7 @@ using static FlavorText.CompProperties_Flavor;
 //--TODO: allow old label to show up in map search
 //--TODO: overrides
 //--TODO: condiments shouldn't be a full ingredient (FT_Foods -> FT_FoodRaw)
+//--TODO: revise fail system  // if keeping fail, fail as a string would be useful: fail = "ingredientsEmpty"
 
 
 //--RELEASE: build as release build
@@ -82,7 +83,6 @@ using static FlavorText.CompProperties_Flavor;
 
 //TODO: options to prevent merging meals
 //TODO: hyperlinks to FlavorDefs
-//TODO: revise fail system  // if keeping fail, fail as a string would be useful: fail = "ingredientsEmpty"
 //TODO: variety matters warnings and errors?
 //TODO: full labels in flavor descriptions (inc eggs)
 //TODO: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
@@ -134,7 +134,7 @@ public class CompFlavor : ThingComp
 
     public List<string> tags = [];
 
-    public bool fail = false;  // has an attempt been made to find a flavorLabel and failed? if so, don't ever try again
+/*    public bool fail = false;  // has an attempt been made to find a flavorLabel and failed? if so, don't ever try again*/
 
     // should FlavorText apply to this meal? Not everything with a CompFlavor gets FlavorText (yes this is messy, but it's the easiest way atm)
     public bool HasFlavorText => parent.HasComp<CompFlavor>();
@@ -153,15 +153,12 @@ public class CompFlavor : ThingComp
     // if there's a flavor label made, transform the original meal label into it
     public override string TransformLabel(string label)
     {
-        // if you haven't failed, check for a flavor label
-        if (fail == false)
-        {
             if (!finalFlavorLabel.NullOrEmpty())
             {
                 /*                Log.Message($"finalFlavorLabel is {finalFlavorLabel}");*/
                 return $"{finalFlavorLabel} ({parent.def.label})";
             }
-        }
+        
         // otherwise return the original label
         return base.TransformLabel(label);
     }
@@ -169,7 +166,7 @@ public class CompFlavor : ThingComp
     // if you've successfully created a new flavor label, move the original name down
     public override string CompInspectStringExtra()
     {
-        if (!finalFlavorLabel.NullOrEmpty() && fail == false)
+        if (!finalFlavorLabel.NullOrEmpty())
         {
             StringBuilder stringBuilder = new();
             string typeLabel = GenText.CapitalizeAsTitle(parent.def.label);
@@ -182,13 +179,14 @@ public class CompFlavor : ThingComp
     // display the FlavorDef description
     public override string GetDescriptionPart()
     {
-        if (fail == true) { return base.GetDescriptionPart(); }
-        else if (finalFlavorLabel.NullOrEmpty())
+        if (finalFlavorLabel.NullOrEmpty())
         {
+            return base.GetDescriptionPart();
             throw new NullReferenceException("->Could not get FlavorText description because FlavorText label is blank or null");
         }
         else if (finalFlavorDescription.NullOrEmpty())
         {
+            return base.GetDescriptionPart();
             throw new NullReferenceException("->Could not get FlavorText description because FlavorText description is blank or null.");
         }
         return finalFlavorDescription;
@@ -420,7 +418,7 @@ public class CompFlavor : ThingComp
                 return inflection;
             }
         }
-        catch (Exception e) { Log.Error($"Error when formatting flavor {flag}: reason: {e}"); fail = true; return null; }
+        catch (Exception e) { throw new Exception($"Error when formatting flavor {flag}: reason: {e}"); }
     }
 
     private List<ThingDef> SortIngredientsAndFlavor(FlavorWithIndices flavor, List<ThingDef> ingredientGroup)  // sort ingredients by the flavor indices and rearrange meats so the label flows better
@@ -457,17 +455,10 @@ public class CompFlavor : ThingComp
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     public void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
-        // if you've failed to find a label before, don't even try
-        if (fail == true)
-        {
-            Log.Warning($"Failed to get Flavor Text before, cancelling search");
-            throw new Exception("failed to get flavor text. Reason: failed before");
-        }
 
-        else if (!HasFlavorText)
+        if (!HasFlavorText)
         {
             Log.Error($"Parent does not have CompFlavor, cancelling the search. Please report.");
-            fail = true;
             throw new Exception("failed to get flavor text. Reason: no CompFlavor");
         }
 
@@ -475,7 +466,6 @@ public class CompFlavor : ThingComp
         if (Ingredients.NullOrEmpty())
         {
             /*                Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");*/
-            fail = true;
             return;
         }
 
@@ -529,7 +519,6 @@ public class CompFlavor : ThingComp
                 if (finalFlavorLabel.NullOrEmpty())
                 {
                     Log.Error($"The final compiled and formatted flavor label was null or empty despite getting valid FlavorDefs.");
-                    fail = true;
                     throw new Exception("Flavor label was empty despite getting valid FlavorDefs");
                 } 
             }
@@ -598,7 +587,7 @@ public class CompFlavor : ThingComp
     private void CompileFlavorLabels()
     {
         // compile the flavor labels into one long displayed flavor label
-        if (!flavorLabels.NullOrEmpty() && fail == false)
+        if (!flavorLabels.NullOrEmpty())
         {
             StringBuilder stringBuilder = new();
             if (!tags.NullOrEmpty() && tags.Contains("hairy"))
@@ -620,7 +609,7 @@ public class CompFlavor : ThingComp
         try
         {
 
-            if (!flavorDescriptions.NullOrEmpty() && fail == false)
+            if (!flavorDescriptions.NullOrEmpty())
             {
                 // switch to pseudorandom generation using ingredient list seed
                 IEnumerable<string> ingredientDefNames = (from ing in Ingredients select ing.defName);
@@ -712,7 +701,6 @@ public class CompFlavor : ThingComp
         {
             if (!flavorDefs.NullOrEmpty())  // check if the current flavor defs still fit the ingredients
             {
-                fail = false;
                 try
                 {
                     GetFlavorText(flavorDefs);
@@ -723,13 +711,12 @@ public class CompFlavor : ThingComp
                 }
                 catch (Exception ex) { Log.Error($"Error when getting saved Flavor Defs for meal {parent.ThingID} at {parent.PositionHeld}. {ex}"); }
             }
-            if (fail == true)  // if those flavor defs didn't work or there were none, get completely new flavor text
+            if (finalFlavorLabel.NullOrEmpty())  // if those flavor defs didn't work or there were none, get completely new flavor text
             {
-                fail = false;
                 try 
                 { 
                     GetFlavorText(AllFlavorDefsList(parent.def).ToList());
-                    if (fail == false) { Log.Warning($"Successfully got FlavorText for meal {parent.ThingID}"); }
+                    if (finalFlavorLabel.NullOrEmpty()) { Log.Warning($"Successfully got FlavorText for meal {parent.ThingID}"); }
                 }
                 catch (Exception ex)
                 {
@@ -758,7 +745,6 @@ public class CompFlavor : ThingComp
             flavorDescriptions = [];
             finalFlavorDescription = null;
             flavorDefs = [];
-            fail = false;
 
             // for cookingStation and hourOfDay, choose randomly
             Rand.PushState(otherStack.thingIDNumber);
@@ -804,7 +790,6 @@ public class CompFlavor : ThingComp
                 piece.TryGetComp<CompFlavor>().flavorDescriptions = flavorDescriptions;
                 piece.TryGetComp<CompFlavor>().finalFlavorLabel = finalFlavorLabel;
                 piece.TryGetComp<CompFlavor>().finalFlavorDescription = finalFlavorDescription;
-                piece.TryGetComp<CompFlavor>().fail = fail;
                 piece.TryGetComp<CompFlavor>().cookingStation = cookingStation;
                 piece.TryGetComp<CompFlavor>().hourOfDay = hourOfDay;
                 piece.TryGetComp<CompFlavor>().tags = tags;
