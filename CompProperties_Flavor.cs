@@ -20,12 +20,15 @@ public class CompProperties_Flavor : CompProperties
     {
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
-            foreach (var mealCategory in flavorDef.mealCategories)
+            if (flavorDef != null)
             {
-                if (mealCategory.DescendantThingDefs.Contains(mealThingDef))
+                foreach (var mealCategory in flavorDef.mealCategories)
                 {
-                    yield return flavorDef;
-                    break;
+                    if (mealCategory.DescendantThingDefs.Contains(mealThingDef))
+                    {
+                        yield return flavorDef;
+                        break;
+                    }
                 }
             }
         }

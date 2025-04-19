@@ -54,9 +54,11 @@ public static class HarmonyPatches
             CompFlavor compFlavor = item.TryGetComp<CompFlavor>();
             if (compFlavor != null)
             {
-                compFlavor.fail = false;
+                if (compFlavor.finalFlavorLabel == null)
+                {
+                    compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(item.def).ToList());
+                }
             }
-            compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(item.def).ToList());
         }
     }
 
@@ -70,17 +72,19 @@ public static class HarmonyPatches
                 CompFlavor compFlavor = product.TryGetComp<CompFlavor>();
                 if (compFlavor != null)
                 {
-                    compFlavor.fail = false;
-                    compFlavor.cookingStation = ((Thing)billGiver).def;
-                    compFlavor.hourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
-                    if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
+                    if (compFlavor.finalFlavorLabel == null)
                     {
-                        Rand.PushState(product.thingIDNumber);
-                        if (Rand.Range(0,10) == 0)
+                        compFlavor.cookingStation = ((Thing)billGiver).def;
+                        compFlavor.hourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
+                        if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
                         {
-                            compFlavor.tags.Add("hairy");
-                        }
-                        Rand.PopState();
+                            Rand.PushState(product.thingIDNumber);
+                            if (Rand.Range(0, 10) == 0)
+                            {
+                                compFlavor.tags.Add("hairy");
+                            }
+                            Rand.PopState();
+                        } 
                     }
                 }
                 compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(product.def).ToList());
