@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Verse;
+using RimWorld;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to ThingCategoryDef.childCategories
 
@@ -167,7 +168,7 @@ public static class ThingCategoryDefUtilities
         //TODO: this picks up RC2_JoyDrinks atm
         static ThingCategoryDef AddCompFlavor(ThingDef ingredient, List<string> splitNames, ThingCategoryDef newParent)
         {
-            if (ThingCategoryDef.Named("FT_FoodMeals").ThisAndChildCategoryDefs.Contains(newParent))
+            if (ingredient.HasComp<CompIngredients>() && ThingCategoryDef.Named("FT_FoodMeals").ThisAndChildCategoryDefs.Contains(newParent))
             {
                 if (tag) { Log.Message($"Testing if {ingredient.defName} fits in MealsFlavor"); foreach (string name in splitNames) { Log.Message(name); } }
                 ThingCategoryDef mealsFlavor = ThingCategoryDef.Named("FT_MealsFlavor");
@@ -315,7 +316,7 @@ public static class ThingCategoryDefUtilities
     private static int ScoreKeyword(List<string> splitNames, string keyword)
     {
         int keywordScore = 0;
-        int count = 0;
+        int count;
 
         foreach (string name in splitNames)
         {

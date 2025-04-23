@@ -15,7 +15,7 @@ public class CompProperties_Flavor : CompProperties
         compClass = typeof(CompFlavor);
     }
 
-    // all FlavorDefs of a given meal category (basic, paste, baby)
+    // all FlavorDefs that fit the given meal type
     public static IEnumerable<FlavorDef> AllFlavorDefsList(ThingDef mealThingDef)
     {
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
@@ -26,6 +26,7 @@ public class CompProperties_Flavor : CompProperties
                 {
                     if (mealCategory.DescendantThingDefs.Contains(mealThingDef))
                     {
+/*                        Log.Message($"Found valid FlavorDef {flavorDef} in category {mealCategory}");*/
                         yield return flavorDef;
                         break;
                     }
