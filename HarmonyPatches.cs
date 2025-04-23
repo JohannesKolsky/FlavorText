@@ -33,7 +33,8 @@ public static class HarmonyPatches
         patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing", null, null), null, new HarmonyMethod(patchType, "MakeThingPostFix", null), null, null);
-        harmony.Patch(AccessTools.Method(typeof(Pawn_CarryTracker), "TryStartCarry", [typeof(Thing)], null), null, new HarmonyMethod(patchType, "TryStartCarryPostFix", null), null, null);
+        harmony.Patch(AccessTools.Method(typeof(Building_NutrientPasteDispenser), "TryDispenseFood", null, null), null, new HarmonyMethod(patchType, "TryDispenseFoodPostFix", null), null, null);
+/*        harmony.Patch(AccessTools.Method(typeof(Pawn_CarryTracker), "TryStartCarry", [typeof(Thing)], null), null, new HarmonyMethod(patchType, "TryStartCarryPostFix", null), null, null);*/
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", null, null), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", null), null, null);
     }
 
@@ -41,23 +42,25 @@ public static class HarmonyPatches
     // things like VCE canned meat aren't included, because they do not track which meat is in them once put into a meal (e.g. canned human meat in a meal isn't abbhorent)
     public static void MakeThingPostFix(ref Thing __result)
     {
-        if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>())
+        if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>() && !__result.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
         {
+            Log.Warning("MakeThing");
             __result.TryGetComp<CompFlavor>().GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(__result.def).ToList());
         }
     }
 
-    // when carrying a thing, try and get Flavor Text
-    public static void TryStartCarryPostFix(ref Thing item)
+    // when dispensing nutrient paste, try and get flavor text
+    public static void TryDispenseFoodPostFix(ref Thing __result)
     {
-        if (item.HasComp<CompFlavor>() && item.HasComp<CompIngredients>())
+        if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>() && !__result.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
         {
-            CompFlavor compFlavor = item.TryGetComp<CompFlavor>();
+            Log.Warning("TryDispenseFood");
+            CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
             if (compFlavor != null)
             {
                 if (compFlavor.finalFlavorLabel == null)
                 {
-                    compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(item.def).ToList());
+                    compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(__result.def).ToList());
                 }
             }
         }
@@ -68,8 +71,9 @@ public static class HarmonyPatches
     {
         foreach (Thing product in __result)
         {
-            if (product.HasComp<CompFlavor>() && product.HasComp<CompIngredients>())
+            if (product.HasComp<CompFlavor>() && product.HasComp<CompIngredients>() && !product.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
             {
+                Log.Warning("MakeRecipeProducts");
                 CompFlavor compFlavor = product.TryGetComp<CompFlavor>();
                 if (compFlavor != null)
                 {
