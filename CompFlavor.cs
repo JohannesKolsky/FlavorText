@@ -62,6 +62,7 @@ using static FlavorText.CompProperties_Flavor;
 //--TODO: overrides
 //--TODO: condiments shouldn't be a full ingredient (FT_Foods -> FT_FoodRaw)
 //--TODO: revise fail system  // if keeping fail, fail as a string would be useful: fail = "ingredientsEmpty"
+//--TODO: full egg labels
 
 
 //--RELEASE: build as release build
@@ -84,7 +85,6 @@ using static FlavorText.CompProperties_Flavor;
 //TODO: options to prevent merging meals
 //TODO: hyperlinks to FlavorDefs
 //TODO: variety matters warnings and errors?
-//TODO: full labels in flavor descriptions (inc eggs)
 //TODO: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should produce the word "cheese"
 
@@ -107,7 +107,7 @@ namespace FlavorText;
 public class CompFlavor : ThingComp
 {
 
-    // ingredients sorted by defName
+    // ingredients in a pseudo-random order
     public List<ThingDef> Ingredients
     {
         get
@@ -528,7 +528,6 @@ public class CompFlavor : ThingComp
     // split ingredients into condiments and non-condiments, then divide into chunks of size 3 (default), ensuring that if condiments are present, each chunk gets a condiment, and no chunk is composed of only condiments
     List<List<ThingDef>> GetValidIngredientsAndDivide(List<ThingDef> ingredients)
     {
-        Log.Warning("Dividing into chunks!");
 
         // assemble a list of the ingredients that are in flavorRoot (default FT_Foods)
         List<ThingDef> ingredientsFoods = [];
@@ -554,11 +553,10 @@ public class CompFlavor : ThingComp
         while (condiments.Count > 0 || nonCondiments.Count > 0)
         {
             // add 1 condiment (or more if not enough non-condiments)
-            if (i < condiments.Count) { Log.Message($"added {condiments[i]}"); chunk.Add(condiments[i]); i++; }
+            if (i < condiments.Count) { chunk.Add(condiments[i]); i++; }
             // fill up the rest with non-condiments
             while (j < nonCondiments.Count && chunk.Count < maxNumIngredientsFlavor)
             {
-                Log.Message($"added {nonCondiments[j]}");
                 chunk.Add(nonCondiments[j]);
                 j++;
             }
@@ -571,15 +569,6 @@ public class CompFlavor : ThingComp
             }
             else if (chunk.Count > maxNumIngredientsFlavor) { throw new IndexOutOfRangeException("Number of ingredients in an ingredient group exceeded the limit. Aborting."); }
         }
-
-        foreach (var group in chunks)
-        {
-            foreach (var ingredient in group)
-            {
-                Log.Message(ingredient);
-            }
-        }
-        Log.Warning($"made {chunks.Count} chunks!");
         if (chunks.Count > 0) { return chunks; }
         throw new Exception("No ingredients found after dividing into chunks. Cancelling.");
     }
