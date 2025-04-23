@@ -38,6 +38,7 @@ public static class HarmonyPatches
     }
 
     // after making a Thing, try and get flavor text if it should have flavor text
+    // things like VCE canned meat aren't included, because they do not track which meat is in them once put into a meal (e.g. canned human meat in a meal isn't abbhorent)
     public static void MakeThingPostFix(ref Thing __result)
     {
         if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>())
@@ -79,7 +80,7 @@ public static class HarmonyPatches
                         if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
                         {
                             Rand.PushState(product.thingIDNumber);
-                            if (Rand.Range(0, 10) == 0)
+                            if (Rand.Range(0, 20) == 0)
                             {
                                 compFlavor.tags.Add("hairy");
                             }

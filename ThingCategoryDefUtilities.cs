@@ -26,6 +26,7 @@ using Verse;
 //--TODO: allow for adding multiple FT_Categories at a time?
 //--TODO: VGE watermelon is in candy
 //--TODO: RC2 Chili peppers are in FT_Foods
+//--TODO: keep canned and pickled and such; problem is atm not deleting those causes "meat" to be deleted
 
 namespace FlavorText;
 
@@ -74,19 +75,19 @@ public static class ThingCategoryDefUtilities
 
     static void Debug()
     {
-/*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
-        {
-            if (DefDatabase<ThingCategoryDef>.GetNamed("FT_Fire").ContainedInThisOrDescendant(thing))
-            {
+        /*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
                 {
-                    Log.Message($">{thing.defName} is in categories:");
-                    foreach (ThingCategoryDef category in thing.thingCategories)
+                    if (DefDatabase<ThingCategoryDef>.GetNamed("FT_Fire").ContainedInThisOrDescendant(thing))
                     {
-                        Log.Message($"{category.defName}");
+                        {
+                            Log.Message($">{thing.defName} is in categories:");
+                            foreach (ThingCategoryDef category in thing.thingCategories)
+                            {
+                                Log.Message($"{category.defName}");
+                            }
+                        }
                     }
-                }
-            }
-        }*/
+                }*/
         /*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
                 {
                     if (thingDef.HasComp<CompFlavor>() && ThingCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
@@ -342,7 +343,7 @@ public static class ThingCategoryDefUtilities
     public static Tuple<string, string, string, string> GenerateIngredientInflections(ThingDef ingredient)
     {
         tag = false;
-        if (ingredient.defName.ToLower().Contains("(")) { tag = true; }
+        /*        if (ingredient.defName.ToLower().Contains("egg")) { tag = true; }*/
         string plur;  // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         string coll;  // collective form, singular/plural ending depending in IRL ingredient size // stew with CABBAGE  // stew with PEAS
         string sing;  // singular form // a slice of BRUSSELS SPROUT
@@ -385,14 +386,6 @@ public static class ThingCategoryDefUtilities
                             return;
                         }
                 }
-            }
-            if (ingredient.IsWithinCategory(ThingCategoryDef.Named("FT_Egg")))
-            {
-                plur = "eggs";
-                coll = "egg";
-                sing = "egg";
-                adj = sing;
-                return;
             }
             if (ingredient.defName == "RawFungus")
             {
@@ -477,42 +470,67 @@ public static class ThingCategoryDefUtilities
 
                 string label = ingredient.label;
                 if (tag) { Log.Warning($">>>starting label is {label}"); }
-                string labelFirstDeletions = label;
+                string labelCapDiacritic = label;
                 string defNameCompare = ingredient.defName;
                 if (tag) { Log.Warning($">>>starting defName is {defNameCompare}"); }
                 defNameCompare = Regex.Replace(defNameCompare, "([_])", " ");  // remove spacer chars
 
-                // remove unnecessary bits
-                List<string> delete = ["raw", "canned", "pickled", "dried", "dehydrated", "salted", "prepared", "trimmed", "meal", "leaf", "leaves", "stalks*", "meat", "seeds*"];  // unnecessary bits to delete // TODO: keep canned and pickled and such; problem is atm not deleting those causes "meat" to be deleted  //TODO: parentheses
-                foreach (string del in delete)
-                {
-                    string temp = Regex.Replace(labelFirstDeletions, $"(?i)\\b{del}\\b", "");  // delete complete words that match those in "delete"
-                    temp = temp.Trim();
-                    if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelFirstDeletions = temp; }  // accept deletion if letters remain
-                    if (tag) { Log.Message($"deleted bit from label, is now {labelFirstDeletions}"); }
-                    string temp2 = Regex.Replace(defNameCompare, $"(?i)\\b{del}\\b", "");  // delete complete words from defName that match those in "delete"
-                    temp2 = temp2.Trim();
-                    if (Regex.IsMatch(temp, "[a-zA-Z]")) { defNameCompare = temp2; }  // accept deletion from defName if letters remain
-                    if (tag) { Log.Message($"deleted bit from defName, is now {defNameCompare}"); }
-                }
-
-                string labelCompare = Remove.RemoveDiacritics(labelFirstDeletions);
+                // remove diacritics and capitalization
+                string labelCompare = Remove.RemoveDiacritics(labelCapDiacritic);
                 labelCompare = labelCompare.ToLower();
-                labelCompare = labelCompare.Trim();
-
                 defNameCompare = Remove.RemoveDiacritics(defNameCompare);
                 defNameCompare = Regex.Replace(defNameCompare, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words
                 defNameCompare = Regex.Replace(defNameCompare, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences
                 if (tag) { Log.Message($"split up defName, is now {defNameCompare}"); }
                 defNameCompare = defNameCompare.ToLower();
-                defNameCompare = defNameCompare.Trim();
+
+                // remove unnecessary bits
+                List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "eggs*", "meat"];  // bits to delete
+
+                // don't remove "meat" from certain generic meat labels
+                List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat", "bone meat"];
+                foreach (string combination in excludedCombinations)
+                {
+                    if (labelCompare == combination)
+                    {
+                        delete.Remove("meat");
+                        break;
+                    }
+                }
+
+                // remove bits
+                string temp;
+                foreach (string del in delete)
+                {
+                    temp = Regex.Replace(labelCompare, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
+                    if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from labelCompare if letters remain
+                    if (tag) { Log.Message($"deleted bit from labelCompare, is now {labelCompare}"); }
+
+                    temp = Regex.Replace(defNameCompare, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from defNameCompare that match those in "delete"
+                    if (Regex.IsMatch(temp, "[a-zA-Z]")) { defNameCompare = temp; }  // accept deletion from defNameCompare if letters remain
+                    if (tag) { Log.Message($"deleted bit from defNameCompare, is now {defNameCompare}"); }
+                }
+
+                //TODO: this is separate b/c it doesn't work with the list for some reason; probably some conflict between how C# and Regex read strings
+                temp = Regex.Replace(labelCompare, @"\(.*\)", "").Trim();
+                if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from label if letters remain
+                if (tag) { Log.Message($">removed parentheses to make: {labelCompare}"); }
 
                 // formulate inflections by comparing label and defName; if you're unable to, use the label
-
-                string root = GetLongestCommonSubstring(defNameCompare, labelCompare);  // VCE_RawPumpkin + mammoth gold pumpkins => pumpkin
+                string root = LongestCommonSubstring(defNameCompare, labelCompare);  // e.g. VCE_RawPumpkin + mammoth gold pumpkins => pumpkin
                 if (tag) { Log.Warning($"Longest common substring was {root}"); }
 
-                //try to get plural form by comparing defName and label  // you can't just rely on checking -s endings b/c meat will never end in -s  // you can't just rely on label b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
+                // eggs are a special case b/c label isn't plural and it's a different order from the defName
+                if (ingredient.IsWithinCategory(ThingCategoryDef.Named("FT_Egg")))
+                {
+                    plur = $"{root} eggs";
+                    coll = plur;
+                    sing = $"{root} egg";
+                    adj = sing;
+                    return;
+                }
+
+                //try to get plural form from label // you can't just rely on checking -s endings b/c meat will never end in -s  // you can't just rely on label b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
                 if (root != null && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root starts at the start of a word
                 {
 
@@ -521,27 +539,30 @@ public static class ThingCategoryDefUtilities
                     plur = match.Value;
                     if (tag) { Log.Message($"plural matched = {plur}"); }
                     int head = labelCompare.IndexOf(root);
-                    plur = labelFirstDeletions.Substring(head, plur.Length);  // get diacritics and capitalization back
+                    plur = labelCapDiacritic.Substring(head, plur.Length);  // get diacritics and capitalization back
 
                     if (tag) { Log.Message($"plural final = {plur}"); }
 
-                    // if the 2 forms differ by more than 2 letters, discard them and use ingredient.label
+                    // if the 2 forms differ by more than 2 letters, discard them and use reduced label
                     if (root.Length == 0 || root.Length < plur.Length - 2)
                     {
                         if (tag) { Log.Message($"root was {root}"); }
-                        plur = ingredient.label;
+                        plur = labelCapDiacritic;
                         if (tag) { Log.Message($"plural fallback = {plur}"); }
                     }
 
 
                 }
+
+                // use reduced label
                 else
                 {
-                    plur = ingredient.label;
+                    plur = labelCapDiacritic;
                     if (tag) { Log.Message($"plural fallback2 = {plur}"); }
                 }
 
                 // try to get singular form from plural form
+                // done this way so that plural form matches singular form if label and defName aren't similar (e.g. VCE_Oranges = mandarins when other mods are installed)
                 sing = plur;
                 foreach (var pair in singularPairs)
                 {
@@ -565,20 +586,32 @@ public static class ThingCategoryDefUtilities
             }
         }
 
-        static string GetLongestCommonSubstring(string string1, string string2)
+        static string LongestCommonSubstring(string string1, string string2)
         {
             try
             {
                 {
-                    if (!string1.NullOrEmpty() && !string2.NullOrEmpty())
-                    {
-                        // find the overlap
-                        string root = LongestCommonSubstring(string2, string1);
-                        root.Trim();
-                        /*                        Log.Message($"Longest common substring was {root}");*/
-                        return root;
-                    }
-                    return null;
+                    // find the overlap
+                    int[,] a = new int[string1.Length + 1, string2.Length + 1];
+                    int row = 0;    // s1 index
+                    int col = 0;    // s2 index
+
+                    for (var i = 0; i < string1.Length; i++)
+                        for (var j = 0; j < string2.Length; j++)
+                            if (string1[i] == string2[j])
+                            {
+                                int len = a[i + 1, j + 1] = a[i, j] + 1;
+                                if (len > a[row, col])
+                                {
+                                    row = i + 1;
+                                    col = j + 1;
+                                }
+                            }
+
+                    string root = string1.Substring(row - a[row, col], a[row, col]).Trim();
+                    if (tag) { Log.Message($"Longest common substring for *{string1}* and *{string2}* was *{root}*"); }
+                    return root;
+
                 }
 
             }
@@ -587,29 +620,6 @@ public static class ThingCategoryDefUtilities
             {
                 Log.Error($"Error finding inflections of ${string2}: {ex}");
                 return null;
-            }
-
-            // find common substring, comparing label to defName
-            // returned substring ignores uppercase when comparing
-            static string LongestCommonSubstring(string string1, string string2)
-            {
-                int[,] a = new int[string1.Length + 1, string2.Length + 1];
-                int row = 0;    // s1 index
-                int col = 0;    // s2 index
-
-                for (var i = 0; i < string1.Length; i++)
-                    for (var j = 0; j < string2.Length; j++)
-                        if (string1[i] == string2[j])
-                        {
-                            int len = a[i + 1, j + 1] = a[i, j] + 1;
-                            if (len > a[row, col])
-                            {
-                                row = i + 1;
-                                col = j + 1;
-                            }
-                        }
-
-                return string1.Substring(row - a[row, col], a[row, col]);
             }
         }
     }
