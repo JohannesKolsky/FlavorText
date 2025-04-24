@@ -1,9 +1,8 @@
 using HarmonyLib;
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using Verse;
-using RimWorld;
-using System.Linq;
 
 namespace FlavorText;
 
@@ -34,7 +33,7 @@ public static class HarmonyPatches
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing", null, null), null, new HarmonyMethod(patchType, "MakeThingPostFix", null), null, null);
         harmony.Patch(AccessTools.Method(typeof(Building_NutrientPasteDispenser), "TryDispenseFood", null, null), null, new HarmonyMethod(patchType, "TryDispenseFoodPostFix", null), null, null);
-/*        harmony.Patch(AccessTools.Method(typeof(Pawn_CarryTracker), "TryStartCarry", [typeof(Thing)], null), null, new HarmonyMethod(patchType, "TryStartCarryPostFix", null), null, null);*/
+        /*        harmony.Patch(AccessTools.Method(typeof(Pawn_CarryTracker), "TryStartCarry", [typeof(Thing)], null), null, new HarmonyMethod(patchType, "TryStartCarryPostFix", null), null, null);*/
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", null, null), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", null), null, null);
     }
 
@@ -45,7 +44,8 @@ public static class HarmonyPatches
         if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>() && !__result.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
         {
             Log.Warning("MakeThing");
-            __result.TryGetComp<CompFlavor>().GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(__result.def).ToList());
+            CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
+            compFlavor?.GetFlavorText();
         }
     }
 
@@ -56,13 +56,7 @@ public static class HarmonyPatches
         {
             Log.Warning("TryDispenseFood");
             CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
-            if (compFlavor != null)
-            {
-                if (compFlavor.finalFlavorLabel == null)
-                {
-                    compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(__result.def).ToList());
-                }
-            }
+            compFlavor?.GetFlavorText();
         }
     }
 
@@ -77,22 +71,19 @@ public static class HarmonyPatches
                 CompFlavor compFlavor = product.TryGetComp<CompFlavor>();
                 if (compFlavor != null)
                 {
-                    if (compFlavor.finalFlavorLabel == null)
+                    compFlavor.cookingStation = ((Thing)billGiver).def;
+                    compFlavor.hourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
+                    if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
                     {
-                        compFlavor.cookingStation = ((Thing)billGiver).def;
-                        compFlavor.hourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
-                        if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
+                        Rand.PushState(product.thingIDNumber);
+                        if (Rand.Range(0, 20) == 0)
                         {
-                            Rand.PushState(product.thingIDNumber);
-                            if (Rand.Range(0, 20) == 0)
-                            {
-                                compFlavor.tags.Add("hairy");
-                            }
-                            Rand.PopState();
-                        } 
+                            compFlavor.tags.Add("hairy");
+                        }
+                        Rand.PopState();
                     }
                 }
-                compFlavor.GetFlavorText(CompProperties_Flavor.AllFlavorDefsList(product.def).ToList());
+                compFlavor.GetFlavorText();
             }
             yield return product;
         }
