@@ -147,8 +147,7 @@ public class CompFlavor : ThingComp
     {
         base.PostSpawnSetup(respawningAfterLoad);
         Log.Warning("PostSpawnSetup");
-        try { GetFlavorText(); }
-        catch (NullReferenceException ex) { Log.Error($"Error finding a valid FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}, cancelling the search. Error: {ex}"); }
+        GetFlavorText();
 
     }
 
@@ -423,7 +422,7 @@ public class CompFlavor : ThingComp
         catch (Exception e) { throw new Exception($"Error when formatting flavor {flag}: reason: {e}"); }
     }
 
-    private List<ThingDef> SortIngredientsAndFlavor(FlavorWithIndices flavor, List<ThingDef> ingredientGroup)  // sort ingredients by the flavor indices and rearrange meats so the label flows better
+    private List<ThingDef> RearrangeIngredients(FlavorWithIndices flavor, List<ThingDef> ingredientGroup)  // sort ingredients by the flavor indices and rearrange meats so the label flows better
     {
         // sort everything by flavor indices (ascending)
         ingredientGroup = [.. ingredientGroup.OrderBy((ThingDef ing) => flavor.indices[ingredientGroup.IndexOf(ing)])];  // sort ingredients by indices
@@ -464,17 +463,17 @@ public class CompFlavor : ThingComp
             throw new Exception("failed to get flavor text. Reason: no CompFlavor");
         }
 
-        // if no ingredients, fail
+        // if no ingredients, return
         if (Ingredients.NullOrEmpty())
         {
-            /*                Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");*/
+            Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");
             return;
         }
 
         // if you already got flavor defs, return
         if (!finalFlavorLabel.NullOrEmpty())
         {
-            //Log.Message("Meal already has a valid FlavorDef, cancelling the search.");
+            Log.Message("Meal already has a valid FlavorDef, cancelling the search.");
             return;
         }
 
@@ -484,14 +483,14 @@ public class CompFlavor : ThingComp
             flavorDefsToSearch ??= AllFlavorDefsList(parent.def).ToList();            
 
             // divide the ingredients into groups of size n and get a flavorDef for each group
-            List<List<ThingDef>> ingredientsSplit = Chunk(Ingredients);
+            List<List<ThingDef>> ingredientChunks = Chunk(Ingredients);
             List<FlavorWithIndices> bestFlavors = [];
             {
 
-                for (int k = 0; k < ingredientsSplit.Count; k++)
+                for (int k = 0; k < ingredientChunks.Count; k++)
                 {
-                    List<ThingDef> ingredientGroup = ingredientsSplit[k];
-                    FlavorWithIndices bestFlavor = AcquireFlavor(ingredientGroup, flavorDefsToSearch);  // get best Flavor Def from all possible matching Flavor Defs
+                    List<ThingDef> ingredientChunk = ingredientChunks[k];
+                    FlavorWithIndices bestFlavor = AcquireFlavor(ingredientChunk, flavorDefsToSearch);  // get best Flavor Def from all possible matching Flavor Defs
                     bestFlavors.Add(bestFlavor);
                 }
 
@@ -508,7 +507,7 @@ public class CompFlavor : ThingComp
                     if (bestFlavors[i] != null)
                     {
                         flavorDefs.Add(bestFlavors[i].flavorDef);
-                        List<ThingDef> ingredientGroupSorted = SortIngredientsAndFlavor(bestFlavors[i], ingredientsSplit[i]);
+                        List<ThingDef> ingredientGroupSorted = RearrangeIngredients(bestFlavors[i], ingredientChunks[i]);
                         string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroupSorted, "label");  // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient in the meal
                         if (flavorLabel.NullOrEmpty()) { Log.Error($"FormatFlavorString failed to get a formatted flavor label for the ingredient group with index of {i}, skipping that ingredient group."); continue; }
                         flavorLabels.Add(flavorLabel);
@@ -579,7 +578,7 @@ public class CompFlavor : ThingComp
                 int seed = ingredientDefNamesJoined.GetHashCode();
                 Rand.PushState(seed);
 
-                RulePackDef sideDishClauses = RulePackDef.Named("SideDishClauses");
+                RulePackDef sideDishClauses = RulePackDef.Named("SideDishClauses");  // connector phrases for when meal has multiple FlavorDefs
 
                 StringBuilder stringBuilder = new();
                 for (int j = 0; j < flavorDescriptions.Count; j++)
@@ -764,25 +763,6 @@ public class CompFlavor : ThingComp
         }
     }
 
-    public class IngredientComparer : IComparer<ThingDef>
-    {
-        public int Compare(ThingDef a, ThingDef b)
-        {
-            // null is considered lowest
-            if (a.thingCategories == null && b.thingCategories == null) { return 0; }
-            else if (a.thingCategories == null) { return -1; }
-            else if (b.thingCategories == null) { return 1; }
-
-            foreach (ThingCategoryDef cat in a.thingCategories)
-            {
-                // if the ingredients share a category, group them and sort them by shortHash
-                return b.thingCategories.Contains(cat) ? a.shortHash.CompareTo(b.shortHash) : a.defName.CompareTo(b.defName);
-            }
-            Log.Error("Unable to compare some ingredients, missing defName or bad thingCategories");
-            return 0;
-        }
-    }
-
     public class MeatComparer : IComparer<ThingDef>
     {
         public int Compare(ThingDef meat1, ThingDef meat2)
@@ -790,7 +770,7 @@ public class CompFlavor : ThingComp
             if (meat1.thingCategories == null && meat2.thingCategories == null) { return 0; }
             else if (meat1.thingCategories == null) { return -1; }
             else if (meat2.thingCategories == null) { return 1; }
-            List<int> ranking = [meat1.defName switch { "Meat_Twisted" => 0, "Meat_Human" => 3, _ => 12, }, meat2.defName switch { "Meat_Twisted" => 0, "Meat_Human" => 3, _ => 12, }];
+            List<int> ranking = [meat1.defName switch { "Meat_Twisted" => 0, "Meat_Human" => 3, "Meat_Megaspider" => 6, _ => 12, }, meat2.defName switch { "Meat_Twisted" => 0, "Meat_Human" => 3, "Meat_Megaspider" => 6, _ => 12, }];
             int difference = ranking[1] - ranking[0];
             return difference;
         }

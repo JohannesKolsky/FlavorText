@@ -41,9 +41,9 @@ public static class HarmonyPatches
     // things like VCE canned meat aren't included, because they do not track which meat is in them once put into a meal (e.g. canned human meat in a meal isn't abbhorent)
     public static void MakeThingPostFix(ref Thing __result)
     {
-        if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>() && !__result.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
+        Log.Warning("MakeThing");
+        if (__result.HasComp<CompFlavor>())
         {
-            Log.Warning("MakeThing");
             CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
             compFlavor?.GetFlavorText();
         }
@@ -52,9 +52,9 @@ public static class HarmonyPatches
     // when dispensing nutrient paste, try and get flavor text
     public static void TryDispenseFoodPostFix(ref Thing __result)
     {
-        if (__result.HasComp<CompFlavor>() && __result.HasComp<CompIngredients>() && !__result.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
+        Log.Warning("TryDispenseFood");
+        if (__result.HasComp<CompFlavor>())
         {
-            Log.Warning("TryDispenseFood");
             CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
             compFlavor?.GetFlavorText();
         }
@@ -63,11 +63,11 @@ public static class HarmonyPatches
     // after making a product with CompIngredients, try and get flavor text if it should have flavor text
     public static IEnumerable<Thing> MakeRecipeProductsPostFix(IEnumerable<Thing> __result, IBillGiver billGiver, Pawn worker)
     {
+        Log.Warning("MakeRecipeProducts");
         foreach (Thing product in __result)
         {
-            if (product.HasComp<CompFlavor>() && product.HasComp<CompIngredients>() && !product.TryGetComp<CompIngredients>().ingredients.NullOrEmpty())
+            if (product.HasComp<CompFlavor>())
             {
-                Log.Warning("MakeRecipeProducts");
                 CompFlavor compFlavor = product.TryGetComp<CompFlavor>();
                 if (compFlavor != null)
                 {
