@@ -1,6 +1,7 @@
 using RimWorld;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -116,6 +117,7 @@ public class CompFlavor : ThingComp
             List<ThingDef> ingredientsFoods = ingredients.FindAll(i => i != null && ThingCategoryDefUtilities.flavorRoot.ContainedInThisOrDescendant(i));  // assemble a list of the ingredients that are actually food
             List<ThingDef> ingredientsSorted = [.. ingredientsFoods.OrderBy(def => def.defName.GetHashCode())];  // sort in a pseudo-random order
 
+/*            foreach (var ing in ingredientsSorted) { Log.Message($"found {ing.defName} in {parent.ThingID}"); }*/
 
             return ingredientsSorted;
         }
@@ -296,7 +298,7 @@ public class CompFlavor : ThingComp
                     // if the current FlavorDef ingredient is the most specific so far, mark its index
                     if (matchingFlavor.flavorDef.ingredients[j].filter.AllowedDefCount < matchingFlavor.flavorDef.ingredients[lowestIndex].filter.AllowedDefCount)
                     {
-                        Log.Message($"found new best category match {matchingFlavor.flavorDef.ingredients[j]} for {ingredient} in {matchingFlavor.flavorDef.defName}");
+/*                        Log.Message($"found new best category match {matchingFlavor.flavorDef.ingredients[j]} for {ingredient} in {matchingFlavor.flavorDef.defName}");*/
                         lowestIndex = j;
                     }
                 }
@@ -318,13 +320,13 @@ public class CompFlavor : ThingComp
         if (!matchingFlavors.NullOrEmpty())
         {
             matchingFlavors.SortBy((FlavorWithIndices entry) => entry.flavorDef.specificity);
-            foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.flavorDef.label + " = " + entry.flavorDef.specificity); }
+/*            foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.flavorDef.label + " = " + entry.flavorDef.specificity); }*/
             for (int i = 0; i < matchingFlavors.Count; i++)
             {
                 var flavorDef = matchingFlavors[i].flavorDef;
                 if (!flavorDef.cookingStations.NullOrEmpty() && !flavorDef.cookingStations.Any(c => c.ContainedInThisOrDescendant(cookingStation)))  // if wrong cooking station, skip
                 {
-                    Log.Warning($"cooking station {flavorDef.cookingStations[0]} failed for {flavorDef.defName} because you are using {cookingStation.defName}");
+/*                    Log.Warning($"cooking station {flavorDef.cookingStations[0]} failed for {flavorDef.defName}");*/
                     continue;
                 }
                 if (!flavorDef.hoursOfDay.Equals(new IntRange(0, 24)) && (flavorDef.hoursOfDay.min > hourOfDay || hourOfDay > flavorDef.hoursOfDay.max))  // if wrong time, skip
@@ -332,7 +334,7 @@ public class CompFlavor : ThingComp
                     /*                    Log.Warning($"wrong time of day: range from {flavorDef.hoursOfDay.min} to {flavorDef.hoursOfDay.max}, while the time now is {hourOfDay}");*/
                     continue;
                 }
-                Log.Message($"best flavor was {flavorDef.defName}");
+/*                Log.Message($"best flavor was {flavorDef.defName}");*/
                 return new FlavorWithIndices(flavorDef, matchingFlavors[i].indices);  // choose the current FlavorDef as the best
             }
         }
@@ -456,7 +458,8 @@ public class CompFlavor : ThingComp
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     public void GetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
         if (!HasFlavorText)
         {
             Log.Error($"Parent {parent.def} does not have CompFlavor, cancelling the search. Please report.");
@@ -466,14 +469,14 @@ public class CompFlavor : ThingComp
         // if no ingredients, return
         if (Ingredients.NullOrEmpty())
         {
-            Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");
+            if (Prefs.DevMode) { Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search."); }
             return;
         }
 
         // if you already got flavor defs, return
         if (!finalFlavorLabel.NullOrEmpty())
         {
-            Log.Message("Meal already has a valid FlavorDef, cancelling the search.");
+            if (Prefs.DevMode) { Log.Message("Meal already has a valid FlavorDef, cancelling the search."); }
             return;
         }
 
@@ -532,6 +535,12 @@ public class CompFlavor : ThingComp
                     throw new Exception("Flavor label was empty despite getting valid FlavorDefs");
                 }
             }
+        }
+        stopwatch.Stop();
+        TimeSpan elapsed = stopwatch.Elapsed;
+        if (Prefs.DevMode)
+        {
+            Log.Message("[Flavor Text] GetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
         }
     }
 
