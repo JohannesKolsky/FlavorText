@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Verse;
 using RimWorld;
+using System.Diagnostics;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to ThingCategoryDef.childCategories
 
@@ -47,15 +48,29 @@ public static class ThingCategoryDefUtilities
 
     static ThingCategoryDefUtilities()
     {
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
         InheritParentModExtensions();  // FT_Categories inherit some data from parents
         SetNestLevelRecursive(ThingCategoryDef.Named("FT_Root").treeNode, 0);  // FT_Root is isolated so set its category nest levels manually
         SetNestLevelRecursive(ThingCategoryDef.Named("FT_MealsFlavor").treeNode, 0); // FT_MealsFlavor is also isolated
+
+
         AssignToFlavorCategories();  // assign all relevant ThingsDefs to a FlavorText ThingCategoryDef
+        Debug();
+
         DefDatabase<ThingCategoryDef>.ResolveAllReferences();
+
         SetCategorySpecificities();  // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         GetIngredientInflections();
-        Debug();
+
+        stopwatch.Stop();
+        TimeSpan elapsed = stopwatch.Elapsed;
+        if (Prefs.DevMode)
+        {
+            Log.Warning("[Flavor Text] ThingCategoryDefUtilities ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
+        }
+
     }
 
     private static void GetIngredientInflections()
