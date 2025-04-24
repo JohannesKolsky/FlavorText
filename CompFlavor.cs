@@ -146,7 +146,8 @@ public class CompFlavor : ThingComp
     public override void PostSpawnSetup(bool respawningAfterLoad)
     {
         base.PostSpawnSetup(respawningAfterLoad);
-        try { GetFlavorText(AllFlavorDefsList(parent.def).ToList()); }
+        Log.Warning("PostSpawnSetup");
+        try { GetFlavorText(); }
         catch (NullReferenceException ex) { Log.Error($"Error finding a valid FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}, cancelling the search. Error: {ex}"); }
 
     }
@@ -454,12 +455,12 @@ public class CompFlavor : ThingComp
     }
 
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
-    public void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
+    public void GetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
 
         if (!HasFlavorText)
         {
-            Log.Error($"Parent does not have CompFlavor, cancelling the search. Please report.");
+            Log.Error($"Parent {parent.def} does not have CompFlavor, cancelling the search. Please report.");
             throw new Exception("failed to get flavor text. Reason: no CompFlavor");
         }
 
@@ -470,9 +471,18 @@ public class CompFlavor : ThingComp
             return;
         }
 
+        // if you already got flavor defs, return
+        if (!finalFlavorLabel.NullOrEmpty())
+        {
+            //Log.Message("Meal already has a valid FlavorDef, cancelling the search.");
+            return;
+        }
+
         // find a label
         else
         {
+            flavorDefsToSearch ??= AllFlavorDefsList(parent.def).ToList();            
+
             // divide the ingredients into groups of size n and get a flavorDef for each group
             List<List<ThingDef>> ingredientsSplit = Chunk(Ingredients);
             List<FlavorWithIndices> bestFlavors = [];
@@ -668,7 +678,7 @@ public class CompFlavor : ThingComp
             {
                 try
                 {
-                    GetFlavorText(AllFlavorDefsList(parent.def).ToList());
+                    GetFlavorText();
                     if (finalFlavorLabel.NullOrEmpty()) { Log.Warning($"Successfully got new FlavorText for meal {parent.ThingID}"); }
                 }
                 catch (Exception ex)
@@ -724,7 +734,7 @@ public class CompFlavor : ThingComp
 
             foreach (var tag in otherFlavorComp.tags) { tags.AddDistinct(tag); }
 
-            GetFlavorText(AllFlavorDefsList(parent.def).ToList());
+            GetFlavorText();
 
         }
         catch (Exception e) { Log.Error($"Failed to merge stacks properly, reason: {e}"); }
