@@ -1,8 +1,10 @@
 using HarmonyLib;
 using RimWorld;
-using System;
 using System.Collections.Generic;
 using Verse;
+
+//TODO: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
+//TODO: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 
 namespace FlavorText;
 
@@ -12,6 +14,8 @@ namespace FlavorText;
 /// CompIngredients only gains its ingredients when CompIngredients.RegisterIngredients is called by GenRecipe.MakeRecipeProducts
 /// if the bill is set to carry to stockpile, the meal is put directly into the pawn's hands, which is distinct from being spawned
 /// so logical place is a MakeRecipeProducts PostFix
+/// 
+/// MakeThingPostFix covers meals in trade caravans and friendly settlements
 /// 
 /// if using random ingredients added in by the CommonSense mod, that mod adds them in after MakeThing if there aren't any ingredients
 /// so for this and other situations, MakeThing PostFix is appropriate
@@ -24,66 +28,67 @@ namespace FlavorText;
 [StaticConstructorOnStartup]
 public static class HarmonyPatches
 {
-    private static readonly Type patchType;
-
     static HarmonyPatches()
     {
-        patchType = typeof(HarmonyPatches);
+        var patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
-/*        harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing", null, null), null, new HarmonyMethod(patchType, "MakeThingPostFix", null), null, null);*/
-        harmony.Patch(AccessTools.Method(typeof(Building_NutrientPasteDispenser), "TryDispenseFood", null, null), null, new HarmonyMethod(patchType, "TryDispenseFoodPostFix", null), null, null);
+        harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing"), null, new HarmonyMethod(patchType, "MakeThingPostFix"));
+        harmony.Patch(AccessTools.Method(typeof(Building_NutrientPasteDispenser), "TryDispenseFood"), null, new HarmonyMethod(patchType, "TryDispenseFoodPostFix"));
         /*        harmony.Patch(AccessTools.Method(typeof(Pawn_CarryTracker), "TryStartCarry", [typeof(Thing)], null), null, new HarmonyMethod(patchType, "TryStartCarryPostFix", null), null, null);*/
-        harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts", null, null), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix", null), null, null);
+        harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix"));
     }
 
     // possibly unnecessary, and also conflicts with CommonSense random ingredients which for nutrient paste are briefly added before being replaced by the actual ingredients
     // after making a Thing, try and get flavor text if it should have flavor text
-    // things like VCE canned meat aren't included, because they do not track which meat is in them once put into a meal (e.g. canned human meat in a meal isn't abbhorent)
-/*    public static void MakeThingPostFix(ref Thing __result)
+    // things like VCE canned meat aren't included, because they do not track which meat is in them once put into a meal (e.g. canned human meat in a meal isn't abhorrent)
+    // ReSharper disable once UnusedMember.Global
+    // ReSharper disable once InconsistentNaming
+    public static void MakeThingPostFix(ref Thing __result)
     {
+        if (!__result.HasComp<CompFlavor>()) return;
         Log.Warning("MakeThing");
-        if (__result.HasComp<CompFlavor>())
-        {
-            CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
-            compFlavor?.GetFlavorText();
-        }
-    }*/
+        CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
+        compFlavor?.TryGetFlavorText();
+    }
+
 
     // when dispensing nutrient paste, try and get flavor text
+    // ReSharper disable once UnusedMember.Global
+    // ReSharper disable once InconsistentNaming
     public static void TryDispenseFoodPostFix(ref Thing __result)
     {
+        if (!__result.HasComp<CompFlavor>()) return;
         Log.Warning("TryDispenseFood");
-        if (__result.HasComp<CompFlavor>())
-        {
-            CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
-            compFlavor?.GetFlavorText();
-        }
+        CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
+        compFlavor?.TryGetFlavorText();
     }
 
     // after making a product with CompIngredients, try and get flavor text if it should have flavor text
+    // ReSharper disable once UnusedMember.Global
+    // ReSharper disable once InconsistentNaming
     public static IEnumerable<Thing> MakeRecipeProductsPostFix(IEnumerable<Thing> __result, IBillGiver billGiver, Pawn worker)
     {
-        Log.Warning("MakeRecipeProducts");
         foreach (Thing product in __result)
         {
             if (product.HasComp<CompFlavor>())
             {
+                Log.Warning("MakeRecipeProducts");
                 CompFlavor compFlavor = product.TryGetComp<CompFlavor>();
                 if (compFlavor != null)
                 {
-                    compFlavor.cookingStation = ((Thing)billGiver).def;
-                    compFlavor.hourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
+                    compFlavor.CookingStation = ((Thing)billGiver).def;
+                    compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
                     if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
                     {
                         Rand.PushState(product.thingIDNumber);
                         if (Rand.Range(0, 20) == 0)
                         {
-                            compFlavor.tags.Add("hairy");
+                            compFlavor.Tags.Add("hairy");
                         }
                         Rand.PopState();
                     }
+                    compFlavor.TryGetFlavorText();
                 }
-                compFlavor.GetFlavorText();
             }
             yield return product;
         }
