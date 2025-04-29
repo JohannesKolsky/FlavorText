@@ -71,7 +71,7 @@
     <Compile Include="FlavorCategoryModExtension.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Remove.cs" />
-    <Compile Include="ThingCategoryDefUtilities.cs" />
+    <Compile Include="ThingCategoryDefUtility.cs" />
     <Compile Include="FlavorWithIndices.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />

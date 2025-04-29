@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 using Verse;
 
 //--TODO: recipe parent hierarchy
@@ -19,17 +18,17 @@ namespace FlavorText;
 /// 
 public class FlavorDef : RecipeDef
 {
-    public int specificity;  // about how many possible ingredients could fulfill this FlavorDef?
+    public int Specificity;  // about how many possible ingredients could fulfill this FlavorDef?
 
-    public ThingCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
+    public ThingCategoryDef LowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
-    public string varietyTexture;  // texture to use from Food Texture Variety
+    public string VarietyTexture;  // texture to use from Food Texture Variety
 
-    public List<ThingCategoryDef> mealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means basic meals (simple, fine, lavish)
+    public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means basic meals (simple, fine, lavish)
 
-    public List<ThingCategoryDef> cookingStations = [];  // which stations are allowed to cook this FlavorDef
+    public List<ThingCategoryDef> CookingStations = [];  // which stations are allowed to cook this FlavorDef
 
-    public IntRange hoursOfDay = new(0, 24);  // what hours of the day this FlavorDef can be completed during
+    public IntRange HoursOfDay = new(0, 24);  // what hours of the day this FlavorDef can be completed during
 
 
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
@@ -51,17 +50,17 @@ public class FlavorDef : RecipeDef
                         // specificities of categories
                         foreach (ThingCategoryDef allowedCategory in allowedCategories)
                         {
-                            flavorDef.specificity += allowedCategory.GetModExtension<FlavorCategoryModExtension>().specificity;
+                            flavorDef.Specificity += allowedCategory.GetModExtension<FlavorCategoryModExtension>().Specificity;
                         }
                         // more specific if it has a required cooking station
-                        if (!flavorDef.cookingStations.NullOrEmpty())
+                        if (!flavorDef.CookingStations.NullOrEmpty())
                         {
-                            flavorDef.specificity -= 1;
+                            flavorDef.Specificity -= 1;
                         }
                         // more specific if it has a required cooking time of day
-                        if (flavorDef.hoursOfDay != new IntRange(0, 24))
+                        if (flavorDef.HoursOfDay != new IntRange(0, 24))
                         {
-                            flavorDef.specificity -= 1;
+                            flavorDef.Specificity -= 1;
                         }
                     }
                     else { Log.Error("Error: no allowed categories when building FlavorDef static data"); }
@@ -72,13 +71,13 @@ public class FlavorDef : RecipeDef
                     {
                         foreach (ThingCategoryDef disallowedCategory in disallowedCategories)
                         {
-                            flavorDef.specificity -= disallowedCategory.GetModExtension<FlavorCategoryModExtension>().specificity;
+                            flavorDef.Specificity -= disallowedCategory.GetModExtension<FlavorCategoryModExtension>().Specificity;
                         }
                     }
                 }
 
                 // calculate the lowest category containing all the ingredients in the FlavorDef
-                flavorDef.lowestCommonIngredientCategory = ThingCategoryDefUtilities.flavorRoot;
+                flavorDef.LowestCommonIngredientCategory = ThingCategoryDefUtility.flavorRoot;
                 var allCategoriesInDefParents = (from ThingCategoryDef category in allAllowedCategories select category.Parents.ToList()).ToList();
                 if (!allCategoriesInDefParents.NullOrEmpty())
                 {
@@ -90,7 +89,7 @@ public class FlavorDef : RecipeDef
                         // if not, you're done searching and the previous stored common category is the absolute lowest
                         if (allCategoriesInDefParents.All(cat => cat[cat.Count - 1 - i] == first[first.Count - 1 - i]))
                         {
-                            flavorDef.lowestCommonIngredientCategory = first[first.Count - 1 - i];
+                            flavorDef.LowestCommonIngredientCategory = first[first.Count - 1 - i];
                             continue;
                         }
                         break;
@@ -100,7 +99,7 @@ public class FlavorDef : RecipeDef
         }
         catch (Exception ex)
         {
-            Log.Error($"Error when building database of FlavorDefs, error: {ex}");
+            Log.Error($"Error when building database of FinalFlavorDefs, error: {ex}");
         }
     }
 

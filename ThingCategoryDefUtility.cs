@@ -1,5 +1,4 @@
-﻿using LinqToDB.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -37,16 +36,16 @@ namespace FlavorText;
 /// </summary>
 
 [StaticConstructorOnStartup]
-public static class ThingCategoryDefUtilities
+public static class ThingCategoryDefUtility
 {
 
-    public static ThingCategoryDef flavorRoot = ThingCategoryDef.Named("FT_Foods"); // topmost category used in FlavorText calculations; couple unused FT_Categories on top, then FT_Root
+    public static ThingCategoryDef flavorRoot = ThingCategoryDef.Named("FT_Foods"); // topmost category used for getting flavor text; couple unused FT_Categories on top, then FT_Root
 
-    public static bool tag = false;  // DEBUG
+    public static bool tag;  // DEBUG
 
     public static Dictionary<ThingDef, Tuple<string, string, string, string>> ingredientInflections = [];
 
-    static ThingCategoryDefUtilities()
+    static ThingCategoryDefUtility()
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
@@ -68,7 +67,7 @@ public static class ThingCategoryDefUtilities
         TimeSpan elapsed = stopwatch.Elapsed;
         if (Prefs.DevMode)
         {
-            Log.Warning("[Flavor Text] ThingCategoryDefUtilities ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
+            Log.Warning("[Flavor Text] ThingCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
         }
 
     }
@@ -120,9 +119,9 @@ public static class ThingCategoryDefUtilities
         foreach (ThingCategoryDef cat in flavorRoot.ThisAndChildCategoryDefs)
         {
             // inherit singularCollective field value from parent if it is null in child
-            if (cat.GetModExtension<FlavorCategoryModExtension>().singularCollective == null)
+            if (cat.GetModExtension<FlavorCategoryModExtension>().SingularCollective == null)
             {
-                cat.GetModExtension<FlavorCategoryModExtension>().singularCollective = cat.parent.GetModExtension<FlavorCategoryModExtension>().singularCollective;
+                cat.GetModExtension<FlavorCategoryModExtension>().SingularCollective = cat.parent.GetModExtension<FlavorCategoryModExtension>().SingularCollective;
             }
         }
     }
@@ -142,8 +141,6 @@ public static class ThingCategoryDefUtilities
     // add CompFlavor to appropriate meals
     public static void AssignToFlavorCategories()
     {
-        List<RecipeDef> allRecipes = DefDatabase<RecipeDef>.AllDefs.ToList();
-
         List<ThingDef> flavorThingDefs = ThingCategoryDef.Named("Foods").DescendantThingDefs.ToList();  // all descendant ThingDefs in "Foods"
         flavorThingDefs.RemoveDuplicates();
 
@@ -159,7 +156,7 @@ public static class ThingCategoryDefUtilities
                 if (!ingredient.thingCategories.Contains(newParent)) { ingredient.thingCategories.Add(newParent); }
                 if (!newParent.childThingDefs.Contains(ingredient)) { newParent.childThingDefs.Add(ingredient); }
 
-                newParent = AddCompFlavor(ingredient, splitNames, newParent);  // check if the ThingDef fit into FT_MealsFlavor ThingCategory, and if so, add a CompFlavor to it
+                AddCompFlavor(ingredient, splitNames, newParent);  // check if the ThingDef fit into FT_MealsFlavor ThingCategory, and if so, add a CompFlavor to it
             }
         }
 
@@ -181,7 +178,7 @@ public static class ThingCategoryDefUtilities
 
         // if it's in FT_FoodMeals and belongs in FT_MealsFlavor, give a CompFlavor
         //TODO: this picks up RC2_JoyDrinks atm
-        static ThingCategoryDef AddCompFlavor(ThingDef ingredient, List<string> splitNames, ThingCategoryDef newParent)
+        static void AddCompFlavor(ThingDef ingredient, List<string> splitNames, ThingCategoryDef newParent)
         {
             if (ingredient.HasComp<CompIngredients>() && ThingCategoryDef.Named("FT_FoodMeals").ThisAndChildCategoryDefs.Contains(newParent))
             {
@@ -193,11 +190,10 @@ public static class ThingCategoryDefUtilities
                     if (tag) { Log.Message($"!!! adding to {newParent}"); }
                     if (!ingredient.thingCategories.Contains(newParent)) { ingredient.thingCategories.Add(newParent); }
                     if (!newParent.childThingDefs.Contains(ingredient)) { newParent.childThingDefs.Add(ingredient); }
-                    CompProperties_Flavor compProperties = new();
+                    CompPropertiesFlavor compProperties = new();
                     ingredient.comps.Add(compProperties);  // postpend CompFlavor to meal
                 }
             }
-            return newParent;
         }
     }
 
@@ -209,7 +205,7 @@ public static class ThingCategoryDefUtilities
         {
             List<ThingDef> descendants = flavorCategory.DescendantThingDefs.ToList();
             descendants.RemoveDuplicates();
-            flavorCategory.GetModExtension<FlavorCategoryModExtension>().specificity += descendants.Count;
+            flavorCategory.GetModExtension<FlavorCategoryModExtension>().Specificity += descendants.Count;
         }
     }
 
@@ -249,7 +245,7 @@ public static class ThingCategoryDefUtilities
             foreach (ThingCategoryDef parentCategory in parentCategories)
             {
                 if (tag) { Log.Message($"Found parent category {parentCategory.defName}"); }
-                var ext = topLevelCategory.GetModExtension<FlavorCategoryModExtension>().flavorSisterCategories;
+                var ext = topLevelCategory.GetModExtension<FlavorCategoryModExtension>().FlavorSisterCategories;
                 if (parentCategory != null && !ext.NullOrEmpty() && ext[0].ThisAndChildCategoryDefs.Contains(parentCategory))  // if it's in the vanilla sister category of the highest FT_Category
                 {
                     if (tag) { Log.Message("valid category, testing..."); }
@@ -279,33 +275,32 @@ public static class ThingCategoryDefUtilities
                     if (searchedDef.defName.ToLower().Contains("fert")) { tag = true; }*/
             if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
             ThingCategoryDef bestFlavorCategory = null;
-            int categoryScore;
             int bestCategoryScore = 0;
 
             foreach (ThingCategoryDef flavorCategory in categoriesToSearch)
             {
                 // if searchedDef is a category and is a sister category of flavorCategory, you're done
-                if (flavorCategory.GetModExtension<FlavorCategoryModExtension>().flavorSisterCategories != null && flavorCategory.GetModExtension<FlavorCategoryModExtension>().flavorSisterCategories.Contains(searchedDef))
+                if (flavorCategory.GetModExtension<FlavorCategoryModExtension>().FlavorSisterCategories != null && flavorCategory.GetModExtension<FlavorCategoryModExtension>().FlavorSisterCategories.Contains(searchedDef))
                 {
                     bestFlavorCategory = flavorCategory;
                     break;
                 }
 
                 // get a score based on how well the flavorCategory keywords match the searchedDef's names
-                categoryScore = 0;
-                List<string> keywords = flavorCategory.GetModExtension<FlavorCategoryModExtension>().keywords;
+                var categoryScore = 0;
+                List<string> keywords = flavorCategory.GetModExtension<FlavorCategoryModExtension>().Keywords;
                 foreach (string keyword in keywords)
                 {
                     categoryScore += ScoreKeyword(splitNames, keyword);
                 }
 
-                List<string> blacklist = flavorCategory.GetModExtension<FlavorCategoryModExtension>().blacklist;
+                List<string> blacklist = flavorCategory.GetModExtension<FlavorCategoryModExtension>().Blacklist;
                 foreach (string black in blacklist)
                 {
                     categoryScore -= ScoreKeyword(splitNames, black);
                 }
 
-                if (categoryScore >= minimumAcceptedScore && flavorCategory != null)
+                if (categoryScore >= minimumAcceptedScore)
                 {
                     if (tag) { Log.Message($"Found matching category {flavorCategory} with score of {categoryScore} and nest depth of {flavorCategory.treeNode.nestDepth}"); }
                     if (categoryScore > bestCategoryScore || (categoryScore == bestCategoryScore && flavorCategory.treeNode.nestDepth > bestFlavorCategory.treeNode.nestDepth))  // if you exceeded the best score so far, save the new score and category; ties are broken by nest depth
@@ -340,7 +335,7 @@ public static class ThingCategoryDefUtilities
             // start/end: +2 to score each time if the keyword matches the start or end of an element in splitNamesCopy (e.g. 2x 'pumpkin' in [pumpkin, orange, smoothie, sugar, pumpkins]
             if (name.StartsWith(keyword) || name.EndsWith(keyword)) { keywordScore += 2; continue; }
             // contains: +1 to score each time if the keyword matches any part of an element in splitNamesCopy (e.g. 2x 'ump' in [pumpkin, orange, smoothie, sugar, pumpkins]
-            if (name.Contains(keyword)) { keywordScore += 1; continue; }
+            if (name.Contains(keyword)) { keywordScore += 1; }
         }
 
         // contains keyword phrase: +6 to score each time the keyword matches a substring of splitNamesCopy when they're all combined with spaces (e.g. 1x 'sugar pumpkin' in "pumpkin orange smoothie sugar pumpkins")
@@ -592,13 +587,12 @@ public static class ThingCategoryDefUtilities
 
                 // try to get collective form (either based on singular or plural depending on FT_Category)
                 ThingCategoryDef parentCategory = ingredient.thingCategories.Find(cat => cat.defName.StartsWith("FT_"));
-                bool? singularCollective = parentCategory.GetModExtension<FlavorCategoryModExtension>().singularCollective;
+                bool? singularCollective = parentCategory.GetModExtension<FlavorCategoryModExtension>().SingularCollective;
                 coll = singularCollective == true ? sing : plur;
                 if (tag) { Log.Message($"coll = {coll}"); }
 
                 // try to get adjectival form (based on singular)
                 adj = sing;
-                return;
             }
         }
 
@@ -640,10 +634,10 @@ public static class ThingCategoryDefUtilities
         }
     }
 
-    // look in the FlavorDefs for any that have a category that isn't defined in FlavorText; make it into a new category and assign it keywords and such
+    // look in the FinalFlavorDefs for any that have a category that isn't defined in FlavorText; make it into a new category and assign it keywords and such
     /*        static void GenerateAdHocCategories()
             {
-                foreach (FlavorDef flavorDef in FlavorDefs)
+                foreach (FlavorDef flavorDef in FinalFlavorDefs)
                 {
                     foreach (IngredientCount ing in flavorDef.ingredient)
                     {
