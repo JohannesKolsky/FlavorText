@@ -22,6 +22,7 @@ public class FlavorDef : RecipeDef
 
     public ThingCategoryDef LowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
+    // ReSharper disable once UnusedMember.Global
     public string VarietyTexture;  // texture to use from Food Texture Variety
 
     public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means basic meals (simple, fine, lavish)
@@ -33,7 +34,7 @@ public class FlavorDef : RecipeDef
 
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
     // also calculate the lowest common category containing all ingredients for each FlavorDef
-    static public void SetStaticData()
+    public static void SetStaticData()
     {
         try
         {
