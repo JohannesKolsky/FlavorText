@@ -30,7 +30,7 @@ public class FlavorDef : RecipeDef
 
     public List<ThingCategoryDef> CookingStations = [];  // which stations are allowed to cook this FlavorDef
 
-    public IntRange HoursOfDay = new(0, 24);  // what hours of the day this FlavorDef can be completed during
+    public IntRange HoursOfDay = new(0, 24);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-24)
 
 
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
@@ -41,6 +41,11 @@ public class FlavorDef : RecipeDef
         {
             foreach (FlavorDef flavorDef in DefDatabase<FlavorDef>.AllDefs)
             {
+                if (flavorDef.MealCategories.NullOrEmpty())
+                {
+                    Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealCategories, it will never appear in-game. Please report."); 
+                }
+
                 List<ThingCategoryDef> allAllowedCategories = [];
                 foreach (IngredientCount ingredient in flavorDef.ingredients)
                 {

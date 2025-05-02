@@ -57,15 +57,15 @@ public static class ThingCategoryDefUtility
             SetNestLevelRecursive(ThingCategoryDef.Named("FT_MealsFlavor").treeNode,
                 0); // FT_MealsFlavor is also isolated
 
-
             AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText ThingCategoryDef
-            Debug();
 
             DefDatabase<ThingCategoryDef>.ResolveAllReferences();
 
             SetCategorySpecificities(); // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
             FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
             GetIngredientInflections();
+            
+            Debug();
         }
         catch (Exception ex)
         {
@@ -83,8 +83,8 @@ public static class ThingCategoryDefUtility
 
     private static void GetIngredientInflections()
     {
-        List<ThingDef> allingredients = flavorRoot.DescendantThingDefs.ToList();
-        foreach (ThingDef ingredient in allingredients)
+        List<ThingDef> allIngredients = flavorRoot.DescendantThingDefs.ToList();
+        foreach (ThingDef ingredient in allIngredients)
         {
             Tuple<string, string, string, string> inflection = GenerateIngredientInflections(ingredient);
             // add to inflection dictionary
@@ -105,21 +105,16 @@ public static class ThingCategoryDefUtility
         }
     }
 
-    static void Debug()
+    private static void Debug()
     {
-        /*        foreach (ThingDef thing in DefDatabase<ThingDef>.AllDefs.ToList())
-                {
-                    if (DefDatabase<ThingCategoryDef>.GetNamed("FT_Fire").ContainedInThisOrDescendant(thing))
-                    {
-                        {
-                            Log.Message($">{thing.defName} is in categories:");
-                            foreach (ThingCategoryDef category in thing.thingCategories)
-                            {
-                                Log.Message($"{category.defName}");
-                            }
-                        }
-                    }
-                }*/
+        /*foreach (var thing in DefDatabase<ThingDef>.AllDefs.ToList().Where(thing => DefDatabase<ThingCategoryDef>.GetNamed("FT_Fire").ContainedInThisOrDescendant(thing)))
+        {
+            Log.Message($">{thing.defName} is in categories:");
+            foreach (ThingCategoryDef category in thing.thingCategories)
+            {
+                Log.Message($"{category.defName}");
+            }
+        }*/
         /*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
                 {
                     if (thingDef.HasComp<CompFlavor>() && ThingCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
@@ -127,7 +122,6 @@ public static class ThingCategoryDefUtility
                         Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
                     }
                 }*/
-
     }
 
     // for FT_Categories, inherit mod extension variables from parent where appropriate
@@ -136,10 +130,7 @@ public static class ThingCategoryDefUtility
         foreach (ThingCategoryDef cat in flavorRoot.ThisAndChildCategoryDefs)
         {
             // inherit singularCollective field value from parent if it is null in child
-            if (cat.GetModExtension<FlavorCategoryModExtension>().SingularCollective == null)
-            {
-                cat.GetModExtension<FlavorCategoryModExtension>().SingularCollective = cat.parent.GetModExtension<FlavorCategoryModExtension>().SingularCollective;
-            }
+            cat.GetModExtension<FlavorCategoryModExtension>().SingularCollective ??= cat.parent.GetModExtension<FlavorCategoryModExtension>().SingularCollective;
         }
     }
 
@@ -163,8 +154,7 @@ public static class ThingCategoryDefUtility
 
         foreach (ThingDef ingredient in flavorThingDefs)
         {
-            /*            tag = false;
-                        if (ingredient.defName.ToLower().Contains("paste")) { tag = true; }*/
+            //tag = ingredient.defName.ToLower().Contains("fire");
             List<string> splitNames = ExtractNames(ingredient);
             ThingCategoryDef newParent = NewParentRecursive(splitNames, ingredient, ingredient.thingCategories, flavorRoot);
             if (tag) { Log.Message($"!!! found new parent {newParent.defName}"); }
@@ -183,6 +173,7 @@ public static class ThingCategoryDefUtility
 
         foreach (ThingDef building in cookingStationThingDefs)
         {
+            //tag = building.defName.ToLower().Contains("fire");
             List<string> splitNames = ExtractNames(building);
             ThingCategoryDef newParent = NewParentRecursive(splitNames, building, building.thingCategories, ThingCategoryDef.Named("FT_Buildings"));
             building.thingCategories ??= [];

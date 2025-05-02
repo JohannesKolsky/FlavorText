@@ -84,7 +84,12 @@ using static FlavorText.CompPropertiesFlavor;
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
 
+//DONE: load warning when FlavorDef MealCategories element is missing
 
+//TODO: time and cooking station aren't working atm
+
+//TODO: revise FlavorWithIndices system: you probably don't need a separate class for this
+//TODO: check for cooking station and time in ValidFlavorDefsForMealType: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
 //TODO: options to prevent merging meals
 //TODO: hyperlinks to FinalFlavorDefs
 //TODO: variety matters warnings and errors?
@@ -321,26 +326,25 @@ public class CompFlavor : ThingComp
 
     private FlavorWithIndices ChooseBestFlavor(List<FlavorWithIndices> matchingFlavors)  // rank valid flavor defs and choose the best one
     {
-        if (!matchingFlavors.NullOrEmpty())
+        if (matchingFlavors.NullOrEmpty()) return null;
+        
+        matchingFlavors.SortBy(entry => entry.FlavorDef.Specificity);
+        foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.FlavorDef.defName + " = " + entry.FlavorDef.Specificity); }
+        foreach (var flavor in matchingFlavors)
         {
-            matchingFlavors.SortBy(entry => entry.FlavorDef.Specificity);
-            //foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.FlavorDef.defName + " = " + entry.FlavorDef.Specificity); }
-            foreach (var flavor in matchingFlavors)
+            var flavorDef = flavor.FlavorDef;
+            if (!flavorDef.CookingStations.NullOrEmpty() && !flavorDef.CookingStations.Any(cat => cat.ContainedInThisOrDescendant(CookingStation)))  // if wrong cooking station, skip
             {
-                var flavorDef = flavor.FlavorDef;
-                if (!flavorDef.CookingStations.NullOrEmpty() && !flavorDef.CookingStations.Any(c => c.ContainedInThisOrDescendant(CookingStation)))  // if wrong cooking station, skip
-                {
-                    //Log.Warning($"cooking station {flavorDef.CookingStations[0]} failed for {flavorDef.defName}");
-                    continue;
-                }
-                if (!flavorDef.HoursOfDay.Equals(new IntRange(0, 24)) && (flavorDef.HoursOfDay.min > HourOfDay || HourOfDay > flavorDef.HoursOfDay.max))  // if wrong time, skip
-                {
-                    //Log.Warning($"wrong time of day: range from {flavorDef.HoursOfDay.min} to {flavorDef.HoursOfDay.max}, while the time now is {HourOfDay}");
-                    continue;
-                }
-                //Log.Message($"best flavor was {flavorDef.defName}");
-                return new FlavorWithIndices(flavorDef, flavor.Indices);  // choose the current FlavorDef as the best
+                Log.Warning($"cooking station {flavorDef.CookingStations[0]} failed for {flavorDef.defName}");
+                continue;
             }
+            if (!flavorDef.HoursOfDay.Equals(new IntRange(0, 24)) && (flavorDef.HoursOfDay.min > HourOfDay || HourOfDay > flavorDef.HoursOfDay.max))  // if wrong time, skip
+            {
+                Log.Warning($"wrong time of day: range from {flavorDef.HoursOfDay.min} to {flavorDef.HoursOfDay.max}, while the time now is {HourOfDay}");
+                continue;
+            }
+            Log.Message($"best flavor was {flavorDef.defName} cooked at ");
+            return new FlavorWithIndices(flavorDef, flavor.Indices);  // choose the current FlavorDef as the best
         }
         return null;
     }
@@ -612,7 +616,7 @@ public class CompFlavor : ThingComp
         if (!FlavorLabels.NullOrEmpty())
         {
             StringBuilder stringBuilder = new();
-            if (!Tags.NullOrEmpty() && Tags.Contains("hairy"))
+            if (Tags.Contains("hairy"))
             {
                 stringBuilder.Append("hairy ");
             }

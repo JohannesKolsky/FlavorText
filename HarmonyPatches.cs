@@ -37,7 +37,7 @@ public static class HarmonyPatches
         /*harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing"), null, new HarmonyMethod(patchType, "MakeThingPostFix"));
         harmony.Patch(AccessTools.Method(typeof(Building_NutrientPasteDispenser), "TryDispenseFood"), null, new HarmonyMethod(patchType, "TryDispenseFoodPostFix"));*/
         /*        harmony.Patch(AccessTools.Method(typeof(Pawn_CarryTracker), "TryStartCarry", [typeof(Thing)], null), null, new HarmonyMethod(patchType, "TryStartCarryPostFix", null), null, null);*/
-        /*harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix"));*/
+        harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix"));
     }
 
     // ReSharper disable once InconsistentNaming
@@ -75,10 +75,10 @@ public static class HarmonyPatches
         compFlavor?.TryGetFlavorText();
     }*/
 
-    // after making a product with CompIngredients, try and get flavor text if it should have flavor text
+    // after making a product with CompIngredients, add information about how it was cooked
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once InconsistentNaming
-    /*public static IEnumerable<Thing> MakeRecipeProductsPostFix(IEnumerable<Thing> __result, IBillGiver billGiver, Pawn worker)
+    public static IEnumerable<Thing> MakeRecipeProductsPostFix(IEnumerable<Thing> __result, IBillGiver billGiver, Pawn worker)
     {
         foreach (Thing product in __result)
         {
@@ -99,11 +99,10 @@ public static class HarmonyPatches
                         }
                         Rand.PopState();
                     }
-                    compFlavor.TryGetFlavorText();
                 }
             }
             yield return product;
         }
-    }*/
+    }
 
 }
