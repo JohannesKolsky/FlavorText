@@ -45,7 +45,7 @@ public static class HarmonyPatches
     public static void RegisterIngredientPostFix(ref CompIngredients __instance)
     {
         if (!__instance.parent.HasComp<CompFlavor>()) return;
-        Log.Warning("RegisterIngredientPostFix");
+        //Log.Warning("RegisterIngredientPostFix");
         CompFlavor compFlavor = __instance.parent.TryGetComp<CompFlavor>();
         if (compFlavor != null) compFlavor.TriedFlavorText = false;
     }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RimWorld;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -64,7 +65,10 @@ public class FlavorDef : RecipeDef
                             flavorDef.Specificity -= 1;
                         }
                     }
-                    else { Log.Error("Error: no allowed categories when building FlavorDef static data"); }
+                    else 
+                    { 
+                        throw new Exception("No allowed categories when building FlavorDef static data");
+                    }
 
                     // subtract # of disallowed ingredient ThingDefs to specificity (more disallowed means more specific)
                     List<ThingCategoryDef> disallowedCategories = GetFilterCategories(ingredient.filter, "disallowedCategories");
@@ -112,7 +116,7 @@ public class FlavorDef : RecipeDef
             List<ThingCategoryDef> categoriesList = (from string categoryString in (List<string>)categories.GetValue(filter) select DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
             return categoriesList;
         }
-        Log.Message("filter contains no ThingCategoryDefs");
+        if (Prefs.DevMode) Log.Message("filter contains no ThingCategoryDefs");
         return null;
     }
 
@@ -129,10 +133,13 @@ public class FlavorDef : RecipeDef
                     list = (from string categoryString in (List<string>)field.GetValue(filter) select DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
                 }
             }
-            catch { Log.Error($"Could not examine {name} within the given filter."); return null; }
+            catch 
+            { 
+                throw new Exception($"Could not examine {name} within the given filter.");
+            }
             return list;
         }
-        Log.Message("Filter contains no items or is null");
+        if (Prefs.DevMode) Log.Message("Filter contains no items or is null");
         return null;
     }
 }

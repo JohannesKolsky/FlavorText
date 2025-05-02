@@ -49,19 +49,28 @@ public static class ThingCategoryDefUtility
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
-        InheritParentModExtensions();  // FT_Categories inherit some data from parents
-        SetNestLevelRecursive(ThingCategoryDef.Named("FT_Root").treeNode, 0);  // FT_Root is isolated so set its category nest levels manually
-        SetNestLevelRecursive(ThingCategoryDef.Named("FT_MealsFlavor").treeNode, 0); // FT_MealsFlavor is also isolated
+        try
+        {
+            InheritParentModExtensions(); // FT_Categories inherit some data from parents
+            SetNestLevelRecursive(ThingCategoryDef.Named("FT_Root").treeNode,
+                0); // FT_Root is isolated so set its category nest levels manually
+            SetNestLevelRecursive(ThingCategoryDef.Named("FT_MealsFlavor").treeNode,
+                0); // FT_MealsFlavor is also isolated
 
 
-        AssignToFlavorCategories();  // assign all relevant ThingsDefs to a FlavorText ThingCategoryDef
-        Debug();
+            AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText ThingCategoryDef
+            Debug();
 
-        DefDatabase<ThingCategoryDef>.ResolveAllReferences();
+            DefDatabase<ThingCategoryDef>.ResolveAllReferences();
 
-        SetCategorySpecificities();  // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
-        FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
-        GetIngredientInflections();
+            SetCategorySpecificities(); // get specificity for each FT_ThingCategory; can't do this until now, needs previous 2 methods and a built DefDatabase
+            FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
+            GetIngredientInflections();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error when setting up FT_ThingCategoryDefs for Flavor Text. Error: {ex}");
+        }
 
         stopwatch.Stop();
         TimeSpan elapsed = stopwatch.Elapsed;
@@ -84,7 +93,15 @@ public static class ThingCategoryDefUtility
                 /*                Log.Message($"plur = {inflection.Item1}"); Log.Message($"coll = {inflection.Item2}"); Log.Message($"sing = {inflection.Item3}"); Log.Message($"adj = {inflection.Item4}");*/
                 ingredientInflections.Add(ingredient, inflection);
             }
-            else { Log.Error($"Failed to find an inflection for {ingredient.label}"); Log.Message($"plur = {inflection.Item1}"); Log.Message($"coll = {inflection.Item2}"); Log.Message($"sing = {inflection.Item3}"); Log.Message($"adj = {inflection.Item4}"); }
+            else
+            {
+                Log.Error($"Failed to find an inflection for {ingredient.label}");
+                Log.Message($"plur = {inflection.Item1}");
+                Log.Message($"coll = {inflection.Item2}");
+                Log.Message($"sing = {inflection.Item3}");
+                Log.Message($"adj = {inflection.Item4}");
+                throw new Exception("Failed to find an inflection for an FT_ThingCategoryDef during loading.");
+            }
         }
     }
 
@@ -318,7 +335,7 @@ public static class ThingCategoryDefUtility
         catch (Exception ex)
         {
             Log.Error($"error testing {searchedDef.defName}: {ex}");
-            return null;
+            throw;
         }
     }
 
@@ -542,7 +559,7 @@ public static class ThingCategoryDefUtility
                 }
 
                 //try to get plural form from label // you can't just rely on checking -s endings b/c meat will never end in -s  // you can't just rely on label b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
-                if (root != null && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root starts at the start of a word
+                if (root != null && !delete.Contains(root) && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root isn't some generic term like "meat", and that it starts at the start of a word
                 {
 
                     // extend the overlap to the end of a word in label // mammoth gold pumpkins + pumpkin => pumpkins
@@ -629,7 +646,7 @@ public static class ThingCategoryDefUtility
             catch (Exception ex)
             {
                 Log.Error($"Error finding inflections of ${string2}: {ex}");
-                return null;
+                throw;
             }
         }
     }
