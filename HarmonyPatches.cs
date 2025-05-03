@@ -84,13 +84,13 @@ public static class HarmonyPatches
         {
             if (product.HasComp<CompFlavor>())
             {
-                Log.Warning("MakeRecipeProducts");
+                //Log.Warning("MakeRecipeProducts");
                 CompFlavor compFlavor = product.TryGetComp<CompFlavor>();
                 if (compFlavor != null)
                 {
                     compFlavor.CookingStation = ((Thing)billGiver).def;
                     compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
-                    if (worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
+                    if (ModsConfig.BiotechActive && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
                     {
                         Rand.PushState(product.thingIDNumber);
                         if (Rand.Range(0, 20) == 0)
