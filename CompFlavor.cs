@@ -329,21 +329,21 @@ public class CompFlavor : ThingComp
         if (matchingFlavors.NullOrEmpty()) return null;
         
         matchingFlavors.SortBy(entry => entry.FlavorDef.Specificity);
-        foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.FlavorDef.defName + " = " + entry.FlavorDef.Specificity); }
+        //foreach (FlavorWithIndices entry in matchingFlavors) { Log.Message(entry.FlavorDef.defName + " = " + entry.FlavorDef.Specificity); }
         foreach (var flavor in matchingFlavors)
         {
             var flavorDef = flavor.FlavorDef;
             if (!flavorDef.CookingStations.NullOrEmpty() && !flavorDef.CookingStations.Any(cat => cat.ContainedInThisOrDescendant(CookingStation)))  // if wrong cooking station, skip
             {
-                Log.Warning($"cooking station {flavorDef.CookingStations[0]} failed for {flavorDef.defName}");
+                //Log.Warning($"cooking station {flavorDef.CookingStations[0]} failed for {flavorDef.defName}");
                 continue;
             }
             if (!flavorDef.HoursOfDay.Equals(new IntRange(0, 24)) && (flavorDef.HoursOfDay.min > HourOfDay || HourOfDay > flavorDef.HoursOfDay.max))  // if wrong time, skip
             {
-                Log.Warning($"wrong time of day: range from {flavorDef.HoursOfDay.min} to {flavorDef.HoursOfDay.max}, while the time now is {HourOfDay}");
+                //Log.Warning($"wrong time of day: range from {flavorDef.HoursOfDay.min} to {flavorDef.HoursOfDay.max}, while the time now is {HourOfDay}");
                 continue;
             }
-            Log.Message($"best flavor was {flavorDef.defName} cooked at ");
+            //Log.Message($"best flavor was {flavorDef.defName} cooked at ");
             return new FlavorWithIndices(flavorDef, flavor.Indices);  // choose the current FlavorDef as the best
         }
         return null;
