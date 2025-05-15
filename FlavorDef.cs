@@ -19,85 +19,89 @@ namespace FlavorText;
 /// 
 public class FlavorDef : RecipeDef
 {
-    public int Specificity;  // about how many possible ingredients could fulfill this FlavorDef?
+    public float Specificity;  // about how many possible ingredients could fulfill this FlavorDef?
 
     public ThingCategoryDef LowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
     // ReSharper disable once UnusedMember.Global
     public string VarietyTexture;  // texture to use from Food Texture Variety
 
-    public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means basic meals (simple, fine, lavish)
+    public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; defaults to all
 
-    public List<ThingCategoryDef> CookingStations = [];  // which stations are allowed to cook this FlavorDef
+    public List<ThingCategoryDef> CookingStations = [];  // which stations are allowed to cook this FlavorDef; defaults to all
 
-    public IntRange HoursOfDay = new(0, 24);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-24)
+    public IntRange HoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
 
+    public FloatRange IngredientsHitPointPercentage = new (0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
+
+    public static IEnumerable<FlavorDef> ActiveFlavorDefs;  // all FlavorDefs that can be used with the current modlist
 
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
     // also calculate the lowest common category containing all ingredients for each FlavorDef
-    public static void SetStaticData()
+    public static void SetCategoryData()
     {
         try
         {
-            foreach (FlavorDef flavorDef in DefDatabase<FlavorDef>.AllDefs)
+            // get all FlavorDefs, excluding those which have an ingredient slot which only has FT_ThingCategoryDefs which are empty (i.e. no ThingDefs in the current modlist fit that slot)
+            ActiveFlavorDefs = DefDatabase<FlavorDef>.AllDefs
+                .Where(flavorDef => flavorDef != null)
+                    .Where(flavorDef => flavorDef.ingredients
+                        .All(ingredientSlot => ingredientSlot.filter.AllowedDefCount > 0));
+
+            int totalCookingStations = ThingCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Count();
+            int totalMealTypes = ThingCategoryDef.Named("FT_MealsFlavor").DescendantThingDefs.Count();
+            
+            foreach (FlavorDef flavorDef in ActiveFlavorDefs)
             {
                 if (flavorDef.MealCategories.NullOrEmpty())
                 {
                     Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealCategories, it will never appear in-game. Please report."); 
                 }
 
-                List<ThingCategoryDef> allAllowedCategories = [];
                 foreach (IngredientCount ingredient in flavorDef.ingredients)
                 {
-                    // add together specificities of all categories (no overlap unless you wrote overlapping categories)
-                    var allowedCategories = GetFilterCategories(ingredient.filter, "categories");
-                    allAllowedCategories.AddRange(allowedCategories);
-                    if (!allowedCategories.NullOrEmpty())
-                    {
-                        // specificities of categories
-                        foreach (ThingCategoryDef allowedCategory in allowedCategories)
-                        {
-                            flavorDef.Specificity += allowedCategory.GetModExtension<FlavorCategoryModExtension>().Specificity;
-                        }
-                        // more specific if it has a required cooking station
-                        if (!flavorDef.CookingStations.NullOrEmpty())
-                        {
-                            flavorDef.Specificity -= 1;
-                        }
-                        // more specific if it has a required cooking time of day
-                        if (flavorDef.HoursOfDay != new IntRange(0, 24))
-                        {
-                            flavorDef.Specificity -= 1;
-                        }
-                    }
-                    else 
-                    { 
-                        throw new Exception("No allowed categories when building FlavorDef static data");
-                    }
+                    flavorDef.Specificity += ingredient.filter.AllowedDefCount;
+                }
 
-                    // subtract # of disallowed ingredient ThingDefs to specificity (more disallowed means more specific)
-                    List<ThingCategoryDef> disallowedCategories = GetFilterCategories(ingredient.filter, "disallowedCategories");
-                    if (!disallowedCategories.NullOrEmpty())
-                    {
-                        foreach (ThingCategoryDef disallowedCategory in disallowedCategories)
-                        {
-                            flavorDef.Specificity -= disallowedCategory.GetModExtension<FlavorCategoryModExtension>().Specificity;
-                        }
-                    }
+                // more specific if it has a required meal type, weighted to half-impact
+                flavorDef.Specificity = (flavorDef.Specificity * (flavorDef.MealCategories.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes + 1) / 2);
+
+                // more specific if it has a required cooking station, weighted to half-impact
+                if (!flavorDef.CookingStations.NullOrEmpty())
+                {
+                    flavorDef.Specificity = ((flavorDef.Specificity * flavorDef.CookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations + 1) / 2);
+                }
+                // more specific if it has a required cooking time of day, weighted to half-impact
+                if (flavorDef.HoursOfDay != new IntRange(0, 23))
+                {
+                    int timeLength = flavorDef.HoursOfDay.max - flavorDef.HoursOfDay.min;
+                    timeLength = timeLength % 24 + 1;
+                    flavorDef.Specificity = (flavorDef.Specificity * ((float)timeLength / 24 + 1) / 2);
+                }
+
+                if (flavorDef.IngredientsHitPointPercentage != new FloatRange(0, 1))
+                {
+                    flavorDef.Specificity = (flavorDef.Specificity * flavorDef.IngredientsHitPointPercentage.Span);
                 }
 
                 // calculate the lowest category containing all the ingredients in the FlavorDef
-                flavorDef.LowestCommonIngredientCategory = ThingCategoryDefUtility.flavorRoot;
-                var allCategoriesInDefParents = (from ThingCategoryDef category in allAllowedCategories select category.Parents.ToList()).ToList();
-                if (!allCategoriesInDefParents.NullOrEmpty())
+                flavorDef.LowestCommonIngredientCategory = ThingCategoryDefUtility.FlavorRoot;
+                // get each category and its parents
+                List<List<ThingCategoryDef>> allCategoriesInDefAndParents = flavorDef.ingredients
+                    .SelectMany(slot => GetFilterCategories(slot.filter, "categories"))
+                    .Distinct()
+                    .Select(cat => cat.Parents.Prepend(cat).ToList())
+                    .ToList();
+
+                // compare the corresponding elements of each parent list, going from last to first
+                // if they are no longer equal, then the previous element was the lowest common category
+                if (!allCategoriesInDefAndParents.NullOrEmpty())
                 {
-                    int min = (from List<ThingCategoryDef> parents in allCategoriesInDefParents select parents.Count).Min();
-                    var first = allCategoriesInDefParents[0];
+                    int min = (from List<ThingCategoryDef> parents in allCategoriesInDefAndParents select parents.Count).Min();
+                    var first = allCategoriesInDefAndParents[0].ToList();
                     for (int i = 0; i < min; i++)
                     {
-                        // if the current index (going from last to first) has the same value in each list, that's the current lowest common category
-                        // if not, you're done searching and the previous stored common category is the absolute lowest
-                        if (allCategoriesInDefParents.All(cat => cat[cat.Count - 1 - i] == first[first.Count - 1 - i]))
+                        if (allCategoriesInDefAndParents.All(cat => cat[cat.Count - 1 - i] == first[first.Count - 1 - i]))
                         {
                             flavorDef.LowestCommonIngredientCategory = first[first.Count - 1 - i];
                             continue;
@@ -111,18 +115,6 @@ public class FlavorDef : RecipeDef
         {
             Log.Error($"Error when building database of FinalFlavorDefs, error: {ex}");
         }
-    }
-
-    public static List<ThingCategoryDef> GetFilterCategories(ThingFilter filter)  // get all ThingCategoryDefs within the given filter
-    {
-        FieldInfo categories = filter.GetType().GetField("categories", BindingFlags.NonPublic | BindingFlags.Instance);  // what type of field is it
-        if (categories != null)
-        {
-            List<ThingCategoryDef> categoriesList = (from string categoryString in (List<string>)categories.GetValue(filter) select DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
-            return categoriesList;
-        }
-        if (Prefs.DevMode) Log.Message("filter contains no ThingCategoryDefs");
-        return null;
     }
 
     public static List<ThingCategoryDef> GetFilterCategories(ThingFilter filter, string name)
@@ -146,5 +138,19 @@ public class FlavorDef : RecipeDef
         }
         if (Prefs.DevMode) Log.Message("Filter contains no items or is null");
         return null;
+    }
+
+
+    // all FinalFlavorDefs that fit the given meal type and extra parameters
+    public static IEnumerable<FlavorDef> ValidFlavorDefs(Thing meal)
+    {
+        var compFlavor = meal.TryGetComp<CompFlavor>();
+        return ActiveFlavorDefs
+            .Where(flavorDef =>
+                flavorDef.MealCategories.Any(mealCategory => mealCategory.DescendantThingDefs.Contains(meal.def))
+                && (compFlavor.CookingStation == null || flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat => cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
+                && flavorDef.HoursOfDay.min <= compFlavor.HourOfDay && compFlavor.HourOfDay <= flavorDef.HoursOfDay.max
+                && flavorDef.IngredientsHitPointPercentage.Includes(compFlavor.IngredientsHitPointPercentage));
+        
     }
 }
