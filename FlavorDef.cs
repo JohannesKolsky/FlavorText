@@ -36,6 +36,10 @@ public class FlavorDef : RecipeDef
 
     public static IEnumerable<FlavorDef> ActiveFlavorDefs;  // all FlavorDefs that can be used with the current modlist
 
+    public List<List<ThingCategoryDef>> categories = [];
+
+    public List<List<ThingCategoryDef>> disallowedCategories = [];
+
     // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
     // also calculate the lowest common category containing all ingredients for each FlavorDef
     public static void SetCategoryData()
@@ -85,6 +89,7 @@ public class FlavorDef : RecipeDef
                 }
 
                 // calculate the lowest category containing all the ingredients in the FlavorDef
+                // no need to include disallowed categories b/c those should always be a subcategory of a valid category
                 flavorDef.LowestCommonIngredientCategory = ThingCategoryDefUtility.FlavorRoot;
                 // get each category and its parents
                 List<List<ThingCategoryDef>> allCategoriesInDefAndParents = flavorDef.ingredients
@@ -109,6 +114,7 @@ public class FlavorDef : RecipeDef
                         break;
                     }
                 }
+
             }
         }
         catch (Exception ex)
@@ -127,7 +133,8 @@ public class FlavorDef : RecipeDef
             {
                 if (field.GetValue(filter) != null)
                 {
-                    list = (from string categoryString in (List<string>)field.GetValue(filter) select DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
+                    list = ((List<string>)field.GetValue(filter))
+                        .Select(categoryString => DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
                 }
             }
             catch 
@@ -136,8 +143,8 @@ public class FlavorDef : RecipeDef
             }
             return list;
         }
-        if (Prefs.DevMode) Log.Message("Filter contains no items or is null");
-        return null;
+        if (Prefs.DevMode) Log.Message($"Filter {name} is null");
+        return [];
     }
 
 

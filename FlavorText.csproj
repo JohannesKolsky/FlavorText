@@ -72,7 +72,6 @@
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Remove.cs" />
     <Compile Include="ThingCategoryDefUtility.cs" />
-    <Compile Include="FlavorWithIndices.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />
     <Compile Include="CompProperties_Flavor.cs" />
