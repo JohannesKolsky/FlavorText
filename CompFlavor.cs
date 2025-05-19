@@ -223,6 +223,8 @@ public class CompFlavor : ThingComp
 
     }
 
+
+    // split all stored flavor variables
     public override void PostSplitOff(Thing piece)
     {
         try
@@ -299,8 +301,8 @@ public class CompFlavor : ThingComp
 
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-        /*Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();*/
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
 
         try
         {
@@ -375,7 +377,7 @@ public class CompFlavor : ThingComp
             Log.Error($"Unable to find a matching FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report. Error: {ex}\n{ex.Data["errorString"]}\n\n{ex.Data["stringInfo"]}\n\n");
 
         }
-        /*finally
+        finally
         {
             stopwatch.Stop();
             TimeSpan elapsed = stopwatch.Elapsed;
@@ -383,7 +385,7 @@ public class CompFlavor : ThingComp
             {
                 Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
             }
-        }*/
+        }
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
@@ -446,6 +448,17 @@ public class CompFlavor : ThingComp
     }
 
 
+    // split ingredients into chunks of size 3 (default)
+    public List<List<T>> Chunk<T>(List<T> source)
+    {
+        return source
+            .Select((x, i) => new { Index = i, Value = x })
+            .GroupBy(x => x.Index / MaxNumIngredientsFlavor)
+            .Select(x => x.Select(v => v.Value).ToList())
+            .ToList();
+    }
+
+
     // see which FinalFlavorDefs match with the ingredients you have, and choose the most specific FlavorDef you find
     public (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> foodsToSearchFor, List<FlavorDef> flavorDefsToSearch)
     {
@@ -466,7 +479,7 @@ public class CompFlavor : ThingComp
             if (!matchedIndices.NullOrEmpty())
             {
                 matchingFlavors.Add((flavorDef, matchedIndices));
-                Log.Message($"found matching FlavorDef {flavorDef.defName} with ingredients ({foodsToSearchFor.ToStringSafeEnumerable()}) and indices ({matchedIndices.ToStringSafeEnumerable()})");
+                //Log.Message($"found matching FlavorDef {flavorDef.defName} with ingredients ({foodsToSearchFor.ToStringSafeEnumerable()}) and indices ({matchedIndices.ToStringSafeEnumerable()})");
             }
         }
 
@@ -522,22 +535,20 @@ public class CompFlavor : ThingComp
                 return null;
             }
 
-            Log.Warning($"----------{flavorDef.defName}----------");
+            //Log.Warning($"----------{flavorDef.defName}----------");
             List<int> matchedIndices = foods.Select(_ => -1).ToList();
             for (var i = 0; i < foods.Count; i++)
             {
-                Log.Warning($"examining food {foods[i].defName}");
+                //Log.Warning($"examining food {foods[i].defName}");
                 var bestIngredients = flavorDef.ingredients
                     .Select((value, index) => (value, index))
-                    .Where(ing => matchedIndices[ing.index] == -1 && ing.value.filter.Allows(foods[i]))
+                    .Where(ing => matchedIndices[ing.index] == -1
+                                  && ing.value.filter.Allows(foods[i]))
                     .OrderBy(ing => ing.value.filter.AllowedDefCount).ToList();
-                Log.Message($"best ingredients: {
-                    bestIngredients.ToStringSafeEnumerable()
-                }");
+                //Log.Message($"best ingredients: { bestIngredients.ToStringSafeEnumerable() }");
                 if (!bestIngredients.NullOrEmpty())
                 {
                     matchedIndices[bestIngredients.First().index] = i;
-                    Log.Message(bestIngredients.First());
                     continue;
                 }
 
@@ -552,6 +563,7 @@ public class CompFlavor : ThingComp
             throw;
         }
     }
+
 
     private static string FormatFlavorString(FlavorDef flavorDef, List<ThingDef> ingredients, string flag)  // replace placehodlers in flavor label/description with the correctly inflected ingredient label
     {
@@ -630,16 +642,6 @@ public class CompFlavor : ThingComp
             }
         }
         catch (Exception e) { throw new Exception($"Error when formatting flavor {flag}: reason: {e}"); }
-    }
-
-    // split ingredients into chunks of size 3 (default)
-    public List<List<T>> Chunk<T>(List<T> source)
-    {
-        return source
-            .Select((x, i) => new { Index = i, Value = x })
-            .GroupBy(x => x.Index / MaxNumIngredientsFlavor)
-            .Select(x => x.Select(v => v.Value).ToList())
-            .ToList();
     }
 
     private void CompileFlavorLabels()
@@ -724,10 +726,6 @@ public class CompFlavor : ThingComp
         return flavorDescription;
     }
 
-
-
-
-    // split all stored flavor variables
 
     public class MeatComparer : IComparer<ThingDef>
     {
