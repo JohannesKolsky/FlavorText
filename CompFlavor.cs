@@ -87,12 +87,13 @@ using static FlavorText.CompProperties_Flavor;
 //DONE: load warning when FlavorDef MealCategories element is missing
 //DONE: time and cooking station aren't working atm
 
-//TODO: revise FlavorWithIndices system: you probably don't need a separate class for this
-//TODO: check for cooking station and time in ValidFlavorDefs: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
+//DONE: revise FlavorWithIndices system: you probably don't need a separate class for this
+//DONE: check for cooking station and time in ValidFlavorDefs: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
 //TODO: options to prevent merging meals
 //TODO: variety matters warnings and errors?
 //TODO: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
+//TODO: meal types of taglist for dry, wet, sweet, savory meals  // allows auto-labeling of soups vs dishes vs desserts, etc.
 
 //fixedIngredientFilter: which items are allowed
 //defaultIngredientFilter: default assignment of fixedIngredientFilter
@@ -272,7 +273,7 @@ public class CompFlavor : ThingComp
 
             try
             {
-                // merge flavor tags; if both meals have the tag, keep it, otherwise 10% for it to be deleted
+                // merge flavor tags; if both meals have the tag, keep it, otherwise 10% chance for it to be deleted
                 List<string> mergedTags = [.. Tags, .. otherFlavorComp.Tags];
                 mergedTags.RemoveAll(tag => mergedTags.Count(t => t == tag) < 2 && Rand.Range(0, 10) == 0);
                 Tags = mergedTags.Distinct().ToList();
@@ -317,7 +318,8 @@ public class CompFlavor : ThingComp
                 FinalFlavorDescription = null;
                 FinalFlavorDefs = [];
 
-                if (Prefs.DevMode) Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");
+                if (Prefs.DevMode)
+                    Log.Message("List of ingredients for the meal in CompIngredients was empty or null, cancelling the search.");
 
                 return;
             }
@@ -337,31 +339,38 @@ public class CompFlavor : ThingComp
 
                     if (!FinalFlavorDefs.NullOrEmpty())
                     {
-                        if(Prefs.DevMode) Log.Warning($"Successfully got saved Flavor Text for meal {parent.ThingID}");
+                        if (Prefs.DevMode) Log.Warning($"Successfully got saved Flavor Text for meal {parent.ThingID}");
                         return;
                     }
-                    if (Prefs.DevMode) Log.Warning("Old Flavor Text no longer matches. Probably due to an update to this mod. Will attempt to get new Flavor Text.");
+
+                    if (Prefs.DevMode)
+                        Log.Warning(
+                            "Old Flavor Text no longer matches. Probably due to an update to this mod. Will attempt to get new Flavor Text.");
                 }
             }
-            catch (NullReferenceException){}
-            
+            catch (NullReferenceException)
+            {
+            }
+
             // otherwise try searching with all valid FlavorDefs
             var validFlavorDefsForMealType = FlavorDef.ValidFlavorDefs(parent).ToList();
             if (validFlavorDefsForMealType.NullOrEmpty())
             {
-                throw new InvalidOperationException("Attempted to get valid flavor defs for meal type but there were none");
+                throw new InvalidOperationException("Attempted to get valid flavor defs for meal type but there were none. Please report.");
             }
+
             GetFlavorText(validFlavorDefsForMealType);
             if (Prefs.DevMode && !FinalFlavorDefs.NullOrEmpty()) Log.Warning($"Successfully got new Flavor Text for meal {parent.ThingID}");
         }
-    
-        catch (ArgumentNullException ex)
+
+        catch (Exception ex)
         {
             string errorString = "";
             errorString += $"\n{FlavorDef.ActiveFlavorDefs.Count()} FlavorDefs are loaded";
-            errorString += $"\n{flavorDefsToSearch?.Count} FlavorDefs were passed into TryGetFlavorDef from a saved game to search within";
+            errorString +=
+                $"\n{flavorDefsToSearch?.Count} FlavorDefs were passed into TryGetFlavorDef from a saved game to search within";
             errorString += $"\n{FlavorDef.ValidFlavorDefs(parent).ToList().Count} FlavorDefs match the meal type";
-            
+
             for (int i = 0; i < Ingredients.Count; i++)
             {
                 ThingDef ingredient = Ingredients[i];
@@ -374,7 +383,8 @@ public class CompFlavor : ThingComp
             }
 
             ex.Data["errorString"] = errorString;
-            Log.Error($"Unable to find a matching FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report. Error: {ex}\n{ex.Data["errorString"]}\n\n{ex.Data["stringInfo"]}\n\n");
+            if (Prefs.DevMode) Log.Error(
+                $"Unable to find a matching FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report. Error: {ex}\n{ex.Data["errorString"]}\n\n{ex.Data["stringInfo"]}\n\n");
 
         }
         finally

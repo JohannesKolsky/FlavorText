@@ -1,10 +1,8 @@
 ﻿using System.Globalization;
 using System.Text;
 
-//--TODO: recipe parent hierarchy
-//--TODO: spreadsheet descriptions are misaligned
-
-//TODO: blank ingredient option
+//DONE: recipe parent hierarchy
+//DONE: spreadsheet descriptions are misaligned
 
 
 namespace FlavorText;

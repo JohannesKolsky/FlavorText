@@ -1,15 +1,12 @@
-using System;
 using HarmonyLib;
 using RimWorld;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using UnityEngine;
 using Verse;
-using Verse.AI;
 
-//TODO: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
-//TODO: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
+//DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
+//DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
 
 namespace FlavorText;
 

@@ -6,9 +6,13 @@ namespace FlavorText;
 // adds 4 fields to ThingCategoryDef to store FlavorText information
 public class FlavorCategoryModExtension : DefModExtension
 {
-    // other Categories that correspond to the FT_Category; usually just 1 but more are supported
+    // vanilla category that corresponds to the FT_Category
     // FT_ThingCategories are their own separate tree under Root
-    internal List<ThingCategoryDef> FlavorSisterCategories = [];
+    internal ThingCategoryDef VanillaSisterCategory;
+
+    // other categories whose immediate child thingDefs should be incorporated into this FT_Category
+    internal List<ThingCategoryDef> CategoriesToAbsorb = [];
+
     
     // whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
     // if null, value will be inherited from the parent
