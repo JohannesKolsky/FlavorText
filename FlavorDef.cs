@@ -26,9 +26,9 @@ public class FlavorDef : RecipeDef
     // ReSharper disable once UnusedMember.Global
     public string VarietyTexture;  // texture to use from Food Texture Variety
 
-    public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; defaults to all
+    public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
-    public List<ThingCategoryDef> CookingStations = [];  // which stations are allowed to cook this FlavorDef; defaults to all
+    public List<ThingCategoryDef> CookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
 
     public IntRange HoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
 
@@ -36,11 +36,7 @@ public class FlavorDef : RecipeDef
 
     public static IEnumerable<FlavorDef> ActiveFlavorDefs;  // all FlavorDefs that can be used with the current modlist
 
-    public List<List<ThingCategoryDef>> categories = [];
-
-    public List<List<ThingCategoryDef>> disallowedCategories = [];
-
-    // about how many possible ingredients could fulfill each FlavorDef? add together all the specificities of all its categories; overlaps in categories will be counted multiple times
+    // about how many possible ingredients could fulfill each FlavorDef?
     // also calculate the lowest common category containing all ingredients for each FlavorDef
     public static void SetCategoryData()
     {
