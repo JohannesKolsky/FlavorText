@@ -1,34 +1,57 @@
-﻿using RimWorld;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Verse;
 
 //--TODO: recipe parent hierarchy
-//--TODO: spreadsheet descriptions are misaligned
+//DONE: spreadsheet descriptions are misaligned
 //xxTODO: blank ingredient option
 
 
 namespace FlavorText;
 
+public class IngredientSlot : IExposable
+{
+    public List<FlavorCategoryDef> categories = [];
+    public List<FlavorCategoryDef> disallowedCategories = [];
+    private HashSet<ThingDef> allowedThingDefs = [];
+    public IEnumerable<ThingDef> AllowedThingDefs => allowedThingDefs;
+
+    internal void AddAllowedThingDefsRecursive(IEnumerable<FlavorCategoryDef> cats)
+    {
+        foreach (var cat in cats)
+        {
+            if (disallowedCategories.Contains(cat)) continue;
+            allowedThingDefs.AddRange(cat.childThingDefs);
+            AddAllowedThingDefsRecursive(cat.childCategories);
+        }
+    }
+
+    public virtual void ExposeData()
+    {
+        Scribe_Collections.Look(ref allowedThingDefs, "allowedThingDefs");
+    }
+}
 /// <summary>
 ///     Effectively recipes
 ///     show what combination of ingredients/categories are needed for each particular flavor label
 /// </summary>
 /// 
-public class FlavorDef : RecipeDef
+public class FlavorDef : Def
 {
+    internal bool tag;  // debug tag
+    
     public float Specificity;  // about how many possible ingredients could fulfill this FlavorDef?
 
-    public ThingCategoryDef LowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
+    public FlavorCategoryDef LowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
     // ReSharper disable once UnusedMember.Global
     public string VarietyTexture;  // texture to use from Food Texture Variety
 
-    public List<ThingCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means all
+    public List<FlavorCategoryDef> MealCategories = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
-    public List<ThingCategoryDef> CookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
+    public List<FlavorCategoryDef> CookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
 
     public IntRange HoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
 
@@ -36,20 +59,31 @@ public class FlavorDef : RecipeDef
 
     public static IEnumerable<FlavorDef> ActiveFlavorDefs;  // all FlavorDefs that can be used with the current modlist
 
+    public List<IngredientSlot> ingredients = [];
+    
     // about how many possible ingredients could fulfill each FlavorDef?
     // also calculate the lowest common category containing all ingredients for each FlavorDef
     public static void SetCategoryData()
     {
         try
         {
-            // get all FlavorDefs, excluding those which have an ingredient slot which only has FT_ThingCategoryDefs which are empty (i.e. no ThingDefs in the current modlist fit that slot)
+            // register all allowed Defs for each ingredient slot in each Flavor Def
+            foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
+            {
+                foreach (var slot in flavorDef.ingredients)
+                {
+                    slot.AddAllowedThingDefsRecursive(slot.categories);
+                }
+            }
+                
+            // get all FlavorDefs, excluding those which have an ingredient slot which has no allowed ThingDefs (i.e. no ThingDefs in the current modlist fit that slot)
             ActiveFlavorDefs = DefDatabase<FlavorDef>.AllDefs
                 .Where(flavorDef => flavorDef != null)
                     .Where(flavorDef => flavorDef.ingredients
-                        .All(ingredientSlot => ingredientSlot.filter.AllowedDefCount > 0));
+                        .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
 
-            int totalCookingStations = ThingCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Count();
-            int totalMealTypes = ThingCategoryDef.Named("FT_MealsFlavor").DescendantThingDefs.Count();
+            int totalCookingStations = FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Count();
+            int totalMealTypes = FlavorCategoryDef.Named("FT_MealsFlavor").DescendantThingDefs.Count();
             
             foreach (FlavorDef flavorDef in ActiveFlavorDefs)
             {
@@ -58,9 +92,9 @@ public class FlavorDef : RecipeDef
                     Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealCategories, it will never appear in-game. Please report."); 
                 }
 
-                foreach (IngredientCount ingredient in flavorDef.ingredients)
+                foreach (var slot in flavorDef.ingredients)
                 {
-                    flavorDef.Specificity += ingredient.filter.AllowedDefCount;
+                    flavorDef.Specificity += slot.AllowedThingDefs.Count();
                 }
 
                 // more specific if it has a required meal type, weighted to half-impact
@@ -86,10 +120,10 @@ public class FlavorDef : RecipeDef
 
                 // calculate the lowest category containing all the ingredients in the FlavorDef
                 // no need to include disallowed categories b/c those should always be a subcategory of a valid category
-                flavorDef.LowestCommonIngredientCategory = ThingCategoryDefUtility.FlavorRoot;
+                flavorDef.LowestCommonIngredientCategory = FlavorCategoryDefUtility.FlavorRoot;
                 // get each category and its parents
-                List<List<ThingCategoryDef>> allCategoriesInDefAndParents = flavorDef.ingredients
-                    .SelectMany(slot => GetFilterCategories(slot.filter, "categories"))
+                List<List<FlavorCategoryDef>> allCategoriesInDefAndParents = flavorDef.ingredients
+                    .SelectMany(slot => slot.categories)
                     .Distinct()
                     .Select(cat => cat.Parents.Prepend(cat).ToList())
                     .ToList();
@@ -98,7 +132,7 @@ public class FlavorDef : RecipeDef
                 // if they are no longer equal, then the previous element was the lowest common category
                 if (!allCategoriesInDefAndParents.NullOrEmpty())
                 {
-                    int min = (from List<ThingCategoryDef> parents in allCategoriesInDefAndParents select parents.Count).Min();
+                    int min = (from List<FlavorCategoryDef> parents in allCategoriesInDefAndParents select parents.Count).Min();
                     var first = allCategoriesInDefAndParents[0].ToList();
                     for (int i = 0; i < min; i++)
                     {
@@ -117,30 +151,6 @@ public class FlavorDef : RecipeDef
         {
             Log.Error($"Error when building database of FinalFlavorDefs, error: {ex}");
         }
-    }
-
-    public static List<ThingCategoryDef> GetFilterCategories(ThingFilter filter, string name)
-    {
-        FieldInfo field = filter.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
-        if (field != null)
-        {
-            List<ThingCategoryDef> list = [];
-            try
-            {
-                if (field.GetValue(filter) != null)
-                {
-                    list = ((List<string>)field.GetValue(filter))
-                        .Select(categoryString => DefDatabase<ThingCategoryDef>.GetNamed(categoryString)).ToList();
-                }
-            }
-            catch 
-            { 
-                throw new Exception($"Could not examine {name} within the given filter.");
-            }
-            return list;
-        }
-        if (Prefs.DevMode) Log.Message($"Filter {name} is null");
-        return [];
     }
 
 

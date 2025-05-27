@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Verse;
 
-// Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to ThingCategoryDef.childCategories
+// Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to FlavorCategoryDef.childCategories
 
 //DONE: poultry eggs show up in FT_Poultry
 //DONE: FT_Poultry and FT_Sheep aren't getting their relevant thingdefs
@@ -33,89 +33,72 @@ using Verse;
 namespace FlavorText;
 
 /// <summary>
-/// various methods used to calculate stuff for FlavorText-related ThingCategoryDefs
+/// various methods used to calculate stuff for FlavorText-related FlavorCategoryDefs
 /// </summary>
 
 [StaticConstructorOnStartup]
-public static class ThingCategoryDefUtility
+public static class FlavorCategoryDefUtility
 {
+    internal static FlavorCategoryDef Root = FlavorCategoryDef.Named("FT_Root");
+    internal static FlavorCategoryDef FlavorRoot = FlavorCategoryDef.Named("FT_Foods"); // topmost category used for meal ingredients; couple unused FT_Categories on top, then FT_Root
 
-    internal static ThingCategoryDef FlavorRoot = ThingCategoryDef.Named("FT_Foods"); // topmost category used for getting flavor text; couple unused FT_Categories on top, then FT_Root
-
-    internal static ThingCategoryDef MealsFlavor = ThingCategoryDef.Named("FT_MealsFlavor");
+    internal static FlavorCategoryDef MealsFlavor = FlavorCategoryDef.Named("FT_MealsFlavor");
 
     private static bool tag;  // DEBUG
 
-    internal static Dictionary<ThingDef, Tuple<string, string, string, string>> IngredientInflections = [];
+    internal static Dictionary<ThingDef, List<string>> ThingDefInflectionsDictionary = DefDatabase<ThingDefInflectionsDictionary>.AllDefs
+        .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
+        .SelectMany(dict => dict.dictionary)
+        .ToDictionary(kvp => DefDatabase<ThingDef>.GetNamed(kvp.Key), kvp => kvp.Value);
+    
+    internal static Dictionary<FlavorCategoryDef, List<string>> FlavorCategoryDefInflectionsDictionary = DefDatabase<FlavorCategoryDefInflectionsDictionary>.AllDefs
+        .Where(dict => ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
+        .SelectMany(dict => dict.dictionary)
+        .ToDictionary(kvp => DefDatabase<FlavorCategoryDef>.GetNamed(kvp.Key), kvp => kvp.Value);
 
-    static ThingCategoryDefUtility()
+    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ItemCategories = [];
+    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> BuildingCategories = [];
+    static FlavorCategoryDefUtility()
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
         try
         {
-            InheritParentModExtensions(); // FT_Categories inherit some data from parents
-            SetNestLevelRecursive(ThingCategoryDef.Named("FT_Root").treeNode,
-                0); // FT_Root is isolated so set its category nest levels manually
-            //SetNestLevelRecursive(ThingCategoryDef.Named("FT_MealsFlavor").treeNode,
-            //    0); // FT_MealsFlavor is also isolated
+            InheritSingularCollectiveIfNull(); // FT_Categories inherit some data from parents
+            FlavorCategoryDef.FinalizeInit();
+            FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDef.Named("FT_Root"), 0);
             
-            AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText ThingCategoryDef
+            AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
            
             // can't do this until now, needs previous method and a built DefDatabase
-            DefDatabase<ThingCategoryDef>.ResolveAllReferences();
+            DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
             DefDatabase<FlavorDef>.ResolveAllReferences();
 
-
             FlavorDef.SetCategoryData(); // get total specificity for each FlavorDef; get other static data
-            GetIngredientInflections();
+            AssignIngredientInflections();
             Debug();
 
         }
         catch (Exception ex)
         {
-            Log.Error($"Error when setting up FT_ThingCategoryDefs for Flavor Text. Error: {ex}");
+            Log.Error($"Error when setting up FlavorCategoryDefs for Flavor Text. Error: {ex}");
         }
 
         stopwatch.Stop();
         TimeSpan elapsed = stopwatch.Elapsed;
         if (Prefs.DevMode)
         {
-            Log.Warning("[Flavor Text] ThingCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
+            Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
         }
 
-    }
-
-    private static void GetIngredientInflections()
-    {
-        List<ThingDef> allIngredients = FlavorRoot.DescendantThingDefs.ToList();
-        foreach (ThingDef ingredient in allIngredients)
-        {
-            Tuple<string, string, string, string> inflection = GenerateIngredientInflections(ingredient);
-            // add to inflection dictionary
-            if (!inflection.Item1.NullOrEmpty() && !inflection.Item2.NullOrEmpty() && !inflection.Item3.NullOrEmpty() && !inflection.Item4.NullOrEmpty())
-            {
-                /*Log.Message($"plur = {inflection.Item1}"); Log.Message($"coll = {inflection.Item2}"); Log.Message($"sing = {inflection.Item3}"); Log.Message($"adj = {inflection.Item4}");*/
-                IngredientInflections.Add(ingredient, inflection);
-            }
-            else
-            {
-                Log.Error($"Failed to find an inflection for {ingredient.label}");
-                Log.Message($"plur = {inflection.Item1}");
-                Log.Message($"coll = {inflection.Item2}");
-                Log.Message($"sing = {inflection.Item3}");
-                Log.Message($"adj = {inflection.Item4}");
-                throw new Exception("Failed to find an inflection for an FT_ThingCategoryDef during loading.");
-            }
-        }
     }
 
     private static void Debug()
     {
-        /*foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<ThingCategoryDef>.GetNamed("FT_MeatRaw").ContainedInThisOrDescendant(thing)))
+        /*foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_MeatRaw").ContainedInThisOrDescendant(thing)))
         {
-            Log.Message($">{thing.defName} is in categories:");
-            foreach (ThingCategoryDef category in thing.thingCategories)
+            Log.Warning($">{thing.defName} is in categories:");
+            foreach (FlavorCategoryDef category in ItemCategories[thing])
             {
                 Log.Message($"{category.defName}");
             }
@@ -123,13 +106,13 @@ public static class ThingCategoryDefUtility
         
         /*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
                 {
-                    if (thingDef.HasComp<CompFlavor>() && ThingCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
+                    if (thingDef.HasComp<CompFlavor>() && FlavorCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
                     {
                         Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
                     }
                 }*/
         
-        /*foreach (var cat in DefDatabase<ThingCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
+        /*foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
         {
             Log.Warning(cat.defName);
             foreach (ThingDef thingDef in cat.DescendantThingDefs)
@@ -140,70 +123,39 @@ public static class ThingCategoryDefUtility
     }
 
     // for FT_Categories, inherit mod extension variables from parent where appropriate
-    public static void InheritParentModExtensions()
+    public static void InheritSingularCollectiveIfNull()
     {
-        foreach (ThingCategoryDef cat in FlavorRoot.ThisAndChildCategoryDefs)
+        foreach (FlavorCategoryDef cat in FlavorRoot.ThisAndChildCategoryDefs)
         {
             // inherit singularCollective field value from parent if it is null in child
-            cat.GetModExtension<FlavorCategoryModExtension>().SingularCollective ??= cat.parent.GetModExtension<FlavorCategoryModExtension>().SingularCollective;
+            cat.SingularCollective ??= cat.parent.SingularCollective;
         }
     }
 
-    // recalculate the nest depth of everything in FT_Root, since this wasn't automatically calculated for some reason (b/c they're modded?)
-    private static void SetNestLevelRecursive(TreeNode_ThingCategory node, int nestDepth)
-    {
-        nestDepth += 1;
-        foreach (ThingCategoryDef childCategory in node.catDef.childCategories)
-        {
-            childCategory.treeNode.nestDepth = nestDepth;
-            SetNestLevelRecursive(childCategory.treeNode, nestDepth);
-        }
-    }
-
-    // assign all ThingDefs and ThingCategoryDefs in "Foods" to the best FT_ThingCategory
+    // assign all ThingDefs and FlavorCategoryDefs in "Foods" to the best FT_ThingCategory
     // add CompFlavor to appropriate meals
     public static void AssignToFlavorCategories()
     {
-        // look at all sister categories and add their contents to FT_ThingCategoryDefs
-        List<ThingCategoryDef> flavorCategoryDefs = FlavorRoot.ThisAndChildCategoryDefs.ToList();
-        flavorCategoryDefs.RemoveDuplicates();
-        foreach (var flavorCategoryDef in flavorCategoryDefs)
-        {
-            var categoriesToAbsorb = flavorCategoryDef.GetModExtension<FlavorCategoryModExtension>().CategoriesToAbsorb;
+        AbsorbChildren();
 
-            categoriesToAbsorb
-                .ForEach(cat => cat.childThingDefs
-                    .ForEach(child => child.thingCategories.Add(flavorCategoryDef)));
+        // add everything in vanilla "Foods" to the item FlavorCategoryDef dictionary
+        foreach (var food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
+        {
+            ItemCategories.AddDistinct(food, []);
         }
         
-        // assign everything in vanilla "Foods" to an FT_Category
-        List<ThingDef> flavorThingDefs = ThingCategoryDef.Named("Foods").DescendantThingDefs.ToList();
-        flavorThingDefs.RemoveDuplicates();
-
-        foreach (ThingDef food in flavorThingDefs)
+        foreach (ThingDef food in ItemCategories.Keys)
         {
-            if (food.thingCategories.Any(cat => cat.defName.StartsWith("FT_")))
-            {
-                Log.Message($"{food.defName} was already assigned to an FT_ThingCategoryDef among [{food.thingCategories.ToStringSafeEnumerable()}], skipping...");
-                continue;
-            }
-            
-
-            //tag = food.defName.ToLower().Contains("");
+            //tag = food.defName.ToLower().Contains("flour");
             List<string> splitNames = ExtractNames(food);
-            ThingCategoryDef newParent = GetBestFlavorCategory(splitNames, food, FlavorRoot);
+            FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, food, FlavorRoot);
 
             if (tag) { Log.Message($"!!! found new parent {newParent.defName}"); }
 
-            food.thingCategories ??= [];
             if (newParent != null)
             {
-                if (!food.thingCategories.Contains(newParent)) 
-                { 
-                    food.thingCategories.Add(newParent);
-                    food.ResolveReferences();
-                }
-                if (!newParent.childThingDefs.Contains(food)) { newParent.childThingDefs.Add(food); }
+                if (!ItemCategories[food].Contains(newParent)) ItemCategories[food].Add(newParent);
+                if (!newParent.childThingDefs.Contains(food)) newParent.childThingDefs.Add(food);
 
                 // if ThingDef should have CompFlavor, postpend a new one
                 if (food.HasComp<CompIngredients>() && (newParent == MealsFlavor || newParent.Parents.Contains(MealsFlavor)))
@@ -214,21 +166,67 @@ public static class ThingCategoryDefUtility
 
             tag = false;
         }
-        // repeat for buildings, but use Buildings as the root, and don't add any CompFlavors
-        List<ThingDef> cookingStationThingDefs = DefDatabase<ThingDef>.AllDefs.Where(b => b.building is { isMealSource: true }).ToList();  // all buildings that are a meal source
-        cookingStationThingDefs.RemoveDuplicates();
 
-        foreach (ThingDef building in cookingStationThingDefs)
+        // add every meal source building to the building FlavorCategoryDef dictionary
+        foreach (var building in DefDatabase<ThingDef>.AllDefs.Where(b => b.building is { isMealSource: true }).ToList())
+        {
+            BuildingCategories.AddDistinct(building, []);
+        }
+        // repeat for buildings, but use Buildings as the root, and don't add any CompFlavors
+        foreach (ThingDef building in BuildingCategories.Keys)
         {
             //tag = building.defName.ToLower().Contains("pot");
             List<string> splitNames = ExtractNames(building);
-            ThingCategoryDef newParent = GetBestFlavorCategory(splitNames, building, ThingCategoryDef.Named("FT_Buildings"));
+            FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, building, FlavorCategoryDef.Named("FT_Buildings"));
+
+            if (tag) { Log.Message($"!!! found new parent {newParent.defName}"); }
             
-            building.thingCategories ??= [];
             if (newParent != null)
             {
-                if (!building.thingCategories.Contains(newParent)) { building.thingCategories.Add(newParent); }
-                if (!newParent.childThingDefs.Contains(building)) { newParent.childThingDefs.Add(building); }
+                if (!BuildingCategories[building].Contains(newParent)) BuildingCategories[building].Add(newParent);
+                if (!newParent.childThingDefs.Contains(building)) newParent.childThingDefs.Add(building);
+            }
+
+            tag = false;
+        }
+
+
+    }
+
+    // add to their parent FlavorCategoryDefs all ThingDefs and ThingCategoryDef children that were explicitly assigned in XML
+    private static void AbsorbChildren()
+    {
+        // make a thingDefs of which ThingDefs belong in which FlavorCategoryDefs
+        var allFlavorCategoryDefs = FlavorCategoryDef.Named("FT_Root").ThisAndChildCategoryDefs;
+        allFlavorCategoryDefs = allFlavorCategoryDefs.Reverse();  // by reversing, you start at the lowest categories and work your way up  // this allows absorbing specific ThingDefs before the whole group in a higher Flavor Category
+        var flavorThingDefsCopy = DefDatabase<ThingDef>.AllDefs.Select(t => t).ToList();
+        foreach (var flavorCategory in allFlavorCategoryDefs)
+        {
+            foreach (var child in flavorCategory.ThingDefsToAbsorb)
+            {
+                if (flavorThingDefsCopy.Contains(child))
+                {
+                    //Log.Message($"absorbing ThingDef {child} into {flavorCategory}...");
+                    flavorThingDefsCopy.Remove(child);
+                    if (ItemCategories.ContainsKey(child)) ItemCategories[child].AddDistinct(flavorCategory);
+                    else ItemCategories.Add(child, [flavorCategory]);
+                    flavorCategory.childThingDefs.Add(child);
+                }
+            }
+            foreach (var thingCategory in flavorCategory.ThingCategoryDefsToAbsorb)
+            {
+                //Log.Message($"absorbing ThingCategoryDef {thingCategory} into {flavorCategory}...");
+                foreach (var descendant in thingCategory.DescendantThingDefs)
+                {
+                    if (flavorThingDefsCopy.Contains(descendant))
+                    {
+                        //Log.Message($"absorbing ThingDef {descendant} into {flavorCategory}...");
+                        flavorThingDefsCopy.Remove(descendant);
+                        if (ItemCategories.ContainsKey(descendant)) ItemCategories[descendant].AddDistinct(flavorCategory);
+                        else ItemCategories.Add(descendant, [flavorCategory]);
+                        flavorCategory.childThingDefs.AddDistinct(descendant);
+                    }
+                }
             }
         }
     }
@@ -256,18 +254,19 @@ public static class ThingCategoryDefUtility
         return splitNames;
     }
 
-    private static ThingCategoryDef GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, ThingCategoryDef topLevelCategory, int minMealsFlavorScore = 6)
+    private static FlavorCategoryDef GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsFlavorScore = 6)
     {
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding NewParent for {searchedDef.defName}"); }
 
-        int categoryScore = 0;
+        int categoryScore;
         int bestCategoryScore = 0;
-        ThingCategoryDef bestFlavorCategory = null;
+        FlavorCategoryDef bestFlavorCategory = null;
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndChildCategoryDefs.ToList();
         
         try
         {
+            //tag = searchedDef.defName.ToLower().Contains("rice");
             if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
 
             // ReSharper disable once ForCanBeConvertedToForeach
@@ -281,7 +280,7 @@ public static class ThingCategoryDefUtility
             // if the best category was FT_MealsFlavor but its score wasn't high enough, choose FT_FoodMeals as the best category instead
             if (bestFlavorCategory == MealsFlavor && bestCategoryScore < minMealsFlavorScore)
             {
-                bestFlavorCategory = ThingCategoryDef.Named("FT_FoodMeals");
+                bestFlavorCategory = FlavorCategoryDef.Named("FT_FoodMeals");
             }
 
             // if nothing matched, try using the Def's vanilla parent categories as the search keywords
@@ -289,28 +288,25 @@ public static class ThingCategoryDefUtility
             {
                 //{ Log.Error($"No category found for {searchedDef.defName}, looking at its parent categories"); }
                 
-                var topLevelVanillaCategory = topLevelCategory.GetModExtension<FlavorCategoryModExtension>().VanillaSisterCategory ?? throw new NullReferenceException($"{topLevelCategory.defName} had no vanilla sister category. Please report.");
-                var defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelVanillaCategory)).ToList();
+                ThingCategoryDef topLevelThingCategoryDef = !topLevelCategory.SisterCategories.NullOrEmpty()
+                    ? topLevelCategory.SisterCategories.FirstOrDefault()
+                    : null;
+                
+                var defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelThingCategoryDef)).ToList();
                 while (true)
                 {
                     if (defParents.NullOrEmpty()) break;
-                    //{ Log.Warning($"{searchedDef.defName} had parent categories [{defParents.ToStringSafeEnumerable()}]"); }
+                    //Log.Warning($"{searchedDef.defName} had parent categories [{defParents.ToStringSafeEnumerable()}]");
 
-                    foreach (ThingCategoryDef defParent in defParents)
+                    foreach (ThingCategoryDef defParent in defParents!)
                     {
-                       
                         splitNames = ExtractNames(defParent);
                         
                         foreach (var flavorCategory in categoriesToSearch)
                         {
                             // if the current flavor category being tested has a sister category, give it a flat score of 3
-                            var sisterCategories = flavorCategory.GetModExtension<FlavorCategoryModExtension>().CategoriesToAbsorb;
-                            if (flavorCategory.GetModExtension<FlavorCategoryModExtension>().VanillaSisterCategory != null)
-                            {
-                                sisterCategories = sisterCategories.Prepend(flavorCategory.GetModExtension<FlavorCategoryModExtension>().VanillaSisterCategory).ToList();
-                            }
-
-                            if (sisterCategories.Contains(defParent))
+                            var sisterCategories = flavorCategory.SisterCategories;
+                            if (sisterCategories != null && sisterCategories.Contains(defParent))
                             {
                                 categoryScore = 3;
                             }
@@ -320,13 +316,13 @@ public static class ThingCategoryDefUtility
                             {
                                 GetKeywordScores(flavorCategory);
                             }
-                            
+
                             CompareCategoryScores(flavorCategory);
                         }
                     }
 
                     defParents = defParents
-                        .Where(cat => cat != topLevelVanillaCategory)
+                        .Where(cat => cat != topLevelThingCategoryDef)
                         .Select(cat => cat.parent)
                         .Where(parent => parent != null)
                         .ToList();
@@ -338,25 +334,20 @@ public static class ThingCategoryDefUtility
             if (bestFlavorCategory != null) return bestFlavorCategory;
             
             bestFlavorCategory = topLevelCategory;
-            Log.Warning($"Could not find appropriate FT_ThingCategoryDef for {searchedDef.defName}, using {topLevelCategory.defName} instead.");
+            Log.Warning($"Could not find appropriate FT_FlavorCategoryDef for {searchedDef.defName}, using {topLevelCategory.defName} instead.");
             return bestFlavorCategory;
         }
         catch (Exception ex)
         {
             Log.Error($"error testing {searchedDef.defName}: {ex}");
-            return null;
+            throw;
         }
 
-        void GetKeywordScores(ThingCategoryDef flavorCategory)
+        void GetKeywordScores(FlavorCategoryDef flavorCategory)
         {
                 // get a score based on how well the flavorCategory keywords match the searchedDef's names
                 categoryScore = 0;
-                List<string> keywords = flavorCategory.GetModExtension<FlavorCategoryModExtension>().Keywords;
-                foreach (string keyword in keywords)
-                {
-                    categoryScore += ScoreKeyword(splitNames, keyword);
-                }
-                List<string> blacklist = flavorCategory.GetModExtension<FlavorCategoryModExtension>().Blacklist;
+                List<string> blacklist = flavorCategory.Blacklist;
                 foreach (string black in blacklist)
                 {
                     // if blacklist was triggered, remove flavorCategory and all its descendants from the categories to search in
@@ -366,31 +357,37 @@ public static class ThingCategoryDefUtility
                         return;
                     }
                 }
+                List<string> keywords = flavorCategory.Keywords;
+                    foreach (string keyword in keywords)
+                    {
+                        categoryScore += ScoreKeyword(splitNames, keyword);
+                    }
             
         }
 
-        void CompareCategoryScores(ThingCategoryDef flavorCategory)
+        void CompareCategoryScores(FlavorCategoryDef flavorCategory)
         {
+            //tag = searchedDef.defName.ToLower().Contains("rice");
             if (categoryScore >= 1)
             {
-                if (tag) { Log.Message($"Found matching category {flavorCategory} with score of {categoryScore} and nest depth of {flavorCategory.treeNode.nestDepth}"); }
+                if (tag) { Log.Message($"Found matching category {flavorCategory} with score of {categoryScore} and nest depth of {flavorCategory.nestDepth}"); }
                 if (bestFlavorCategory == null)
                 {
                     bestCategoryScore = categoryScore;
                     bestFlavorCategory = flavorCategory;
-                    if (tag) { Log.Message($"->Best new category is {bestFlavorCategory.defName} with score of {bestCategoryScore} and nest depth of {bestFlavorCategory.treeNode.nestDepth}"); }
+                    if (tag) { Log.Message($"->Best new category is {bestFlavorCategory.defName} with score of {bestCategoryScore} and nest depth of {bestFlavorCategory.nestDepth}"); }
                 }
                 else if (flavorCategory.Parents.Contains(bestFlavorCategory))  // if subcategory, add scores together
                 {
                     bestCategoryScore += categoryScore;
                     bestFlavorCategory = flavorCategory;
-                    if (tag) { Log.Message($"->Best new category is {bestFlavorCategory.defName} with score of {bestCategoryScore} and nest depth of {bestFlavorCategory.treeNode.nestDepth}"); }
+                    if (tag) { Log.Message($"->Best new category is {bestFlavorCategory.defName} with score of {bestCategoryScore} and nest depth of {bestFlavorCategory.nestDepth}"); }
                 }
-                else if (categoryScore > bestCategoryScore || categoryScore == bestCategoryScore && flavorCategory.treeNode.nestDepth > bestFlavorCategory.treeNode.nestDepth)
+                else if (categoryScore > bestCategoryScore || categoryScore == bestCategoryScore && flavorCategory.nestDepth > bestFlavorCategory.nestDepth)
                 {
                     bestCategoryScore = categoryScore;
                     bestFlavorCategory = flavorCategory;
-                    if (tag) { Log.Message($"->Best new category is {bestFlavorCategory.defName} with score of {bestCategoryScore} and nest depth of {bestFlavorCategory.treeNode.nestDepth}"); }
+                    if (tag) { Log.Message($"->Best new category is {bestFlavorCategory.defName} with score of {bestCategoryScore} and nest depth of {bestFlavorCategory.nestDepth}"); }
                 }
             }
         }
@@ -433,139 +430,85 @@ public static class ThingCategoryDefUtility
         return keywordScore;
     }
 
-    // get singular and plural forms of each ingredient
-    public static Tuple<string, string, string, string> GenerateIngredientInflections(ThingDef ingredient)
+    // get various grammatical forms of each ingredient
+    private static void AssignIngredientInflections()
+    { 
+        foreach (ThingDef ingredient in FlavorRoot.DescendantThingDefs.Distinct().ToList())
+        {
+            try
+            {
+                {
+                    // try and get inflections defined in the XML
+                    // if an inflection field is null it will inherit the value of the one before it
+                    // the first inflection field must be non-null
+                    var inflections = ThingDefInflectionsDictionary.TryGetValue(ingredient);
+                    if (inflections is null)
+                    {
+                        if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
+                        inflections = FlavorCategoryDefInflectionsDictionary.TryGetValue(ItemCategories[ingredient].First());
+                        if (inflections is null)
+                        {
+                            if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined category inflections, will generate inflections instead.");
+                            // generate inflections
+                            var generatedInflections = GenerateIngredientInflections(ingredient);
+                            if (generatedInflections.Any(inf => inf.NullOrEmpty()))
+                            {
+                                string errorString =
+                                    $"\nplur = {generatedInflections[0]}\ncoll = {generatedInflections[1]}\nsing = {generatedInflections[2]}\nadj = {generatedInflections[3]}";
+                                throw new NullReferenceException(
+                                    $"Generated inflections for {ingredient} but some or all of them were null" + errorString);
+                            }
+
+                            ThingDefInflectionsDictionary.Add(ingredient, [generatedInflections[0],
+                                generatedInflections[1],
+                                generatedInflections[2],
+                                generatedInflections[3]]);
+                            continue;
+                        }
+                    }
+
+                    // get inflections from one of the dictionaries
+                    if (inflections[0].NullOrEmpty()) throw new NullReferenceException($"Found inflection dictionary entry for {ingredient}, but it or its first inflection was null.");
+                    if (inflections[1].NullOrEmpty()) inflections[1] = inflections[0];
+                    if (inflections[2].NullOrEmpty()) inflections[2] = inflections[1];
+                    if (inflections[3].NullOrEmpty()) inflections[3] = inflections[2];
+                    //Log.Warning($"Found all predefined inflections for {ingredient}");
+                    //Log.Message($"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error when getting inflections for {ingredient}. {ex}");
+            }
+        }
+    }
+
+    // generate various grammatical forms of each ingredient
+    public static List<string> GenerateIngredientInflections(ThingDef ingredient)
     {
         tag = false;
-        /*if (ingredient.defName.ToLower().Contains("egg")) { tag = true; }*/
+        /*if (ing.defName.ToLower().Contains("egg")) { tag = true; }*/
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
-        // collective form, singular/plural ending depending in real-life ingredient size // stew with CABBAGE  // stew with PEAS
+        // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
         // singular form // a slice of BRUSSELS SPROUT
         // adjectival form // PEANUT brittle
 
-        GetInflections(ingredient, out var plur, out var coll, out var sing, out var adj);
+        string plur, coll, sing, adj;
+        GenerateInflections(ingredient);
 
-        Tuple<string, string, string, string> inflections = Tuple.Create(plur, coll, sing, adj);
-        return inflections;
+        return [plur, coll, sing, adj];
 
-        // determine correct inflections for plural, collective, singular, and adjectival forms of the ingredient's label
-        static void GetInflections(ThingDef ingredient, out string plur, out string coll, out string sing, out string adj)
+        // determine correct inflections for plural, collective, singular, and adjectival forms of the ing's label
+        void GenerateInflections(ThingDef ing)
         {
-            if (ingredient.IsWithinCategory(ThingCategoryDef.Named("FT_MeatRaw")))
-            {
-                switch (ingredient.defName)
-                {
-                    case "Meat_Twisted":
-                        {
-                            plur = "twisted flesh";
-                            coll = plur;
-                            sing = coll;
-                            adj = "twisted";
-                            return;
-                        }
-                    case "Meat_Human":
-                        {
-                            plur = "long pork";
-                            coll = plur;
-                            sing = coll;
-                            adj = "cannibal";
-                            return;
-                        }
-                    case "Meat_Megaspider":
-                        {
-                            plur = "bug guts";
-                            coll = plur;
-                            sing = "bug";
-                            adj = sing;
-                            return;
-                        }
-                }
-            }
-            if (ingredient.defName == "RawFungus")
-            {
-                plur = "mushrooms";
-                coll = plur;
-                sing = "mushroom";
-                adj = sing;
-                return;
-            }
-
-            // manual VG Vegetable Garden, since their defNames are singular
-            if (ingredient.defName == "Rawmushroom")
-            {
-                plur = "mushrooms";
-                coll = plur;
-                sing = "mushroom";
-                adj = sing;
-                return;
-            }
-            if (ingredient.defName == "Rawbean")
-            {
-                plur = "beans";
-                coll = plur;
-                sing = "bean";
-                adj = sing;
-                return;
-            }
-            if (ingredient.defName == "Rawsnowbeet")
-            {
-                plur = "beets";
-                coll = plur;
-                sing = "beet";
-                adj = sing;
-                return;
-            }
-            if (ingredient.defName == "RawOlive")
-            {
-                plur = "olives";
-                coll = plur;
-                sing = "olive";
-                adj = sing;
-                return;
-            }
-            if (ingredient.defName == "RawRedLentil")
-            {
-                plur = "lentils";
-                coll = plur;
-                sing = "lentil";
-                adj = sing;
-                return;
-            }
-
-            if (ingredient.defName == "VCE_RawSunflower")  // sunflower seeds, not sunflowers
-            {
-                plur = "sunflower seeds";
-                coll = plur;
-                sing = "sunflower seed";
-                adj = sing;
-                return;
-            }
-
-            if (ingredient.IsWithinCategory(ThingCategoryDef.Named("FT_BrusselsSprout"))) // capitalize Brussels sprouts
-            {
-                plur = "Brussels sprouts";
-                coll = plur;
-                sing = "Brussels sprout";
-                adj = sing;
-            }
-
-            if (ingredient.defName == "VCE_RawSpices")
-            {
-                plur = "spices";
-                coll = plur;
-                sing = "spice";
-                adj = "spicy";
-            }
-
-            // if ingredient isn't a special def from above, attempt to generate accurate inflections
-            else
-            {
+            
                 List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("us$", "us"), ("([aeiouy][cs]h)es$", "$1"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
 
-                string label = ingredient.label;
+                string label = ing.label;
                 if (tag) { Log.Warning($">>>starting label is {label}"); }
                 string labelCapDiacritic = label;
-                string defNameCompare = ingredient.defName;
+                string defNameCompare = ing.defName;
                 if (tag) { Log.Warning($">>>starting defName is {defNameCompare}"); }
                 defNameCompare = Regex.Replace(defNameCompare, "([_])", " ");  // remove spacer chars
 
@@ -579,10 +522,10 @@ public static class ThingCategoryDefUtility
                 defNameCompare = defNameCompare.ToLower();
 
                 // remove unnecessary bits
-                List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "eggs*", "meat"];  // bits to delete
+                List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "eggs*", "flour", "meat"];  // bits to delete
 
                 // don't remove "meat" from certain generic meat labels
-                List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat", "bone meat"];
+                List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
                 foreach (string combination in excludedCombinations)
                 {
                     if (labelCompare == combination)
@@ -615,7 +558,8 @@ public static class ThingCategoryDefUtility
                 if (tag) { Log.Warning($"Longest common substring was {root}"); }
 
                 // eggs are a special case b/c label isn't plural and it's a different order from the defName
-                if (ingredient.IsWithinCategory(ThingCategoryDef.Named("FT_Egg")))
+                // down here b/c you need 'root'
+                if (FlavorCategoryDef.Named("FT_Egg").ContainedInThisOrDescendant(ing))
                 {
                     plur = $"{root} eggs";
                     coll = plur;
@@ -623,6 +567,7 @@ public static class ThingCategoryDefUtility
                     adj = sing;
                     return;
                 }
+                if (ing.defName.ToLower().Contains("egg")) Log.Error($"Failed to recognize {ing} as eggs.");
 
                 //try to get plural form from label // you can't just rely on checking -s endings b/c meat will never end in -s  // you can't just rely on label b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
                 if (root != null && !delete.Contains(root) && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root isn't some generic term like "meat", and that it starts at the start of a word
@@ -669,14 +614,14 @@ public static class ThingCategoryDefUtility
                 if (tag) { Log.Message($"sing = {sing}"); }
 
                 // try to get collective form (either based on singular or plural depending on FT_Category)
-                ThingCategoryDef parentCategory = ingredient.thingCategories.Find(cat => cat.defName.StartsWith("FT_"));
-                bool? singularCollective = parentCategory.GetModExtension<FlavorCategoryModExtension>().SingularCollective;
+                FlavorCategoryDef parentCategory = ItemCategories[ing].First();
+                bool? singularCollective = parentCategory.SingularCollective;
                 coll = singularCollective == true ? sing : plur;
                 if (tag) { Log.Message($"coll = {coll}"); }
 
                 // try to get adjectival form (based on singular)
                 adj = sing;
-            }
+            
         }
 
         static string LongestCommonSubstring(string string1, string string2)
@@ -727,11 +672,11 @@ public static class ThingCategoryDefUtility
                         List<string> filterCatStrings = flavorDef.GetFilterCategories(ing.filter);
                         foreach (string filterCatString in filterCatStrings)
                         {
-                            ThingCategoryDef adHocThingCategoryDef = (false ? (DefDatabase<ThingCategoryDef>.GetNamed(filterCatString, errorOnFail: false) ?? new ThingCategoryDef()) : new ThingCategoryDef());
-                            adHocThingCategoryDef.defName = filterCatString;
-                            adHocThingCategoryDef.label = filterCatString;
+                            FlavorCategoryDef adHocFlavorCategoryDef = (false ? (DefDatabase<FlavorCategoryDef>.GetNamed(filterCatString, errorOnFail: false) ?? new FlavorCategoryDef()) : new FlavorCategoryDef());
+                            adHocFlavorCategoryDef.defName = filterCatString;
+                            adHocFlavorCategoryDef.label = filterCatString;
                             // generate parent
-                            adHocThingCategoryDef.GetModExtension<FlavorCategoryModExtension>().keywords.Add(filterCatString);
+                            adHocFlavorCategoryDef.keywords.Add(filterCatString);
                         }
                     }
                 }
