@@ -74,7 +74,7 @@ public static class HarmonyPatches
                     compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
                     // average percentage of hit points of each ingredient group (ignoring quantity in group)
                     compFlavor.IngredientsHitPointPercentage = ingredients
-                        .FindAll(i => i?.def != null && ThingCategoryDefUtility.FlavorRoot.ContainedInThisOrDescendant(i.def))
+                        .FindAll(i => i?.def != null && FlavorCategoryDefUtility.FlavorRoot.ContainedInThisOrDescendant(i.def))
                         .Where(i => i.def.useHitPoints)
                         .Sum(j => (float)j.HitPoints / j.MaxHitPoints) / ingredients.Count;
                     if (ModsConfig.BiotechActive && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin")))
@@ -82,7 +82,7 @@ public static class HarmonyPatches
                         Rand.PushState(product.thingIDNumber);
                         if (Rand.Range(0, 20) == 0)
                         {
-                            compFlavor.Tags.Add("hairy");
+                            compFlavor.MealTags.Add("hairy");
                         }
                         Rand.PopState();
                     }

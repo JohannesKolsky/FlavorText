@@ -67,11 +67,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DefInflectionsDictionary.cs" />
     <Compile Include="CompFlavor.cs" />
-    <Compile Include="FlavorCategoryModExtension.cs" />
+    <Compile Include="FlavorCategoryDef.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Remove.cs" />
-    <Compile Include="ThingCategoryDefUtility.cs" />
+    <Compile Include="FlavorCategoryDefUtility.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />
     <Compile Include="CompProperties_Flavor.cs" />
