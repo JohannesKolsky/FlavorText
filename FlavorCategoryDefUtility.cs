@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
+using LinqToDB.Common;
 using Verse;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to FlavorCategoryDef.childCategories
@@ -60,8 +61,8 @@ public static class FlavorCategoryDefUtility
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> BuildingCategories = [];
     static FlavorCategoryDefUtility()
     {
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
+        /*Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();*/
         try
         {
             InheritSingularCollectiveIfNull(); // FT_Categories inherit some data from parents
@@ -84,12 +85,12 @@ public static class FlavorCategoryDefUtility
             Log.Error($"Error when setting up FlavorCategoryDefs for Flavor Text. Error: {ex}");
         }
 
-        stopwatch.Stop();
+        /*stopwatch.Stop();
         TimeSpan elapsed = stopwatch.Elapsed;
         if (Prefs.DevMode)
         {
             Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
-        }
+        }*/
 
     }
 
@@ -146,7 +147,7 @@ public static class FlavorCategoryDefUtility
         
         foreach (ThingDef food in ItemCategories.Keys)
         {
-            //tag = food.defName.ToLower().Contains("flour");
+            tag = food.defName.ToLower().Contains("paste");
             List<string> splitNames = ExtractNames(food);
             FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, food, FlavorRoot);
 
@@ -256,25 +257,28 @@ public static class FlavorCategoryDefUtility
 
     private static FlavorCategoryDef GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsFlavorScore = 6)
     {
-        if (tag) { Log.Message("------------------------"); Log.Warning($"Finding NewParent for {searchedDef.defName}"); }
+        if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         int categoryScore;
         int bestCategoryScore = 0;
         FlavorCategoryDef bestFlavorCategory = null;
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndChildCategoryDefs.ToList();
+        List<FlavorCategoryDef> categoriesToSkip = [];
         
         try
         {
-            //tag = searchedDef.defName.ToLower().Contains("rice");
             if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
 
             // ReSharper disable once ForCanBeConvertedToForeach
             for (var i = 0; i < categoriesToSearch.Count; i++)
             {
                 var flavorCategory = categoriesToSearch[i];
-                GetKeywordScores(flavorCategory);
-                CompareCategoryScores(flavorCategory);
+                if (!categoriesToSkip.Contains(flavorCategory))
+                {
+                    GetKeywordScores(flavorCategory);
+                    CompareCategoryScores(flavorCategory);
+                }
             }
 
             // if the best category was FT_MealsFlavor but its score wasn't high enough, choose FT_FoodMeals as the best category instead
@@ -345,29 +349,34 @@ public static class FlavorCategoryDefUtility
 
         void GetKeywordScores(FlavorCategoryDef flavorCategory)
         {
-                // get a score based on how well the flavorCategory keywords match the searchedDef's names
-                categoryScore = 0;
-                List<string> blacklist = flavorCategory.Blacklist;
-                foreach (string black in blacklist)
-                {
-                    // if blacklist was triggered, remove flavorCategory and all its descendants from the categories to search in
-                    if (ScoreKeyword(splitNamesBlackList, black) >= 3)
-                    {
-                        categoriesToSearch.RemoveAll(cat => cat == flavorCategory || cat.Parents.Contains(flavorCategory));
-                        return;
-                    }
-                }
-                List<string> keywords = flavorCategory.Keywords;
-                    foreach (string keyword in keywords)
-                    {
-                        categoryScore += ScoreKeyword(splitNames, keyword);
-                    }
-            
+            // get a score based on how well the flavorCategory keywords match the searchedDef's names
+            categoryScore = 0;
+            if (tag) Log.Warning($"keywords for {flavorCategory}");
+            List<string> keywords = flavorCategory.Keywords;
+            foreach (string keyword in keywords)
+            {
+                categoryScore += ScoreKeyword(splitNames, keyword);
+            }
+
+            if (categoryScore < 3) return;
+
+            // check blacklist, if score is too low after doing so, remove flavorCategory and its descendants from the list of categories to search
+            if (tag) Log.Warning($"blacklist for {flavorCategory}");
+            List<string> blacklist = flavorCategory.Blacklist;
+            foreach (string black in blacklist)
+            {
+                categoryScore -= 2 * ScoreKeyword(splitNames, black);
+            }
+
+            if (categoryScore >= 3) return;
+            foreach (var cat in flavorCategory.ThisAndChildCategoryDefs)
+            {
+                categoriesToSkip.AddDistinct(cat);
+            }
         }
 
         void CompareCategoryScores(FlavorCategoryDef flavorCategory)
         {
-            //tag = searchedDef.defName.ToLower().Contains("rice");
             if (categoryScore >= 1)
             {
                 if (tag) { Log.Message($"Found matching category {flavorCategory} with score of {categoryScore} and nest depth of {flavorCategory.nestDepth}"); }
@@ -403,14 +412,17 @@ public static class FlavorCategoryDefUtility
             // contains: +1 to score each time if the keyword matches any part of an element in splitNames (e.g. 2x 'ump' in [pumpkin, orange, smoothie, sugar, pumpkins]
             if (!name.Contains(keyword)) continue;
             keywordScore += 1;
+            if (tag) Log.Message($"+1 to {name} contains {keyword}");
 
             // start/end: +2 to score each time if the keyword matches the start or end of an element in splitNames (e.g. 2x 'pumpkin' in [pumpkin, orange, smoothie, sugar, pumpkins]
             if (!(name.StartsWith(keyword) || name.EndsWith(keyword))) continue;
             keywordScore += 1;
-            
+            if (tag) Log.Message($"+1 to {name} starts with {keyword}");
+
             // exact: +3 to score each time the keyword matches an element exactly in splitNames (e.g. 1x 'pumpkin' in [pumpkin, orange, smoothie, sugar, pumpkins])
             if (name != keyword) continue;
             keywordScore += 1;
+            if (tag) Log.Message($"+1 to {name} == {keyword}");
         }
         // contains keyword phrase: +6 to score each time the keyword matches a substring of splitNames when they're all combined with spaces (e.g. 1x 'sugar pumpkin' in "pumpkin orange smoothie sugar pumpkins")
         // this effectively checks for multi-word keywords if nothing else matched
@@ -423,6 +435,7 @@ public static class FlavorCategoryDefUtility
                 if (joinedNames.Substring(i, keyword.Length) == keyword)
                 {
                     count++;
+                    if (tag) Log.Message($"+6 to {joinedNames} substring {keyword}");
                 }
             }
             keywordScore += 6 * count;
@@ -521,10 +534,10 @@ public static class FlavorCategoryDefUtility
                 if (tag) { Log.Message($"split up defName, is now {defNameCompare}"); }
                 defNameCompare = defNameCompare.ToLower();
 
-                // remove unnecessary bits
+                // unnecessary whole words
                 List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "eggs*", "flour", "meat"];  // bits to delete
 
-                // don't remove "meat" from certain generic meat labels
+                // don't delete certain word combinations that include "meat"
                 List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
                 foreach (string combination in excludedCombinations)
                 {
@@ -548,6 +561,7 @@ public static class FlavorCategoryDefUtility
                     if (tag) { Log.Message($"deleted bit from defNameCompare, is now {defNameCompare}"); }
                 }
 
+                // remove parentheses and their contents
                 //TODO: this is separate b/c it doesn't work with the list for some reason; probably some conflict between how C# and Regex read strings
                 temp = Regex.Replace(labelCompare, @"\(.*\)", "").Trim();
                 if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from label if letters remain
@@ -567,13 +581,14 @@ public static class FlavorCategoryDefUtility
                     adj = sing;
                     return;
                 }
-                if (ing.defName.ToLower().Contains("egg")) Log.Error($"Failed to recognize {ing} as eggs.");
 
-                //try to get plural form from label // you can't just rely on checking -s endings b/c meat will never end in -s  // you can't just rely on label b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
+                // try to get plural form from label, b/c it's usually plural
+                // you can't just rely on checking -s endings b/c meat will never end in -s
+                // you can't rely on label on its own b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
                 if (root != null && !delete.Contains(root) && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root isn't some generic term like "meat", and that it starts at the start of a word
                 {
 
-                    // extend the overlap to the end of a word in label // mammoth gold pumpkins + pumpkin => pumpkins
+                    // extend the overlap to the end of a word in label // mammoth gold pumpkins & pumpkin => pumpkins
                     Match match = Regex.Match(labelCompare, "(?i)" + root + "[^ ]*");
                     plur = match.Value;
                     if (tag) { Log.Message($"plural matched = {plur}"); }
@@ -661,26 +676,6 @@ public static class FlavorCategoryDefUtility
             }
         }
     }
-
-    // look in the FinalFlavorDefs for any that have a category that isn't defined in FlavorText; make it into a new category and assign it keywords and such
-    /*        static void GenerateAdHocCategories()
-            {
-                foreach (FlavorDef flavorDef in FinalFlavorDefs)
-                {
-                    foreach (IngredientCount ing in flavorDef.ingredient)
-                    {
-                        List<string> filterCatStrings = flavorDef.GetFilterCategories(ing.filter);
-                        foreach (string filterCatString in filterCatStrings)
-                        {
-                            FlavorCategoryDef adHocFlavorCategoryDef = (false ? (DefDatabase<FlavorCategoryDef>.GetNamed(filterCatString, errorOnFail: false) ?? new FlavorCategoryDef()) : new FlavorCategoryDef());
-                            adHocFlavorCategoryDef.defName = filterCatString;
-                            adHocFlavorCategoryDef.label = filterCatString;
-                            // generate parent
-                            adHocFlavorCategoryDef.keywords.Add(filterCatString);
-                        }
-                    }
-                }
-            }*/
 }
 
 
