@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using Verse;
 
@@ -157,13 +158,16 @@ public class FlavorDef : Def
     // all FinalFlavorDefs that fit the given meal type and extra parameters
     public static IEnumerable<FlavorDef> ValidFlavorDefs(Thing meal)
     {
-        var compFlavor = meal.TryGetComp<CompFlavor>();
-        return ActiveFlavorDefs
-            .Where(flavorDef =>
-                flavorDef.MealCategories.Any(mealCategory => mealCategory.DescendantThingDefs.Contains(meal.def))
-                && (compFlavor.CookingStation == null || flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat => cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
-                && flavorDef.HoursOfDay.min <= compFlavor.HourOfDay && compFlavor.HourOfDay <= flavorDef.HoursOfDay.max
-                && flavorDef.IngredientsHitPointPercentage.Includes(compFlavor.IngredientsHitPointPercentage));
-        
+            var compFlavor = meal.TryGetComp<CompFlavor>();
+            return ActiveFlavorDefs
+                .Where(flavorDef =>
+                    flavorDef.MealCategories.Any(mealCategory => mealCategory.DescendantThingDefs.Contains(meal.def))
+                    && (flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat =>
+                        cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
+                    && ((flavorDef.HoursOfDay.min <= compFlavor.HourOfDay &&
+                         compFlavor.HourOfDay <= flavorDef.HoursOfDay.max))
+                    && (flavorDef.IngredientsHitPointPercentage.Includes(
+                        (float)compFlavor.IngredientsHitPointPercentage!)));
+
     }
 }

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using JetBrains.Annotations;
 using Verse;
 using Verse.Grammar;
 using static FlavorText.CompProperties_Flavor;
@@ -67,19 +68,19 @@ using static FlavorText.CompProperties_Flavor;
 //DONE: meat doesn't get sorted to the front when there's a veggie {Food} in front of it
 
 
-//RELEASED: build as release build
-//RELEASED: update XML files
-//RELEASED: check add to game
-//RELEASED: check remove from game
-//RELEASED: check new game
-//RELEASED: check save and reload game
-//RELEASED: check updating FlavorText on save
-//RELEASED: check all meal types
-//RELEASED: check food modlist
-//RELEASE: check FTV
+//RELEASE: build as release build
+//RELEASE: update XML files
+//RELEASE: check add to game
+//RELEASE: check remove from game
+//RELEASE: check new game
+//RELEASE: check save and reload game
+//RELEASE: check updating FlavorText on save
+//RELEASE: check all meal types
+//RELEASE: check food modlist
+//RELEASED: check FTV
 //RELEASE: check your own saves
-//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASED: disable log messages
+//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASE: disable log messages
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
 
@@ -141,11 +142,11 @@ public class CompFlavor : ThingComp
 
     public List<FlavorDef> FinalFlavorDefs = [];  // final chosen FinalFlavorDefs for the meal
 
-    public ThingDef CookingStation;  // which station this meal was cooked on
+    [CanBeNull] public ThingDef CookingStation;  // which station this meal was cooked on
 
-    public int HourOfDay;  // what hour of the day this meal was completed
+    public int? HourOfDay;  // what hour of the day this meal was completed
 
-    public float IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient group (ignoring quantity in group)
+    public float? IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient group (ignoring quantity in group)
 
     public List<string> MealTags = [];
 
@@ -237,6 +238,7 @@ public class CompFlavor : ThingComp
     {
         try
         {
+            Log.Warning("Split!!!");
             base.PostSplitOff(piece);
             if (piece != parent)
             {
@@ -284,21 +286,25 @@ public class CompFlavor : ThingComp
                 List<string> mergedTags = [.. MealTags, .. otherFlavorComp.MealTags];
                 mergedTags.RemoveAll(mealTag => mergedTags.Count(t => t == mealTag) < 2 && Rand.Range(0, 10) == 0);
                 MealTags = mergedTags.Distinct().ToList();
-                Rand.PopState();
-
-                // average ingredient hit points
-                IngredientsHitPointPercentage = (IngredientsHitPointPercentage + otherFlavorComp.IngredientsHitPointPercentage) / 2;
+                foreach (var mealTag in otherFlavorComp.MealTags) { MealTags.AddDistinct(mealTag); }
+                
             }
             catch (NullReferenceException)
             {
                 if (Prefs.DevMode) Log.Error("Error merging meals: the tag list of one of the meals was null");
+                
             }
             catch (Exception ex)
             {
                 if (Prefs.DevMode) Log.Error($"Error merging meals, error: {ex}");
             }
+            finally
+            {
+                Rand.PopState();
+            }
 
-            foreach (var mealTag in otherFlavorComp.MealTags) { MealTags.AddDistinct(mealTag); }
+            // average ingredient hit points
+            IngredientsHitPointPercentage = (IngredientsHitPointPercentage + otherFlavorComp.IngredientsHitPointPercentage) / 2;
 
             TriedFlavorText = false;
             TryGetFlavorText();
@@ -309,11 +315,11 @@ public class CompFlavor : ThingComp
 
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-        if (TriedFlavorText) return;
+        /*if (TriedFlavorText) return;
         TriedFlavorText = true;
 
         Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
+        stopwatch.Start();*/
         try
         {
             // if no ingredients, return
@@ -335,25 +341,27 @@ public class CompFlavor : ThingComp
                 throw new Exception("Tried to call TryGetFlavorText() on a meal that has no CompFlavor.");
             }
 
+            // fill in some necessary variables with pseudorandom data if they are null
+            Rand.PushState(parent.thingIDNumber);
+            Random r = new Random();
+            HourOfDay ??= r.Next(0, 24);
+            var allCookingStations = FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct().ToList();
+            CookingStation ??= allCookingStations[r.Next(allCookingStations.Count)];
+            IngredientsHitPointPercentage ??= Rand.Range(0, 1);
+            Rand.PopState();
+
             // try searching in the FlavorDefs that you were given
-            try
+            if (!flavorDefsToSearch.NullOrEmpty())
             {
-                if (!flavorDefsToSearch.NullOrEmpty())
+                GetFlavorText(flavorDefsToSearch);
+
+                if (!FinalFlavorDefs.NullOrEmpty())
                 {
-                    GetFlavorText(flavorDefsToSearch);
-
-                    if (!FinalFlavorDefs.NullOrEmpty())
-                    {
-                        if (Prefs.DevMode) Log.Warning($"Successfully got saved Flavor Text for meal {parent.ThingID}");
-                        return;
-                    }
-
-                    if (Prefs.DevMode)
-                        Log.Warning("Old Flavor Text no longer matches. Probably due to an update to this mod. Will attempt to get new Flavor Text.");
+                    //if (Prefs.DevMode) Log.Warning($"Successfully got saved Flavor Text for meal {parent.ThingID}");
+                    return;
                 }
-            }
-            catch (NullReferenceException)
-            {
+
+                //if (Prefs.DevMode) Log.Warning("Old Flavor Text no longer matches. Probably due to an update to this mod. Will attempt to get new Flavor Text.");
             }
 
             // otherwise try searching with all valid FlavorDefs
@@ -364,7 +372,7 @@ public class CompFlavor : ThingComp
             }
 
             GetFlavorText(validFlavorDefsForMealType);
-            if (Prefs.DevMode && !FinalFlavorDefs.NullOrEmpty()) Log.Warning($"Successfully got new Flavor Text for meal {parent.ThingID}");
+            //if (Prefs.DevMode && !FinalFlavorDefs.NullOrEmpty()) Log.Warning($"Successfully got new Flavor Text for meal {parent.ThingID}");
         }
 
         catch (Exception ex)
@@ -391,7 +399,7 @@ public class CompFlavor : ThingComp
                 $"Unable to find a matching FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report. Error: {ex}\n{ex.Data["errorString"]}\n\n{ex.Data["stringInfo"]}\n\n");
 
         }
-        finally
+        /*finally
         {
             stopwatch.Stop();
             TimeSpan elapsed = stopwatch.Elapsed;
@@ -399,7 +407,7 @@ public class CompFlavor : ThingComp
             {
                 Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
             }
-        }
+        }*/
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
