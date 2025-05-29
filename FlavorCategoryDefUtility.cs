@@ -96,7 +96,7 @@ public static class FlavorCategoryDefUtility
 
     private static void Debug()
     {
-        /*foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_MeatRaw").ContainedInThisOrDescendant(thing)))
+/*        foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
         {
             Log.Warning($">{thing.defName} is in categories:");
             foreach (FlavorCategoryDef category in ItemCategories[thing])
@@ -104,15 +104,15 @@ public static class FlavorCategoryDefUtility
                 Log.Message($"{category.defName}");
             }
         }*/
-        
-        /*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
-                {
-                    if (thingDef.HasComp<CompFlavor>() && FlavorCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
-                    {
-                        Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
-                    }
-                }*/
-        
+
+/*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
+        {
+            if (thingDef.HasComp<CompFlavor>() && FlavorCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
+            {
+                Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
+            }
+        }*/
+
         /*foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
         {
             Log.Warning(cat.defName);
@@ -144,30 +144,31 @@ public static class FlavorCategoryDefUtility
         {
             ItemCategories.AddDistinct(food, []);
         }
-        
+
         foreach (ThingDef food in ItemCategories.Keys)
         {
             //tag = food.defName.ToLower().Contains("paste");
-            if (ItemCategories[food] is null) throw new NullReferenceException($"list of FlavorCategories for {food} in the ItemCategories dictionary was null.");
-            if (!ItemCategories[food].Empty()) continue;
-            List<string> splitNames = ExtractNames(food);
-            FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, food, FlavorRoot);
-
-            if (tag) { Log.Message($"!!! found new parent {newParent.defName}"); }
-
-            if (newParent != null)
+            var categories = ItemCategories.TryGetValue(food);
+            if (categories is null) throw new NullReferenceException($"list of FlavorCategories for {food} in the ItemCategories dictionary was null.");
+            if (categories.Empty())
             {
-                if (!ItemCategories[food].Contains(newParent)) ItemCategories[food].Add(newParent);
-                if (!newParent.childThingDefs.Contains(food)) newParent.childThingDefs.Add(food);
+                Log.Warning($"{food} from mod {food.modContentPack.PackageId}");
+                List<string> splitNames = ExtractNames(food);
+                FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, food, FlavorRoot);
 
-                // if ThingDef should have CompFlavor, postpend a new one
-                if (food.HasComp<CompIngredients>() && (newParent == MealsFlavor || newParent.Parents.Contains(MealsFlavor)))
+                if (newParent != null)
                 {
-                    food.comps.Add(new CompProperties_Flavor());
+                    ItemCategories[food].Add(newParent);
+                    newParent.childThingDefs.Add(food);
+                    categories = ItemCategories.TryGetValue(food);
                 }
             }
 
-            tag = false;
+            // if ThingDef should have CompFlavor, postpend a new one
+            if (food.HasComp<CompIngredients>() && (categories.Contains(MealsFlavor) || categories.Any(cat => cat.Parents.Contains(MealsFlavor))))
+            {
+                food.comps.Add(new CompProperties_Flavor());
+            }
         }
 
         // add every meal source building to the building FlavorCategoryDef dictionary
@@ -181,6 +182,7 @@ public static class FlavorCategoryDefUtility
             //tag = building.defName.ToLower().Contains("pot");
             if (BuildingCategories[building] is null) throw new NullReferenceException($"list of FlavorCategories for {building} in the ItemCategories dictionary was null.");
             if (!BuildingCategories[building].Empty()) continue;
+            Log.Warning($"{building} from mod {building.modContentPack.PackageId}");
             List<string> splitNames = ExtractNames(building);
             FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, building, FlavorCategoryDef.Named("FT_Buildings"));
 
