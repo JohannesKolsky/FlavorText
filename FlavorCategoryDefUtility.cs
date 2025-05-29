@@ -147,7 +147,9 @@ public static class FlavorCategoryDefUtility
         
         foreach (ThingDef food in ItemCategories.Keys)
         {
-            tag = food.defName.ToLower().Contains("paste");
+            //tag = food.defName.ToLower().Contains("paste");
+            if (ItemCategories[food] is null) throw new NullReferenceException($"list of FlavorCategories for {food} in the ItemCategories dictionary was null.");
+            if (!ItemCategories[food].Empty()) continue;
             List<string> splitNames = ExtractNames(food);
             FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, food, FlavorRoot);
 
@@ -177,6 +179,8 @@ public static class FlavorCategoryDefUtility
         foreach (ThingDef building in BuildingCategories.Keys)
         {
             //tag = building.defName.ToLower().Contains("pot");
+            if (BuildingCategories[building] is null) throw new NullReferenceException($"list of FlavorCategories for {building} in the ItemCategories dictionary was null.");
+            if (!BuildingCategories[building].Empty()) continue;
             List<string> splitNames = ExtractNames(building);
             FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, building, FlavorCategoryDef.Named("FT_Buildings"));
 
@@ -270,7 +274,6 @@ public static class FlavorCategoryDefUtility
         {
             if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
 
-            // ReSharper disable once ForCanBeConvertedToForeach
             for (var i = 0; i < categoriesToSearch.Count; i++)
             {
                 var flavorCategory = categoriesToSearch[i];
