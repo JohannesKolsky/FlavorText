@@ -70,10 +70,10 @@ using System.Linq.Expressions;
 
 
 //RELEASED: update XML files
-//RELEASE: check add to game
-//RELEASE: check remove from game
-//RELEASE: check new game
-//RELEASE: check save and reload game
+//RELEASED: check add to game
+//RELEASED: check remove from game
+//RELEASED: check new game
+//RELEASED: check save and reload game
 //RELEASED: check updating FlavorText on save
 //RELEASE: check all meal types
 //RELEASED: check food modlist
@@ -124,7 +124,7 @@ public class CompFlavor : ThingComp
             List<ThingDef> ingredientsFoods = ingredients.FindAll(i => i != null && FlavorCategoryDefUtility.FlavorRoot.ContainedInThisOrDescendant(i));  // assemble a list of the ingredients that are actually food
             List<ThingDef> ingredientsSorted = [.. ingredientsFoods.OrderBy(def => def.defName.GetHashCode())];  // sort in a pseudo-random order
 
-            //foreach (var ing in ingredientsSorted) { Log.Message($"found {ing.defName} in {parent.ThingID}"); }
+            foreach (var ing in ingredientsSorted) { Log.Message($"found {ing.defName} in {parent.ThingID}"); }
 
             return ingredientsSorted;
         }
@@ -238,7 +238,6 @@ public class CompFlavor : ThingComp
     {
         try
         {
-            Log.Warning("Split!!!");
             base.PostSplitOff(piece);
             if (piece != parent)
             {
@@ -308,6 +307,7 @@ public class CompFlavor : ThingComp
 
             TriedFlavorText = false;
             TryGetFlavorText();
+            //Log.Warning($"Successfully got FlavorText for {parent.ThingID}");
 
         }
         catch (Exception e) { if (Prefs.DevMode) Log.Error($"Failed to merge stacks properly, reason: {e}"); }
@@ -331,7 +331,6 @@ public class CompFlavor : ThingComp
 
             if (Ingredients.NullOrEmpty())
             {
-
                 if (Prefs.DevMode) Log.Message($"List of ingredients in CompIngredients was empty or null for {parent.ThingID} at {parent.PositionHeld}, cancelling the search. This is normal for meals without ingredients.");
                 return;
             }
