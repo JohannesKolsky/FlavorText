@@ -41,7 +41,7 @@ public class IngredientSlot : IExposable
 /// 
 public class FlavorDef : Def
 {
-    internal bool tag;  // debug tag
+    private bool tag;  // debug tag
     
     public float Specificity;  // about how many possible ingredients could fulfill this FlavorDef?
 
@@ -111,23 +111,22 @@ public class FlavorDef : Def
                 {
                     int timeLength = flavorDef.HoursOfDay.max - flavorDef.HoursOfDay.min;
                     timeLength = timeLength % 24 + 1;
-                    flavorDef.Specificity = (flavorDef.Specificity * ((float)timeLength / 24 + 1) / 2);
+                    flavorDef.Specificity *= ((float)timeLength / 24 + 1) / 2;
                 }
 
                 if (flavorDef.IngredientsHitPointPercentage != new FloatRange(0, 1))
                 {
-                    flavorDef.Specificity = (flavorDef.Specificity * flavorDef.IngredientsHitPointPercentage.Span);
+                    flavorDef.Specificity *= flavorDef.IngredientsHitPointPercentage.Span;
                 }
 
                 // calculate the lowest category containing all the ingredients in the FlavorDef
                 // no need to include disallowed categories b/c those should always be a subcategory of a valid category
-                flavorDef.LowestCommonIngredientCategory = FlavorCategoryDefUtility.FlavorRoot;
+                flavorDef.LowestCommonIngredientCategory = FlavorCategoryDefOf.FT_Foods;
                 // get each category and its parents
-                List<List<FlavorCategoryDef>> allCategoriesInDefAndParents = flavorDef.ingredients
+                List<List<FlavorCategoryDef>> allCategoriesInDefAndParents = [.. flavorDef.ingredients
                     .SelectMany(slot => slot.categories)
                     .Distinct()
-                    .Select(cat => cat.Parents.Prepend(cat).ToList())
-                    .ToList();
+                    .Select(cat => cat.Parents.Prepend(cat).ToList())];
 
                 // compare the corresponding elements of each parent list, going from last to first
                 // if they are no longer equal, then the previous element was the lowest common category

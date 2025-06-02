@@ -67,6 +67,10 @@ using System.Linq.Expressions;
 //DONE: revise fail system  // if keeping fail, fail as a string would be useful: fail = "ingredientsEmpty"
 //DONE: full egg labels
 //DONE: meat doesn't get sorted to the front when there's a veggie {Food} in front of it
+//RELEASED: VCEF fish are going into FT_MeatRaw
+//xxRELEASE: ThingCategoryDefsToAbsorb => SisterCategories (since it happens after failing to search)
+//xxRELEASE: if failed to absorb ingredient, throw error but then add it via strings  //xx when would this ever occur??
+//RELEASED: ceviche error
 
 
 //RELEASED: update XML files
@@ -75,14 +79,15 @@ using System.Linq.Expressions;
 //RELEASED: check new game
 //RELEASED: check save and reload game
 //RELEASED: check updating FlavorText on save
-//RELEASE: check all meal types
+//RELEASED: check all meal types
 //RELEASED: check food modlist
 //RELEASED: check FTV
 //RELEASE: check your own saves
-//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASE: disable log messages
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
+//RELEASE: 3 nuggets runs out of memory
 
 //DONE: load warning when FlavorDef MealCategories element is missing
 //DONE: time and cooking station aren't working atm
@@ -121,16 +126,16 @@ public class CompFlavor : ThingComp
         {
             List<ThingDef> ingredients = parent.TryGetComp<CompIngredients>().ingredients;
             //Log.Warning($"{ingredients.Count} ingredients found");
-            List<ThingDef> ingredientsFoods = ingredients.FindAll(i => i != null && FlavorCategoryDefUtility.FlavorRoot.ContainedInThisOrDescendant(i));  // assemble a list of the ingredients that are actually food
+            List<ThingDef> ingredientsFoods = ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i));  // assemble a list of the ingredients that are actually food
             List<ThingDef> ingredientsSorted = [.. ingredientsFoods.OrderBy(def => def.defName.GetHashCode())];  // sort in a pseudo-random order
 
-            foreach (var ing in ingredientsSorted) { Log.Message($"found {ing.defName} in {parent.ThingID}"); }
+            //foreach (var ing in ingredientsSorted) { Log.Message($"found {ing.defName} in {parent.ThingID}"); }
 
             return ingredientsSorted;
         }
     }
 
-    private static bool tag; // debug tag
+    private bool tag; // debug tag
     
     public bool TriedFlavorText;
     
@@ -209,10 +214,10 @@ public class CompFlavor : ThingComp
             // if FinalFlavorDefs has null values, make it an empty list
             if (Scribe.mode is LoadSaveMode.PostLoadInit)
             {
-                if (FinalFlavorDefs is null || FinalFlavorDefs.Any(def => def is null))
+                if (FinalFlavorDefs is null || FinalFlavorDefs.Any(def => def is null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) is null))
                 {
                     FinalFlavorDefs = [];
-                    if (Prefs.DevMode) Log.Warning($"Found a null FlavorDef in list of saved FlavorDefs for {parent.ThingID}, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
+                    if (Prefs.DevMode) Log.Warning($"Found a null or unknown FlavorDef in list of saved FlavorDefs for {parent.ThingID}, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
                 }
 
             }
@@ -284,7 +289,7 @@ public class CompFlavor : ThingComp
                 // merge flavor tags; if both meals have the tag, keep it, otherwise 10% chance for it to be deleted
                 List<string> mergedTags = [.. MealTags, .. otherFlavorComp.MealTags];
                 mergedTags.RemoveAll(mealTag => mergedTags.Count(t => t == mealTag) < 2 && Rand.Range(0, 10) == 0);
-                MealTags = mergedTags.Distinct().ToList();
+                MealTags = [.. mergedTags.Distinct()];
                 foreach (var mealTag in otherFlavorComp.MealTags) { MealTags.AddDistinct(mealTag); }
                 
             }
@@ -318,8 +323,8 @@ public class CompFlavor : ThingComp
         if (TriedFlavorText) return;
         TriedFlavorText = true;
 
-/*        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();*/
+        /*        Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();*/
         try
         {
             // reset the flavor data
@@ -331,7 +336,7 @@ public class CompFlavor : ThingComp
 
             if (Ingredients.NullOrEmpty())
             {
-                if (Prefs.DevMode) Log.Message($"List of ingredients in CompIngredients was empty or null for {parent.ThingID} at {parent.PositionHeld}, cancelling the search. This is normal for meals without ingredients.");
+                //if (Prefs.DevMode) Log.Message($"List of ingredients in CompIngredients was empty or null for {parent.ThingID} at {parent.PositionHeld}, cancelling the search. This is normal for meals without ingredients.");
                 return;
             }
 
@@ -342,7 +347,7 @@ public class CompFlavor : ThingComp
 
             // fill in the extra parameters with pseudorandom data if they are null
             Rand.PushState(parent.thingIDNumber);
-            Random r = new Random();
+            Random r = new();
             HourOfDay ??= r.Next(0, 24);
             if (CookingStation is null)
             {
@@ -368,7 +373,7 @@ public class CompFlavor : ThingComp
                 ThingDef ingredient = Ingredients[i];
                 flavorSummary += $"\ningredient {i} was {ingredient.defName}";
                 flavorSummary += $"\ningredient was in the following Flavor Categories";
-                foreach (var cat in FlavorCategoryDefUtility.ItemCategories[Ingredients[i]])
+                foreach (var cat in FlavorCategoryDefUtility.ThingCategories[Ingredients[i]])
                 {
                     flavorSummary += $"\n{cat.defName}";
                 }
@@ -390,11 +395,11 @@ public class CompFlavor : ThingComp
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
-    public void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
+    private void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
         // divide the ingredients into groups of size n and get a flavorDef for each group
         // for each group, move all meat to the front and arrange it in an order that will be more grammatically pleasing
-        List<List<ThingDef>> ingredientChunks = Chunk(Ingredients).Select(chunk => chunk.OrderByDescending(m => m, new MeatComparer()).ToList()).ToList();
+        List<List<ThingDef>> ingredientChunks = [..Chunk(Ingredients).Select(chunk => chunk.OrderByDescending(m => m, new MeatComparer()).ToList())];
 
         List<(FlavorDef, List<int>)> bestFlavors = [];
         // try searching in any saved FlavorDefs that you were given
@@ -473,18 +478,17 @@ public class CompFlavor : ThingComp
 
 
     // split ingredients into chunks of size 3 (default)
-    public List<List<T>> Chunk<T>(List<T> source)
+    private static List<List<T>> Chunk<T>(List<T> source)
     {
-        return source
+        return [.. source
             .Select((x, i) => new { Index = i, Value = x })
             .GroupBy(x => x.Index / MaxNumIngredientsFlavor)
-            .Select(x => x.Select(v => v.Value).ToList())
-            .ToList();
+            .Select(x => x.Select(v => v.Value).ToList())];
     }
 
 
     // see which FinalFlavorDefs match with the ingredients you have, and choose the most specific FlavorDef you find
-    public (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> foodsToSearchFor, List<FlavorDef> flavorDefsToSearch)
+    private static (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> foodsToSearchFor, List<FlavorDef> flavorDefsToSearch)
     {
         try
         {
@@ -513,7 +517,7 @@ public class CompFlavor : ThingComp
             // pick the most specific matching FlavorDef
             if (matchingFlavors.Count > 0)
             {
-                matchingFlavors = matchingFlavors.OrderBy(entry => entry.Item1.Specificity).ToList();
+                matchingFlavors = [.. matchingFlavors.OrderBy(entry => entry.Item1.Specificity)];
                 //foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.Specificity); }
                 var flavor = matchingFlavors.First();
                 if (flavor.Item1 is null || flavor.Item2 is null) throw new NullReferenceException($"Failed to find a matching Flavor Def. The best Flavor Def [{flavor.Item1}] or its list of indices [{flavor.Item2.ToStringSafeEnumerable()}] was null.");
@@ -562,17 +566,25 @@ public class CompFlavor : ThingComp
             List<int> matchedIndices = new(foods.Count); // [Corn, Berries, Egg] [-1, -1, -1] (FT_Foods, FT_Egg, FT_Grain)
             foreach (var food in foods)
             {
-                //Log.Warning($"examining food {food} with index {foods.IndexOf(food)}");
-                var bestIngredients = flavorDef.ingredients
-                    .Select((value, index) => (value, index))
-                    .Where(ing => !matchedIndices.Contains(ing.index)
-                                  && ing.value.AllowedThingDefs.Contains(food))
-                    .OrderBy(ing => ing.value.AllowedThingDefs.Count()).ToList();
-                //Log.Message($"best ingredients: { bestIngredients.ToStringSafeEnumerable() }");
-                
-                if (bestIngredients.NullOrEmpty()) return null;
-                matchedIndices.Add(bestIngredients.First().index);  //  [2, 0, -1]
-                //Log.Message($"matched indices: [{matchedIndices.ToStringSafeEnumerable()}]");
+                try
+                {
+                    //Log.Warning($"examining food {food} with index {foods.IndexOf(food)}");
+                    var bestIngredients = flavorDef.ingredients
+                        .Select((value, index) => (value, index))
+                        .Where(ing => !matchedIndices.Contains(ing.index)
+                                      && ing.value.AllowedThingDefs.Contains(food))
+                        .OrderBy(ing => ing.value.AllowedThingDefs.Count()).ToList();
+                    //Log.Message($"best ingredients: { bestIngredients.ToStringSafeEnumerable() }");
+
+                    if (bestIngredients.NullOrEmpty()) return null;
+                    matchedIndices.Add(bestIngredients.First().index);  //  [2, 0, -1]
+                    //Log.Message($"matched indices: [{matchedIndices.ToStringSafeEnumerable()}]");
+                }
+                catch (Exception)
+                {
+                    Log.Error($"{food?.ToStringSafe()} in {flavorDef?.ToStringSafe()} had an error.");
+                    throw;
+                }
             }
 
             return matchedIndices.Count == foods.Count ? matchedIndices : null;
@@ -678,7 +690,7 @@ public class CompFlavor : ThingComp
                 return inflection;
             }
         }
-        catch (Exception e) { throw new Exception($"Error when formatting flavor {flag}: reason: {e}"); }
+        catch (Exception e) { throw new Exception($"Error when formatting flavor {flag} for {flavorDef.ToStringSafe()} with ingredients [{ingredients.ToStringSafeEnumerable()}]: reason: {e}"); }
     }
 
     private void CompileFlavorLabels()
@@ -773,17 +785,17 @@ public class CompFlavor : ThingComp
 
             List<int> ranking = [ing1 switch
             {
-                not null when FlavorCategoryDefUtility.ItemCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
-                not null when FlavorCategoryDefUtility.ItemCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
-                not null when FlavorCategoryDefUtility.ItemCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
-                not null when FlavorCategoryDefUtility.ItemCategories[ing1].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
                 _ => 12
             }, ing2 switch
             {
-                not null when FlavorCategoryDefUtility.ItemCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
-                not null when FlavorCategoryDefUtility.ItemCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
-                not null when FlavorCategoryDefUtility.ItemCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
-                not null when FlavorCategoryDefUtility.ItemCategories[ing2].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
+                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
                 _ => 12
             }];
 

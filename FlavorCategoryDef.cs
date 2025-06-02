@@ -7,20 +7,20 @@ namespace FlavorText;
 public class FlavorCategoryDef : Def
 {
     // vanilla category that corresponds to the FT_Category
-    internal List<ThingCategoryDef> SisterCategories;
+    internal List<ThingCategoryDef> sisterCategories = [];
 
     // any ThingDefs this FlavorCategoryDef should take in
     // any ThingCategoryDefs whose descendant ThingDefs should be taken in
-    internal List<ThingCategoryDef> ThingCategoryDefsToAbsorb = [];
-    internal List<ThingDef> ThingDefsToAbsorb = [];
-    
+    internal List<ThingDef> thingDefsToAbsorb = [];
+    internal List<ThingCategoryDef> thingCategoryDefsToAbsorb = [];
+
     // whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
     // if null, value will be inherited from its category parent
-    internal bool? SingularCollective = null;  
+    internal bool? singularCollective = null;  
 
-    internal List<string> Keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
+    internal List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
 
-    internal List<string> Blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
+    internal List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
 
     internal int nestDepth;
 
@@ -91,7 +91,7 @@ public class FlavorCategoryDef : Def
             foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
                 allChildThingDefsCached.Add(childThingDef);
         }
-        sortedChildThingDefsCached = childThingDefs.OrderBy(n => n.label).ToList();
+        sortedChildThingDefsCached = [.. childThingDefs.OrderBy(n => n.label)];
     }
 
     public static FlavorCategoryDef Named(string defName)
@@ -115,10 +115,7 @@ public class FlavorCategoryDef : Def
     {
         foreach (FlavorCategoryDef allDef in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
-            if (allDef.parent != null)
-            {
-                allDef.parent.childCategories.Add(allDef);
-            }
+            allDef.parent?.childCategories.Add(allDef);
         }
         SetNestLevelRecursive(Named("FT_Root"), 0);
     }

@@ -7,7 +7,7 @@ namespace FlavorText;
 
 // startup message
 [StaticConstructorOnStartup]
-public class FlavorText
+public static class FlavorText
 {
     static FlavorText()
     {
