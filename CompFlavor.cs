@@ -627,7 +627,7 @@ public class CompFlavor : ThingComp
                 var inflections = FlavorCategoryDefUtility.ThingDefInflectionsDictionary[ingredients[i]];
                 while (true)
                 {
-                    var placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");
+                    var placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");  //capture the placeholder and the word before and after it
                     if (placeholder.Success)
                     {
                         string inflection = RemoveRepeatedWords(inflections[0], placeholder);
@@ -666,12 +666,13 @@ public class CompFlavor : ThingComp
             // remove words repeated directly after each other
             static string RemoveRepeatedWords(string inflection, Match placeholder)
             {
+                if (inflection == "_") return "";  // _ represents a blank inflection, currently only used for the adjectival form of "flour"
                 List<string> inflectionSplit = [.. inflection.Split(' ')];
 
                 // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
                 if (placeholder.Groups.Count > 1)
                 {
-                    if (Remove.RemoveDiacritics(placeholder.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit[0]).ToLower())
+                    if (Remove.RemoveDiacritics(placeholder.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
                     {
                         inflectionSplit.RemoveAt(0);
                     }
@@ -680,7 +681,7 @@ public class CompFlavor : ThingComp
                 // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
                 if (placeholder.Groups.Count > 2)
                 {
-                    if (Remove.RemoveDiacritics(placeholder.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit[inflectionSplit.Count - 1]).ToLower())
+                    if (Remove.RemoveDiacritics(placeholder.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
                     {
                         inflectionSplit.RemoveAt(inflectionSplit.Count - 1);
                     }

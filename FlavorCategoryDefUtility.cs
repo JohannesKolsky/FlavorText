@@ -504,9 +504,11 @@ public static class FlavorCategoryDefUtility
 
                     // get inflections from one of the dictionaries
                     if (inflections[0].NullOrEmpty()) throw new NullReferenceException($"Found inflection dictionary entry for {ingredient}, but it or its first inflection was null.");
-                    if (inflections[1].NullOrEmpty()) inflections[1] = inflections[0];
-                    if (inflections[2].NullOrEmpty()) inflections[2] = inflections[1];
-                    if (inflections[3].NullOrEmpty()) inflections[3] = inflections[2];
+                    for (int i = 1; i < inflections.Count; i++)
+                    {
+                        if (inflections[i] == "*") inflections[i] = inflections[i - 1];
+                    }
+                    ThingDefInflectionsDictionary[ingredient] = inflections;
                     //Log.Warning($"Found all predefined inflections for {ingredient}");
                     //Log.Message($"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}");
                 }
