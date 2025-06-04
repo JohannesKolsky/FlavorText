@@ -71,38 +71,34 @@ using System.Linq.Expressions;
 //xxRELEASE: ThingCategoryDefsToAbsorb => SisterCategories (since it happens after failing to search)
 //xxRELEASE: if failed to absorb ingredient, throw error but then add it via strings  //xx when would this ever occur??
 //RELEASED: ceviche error
+//DONE: load warning when FlavorDef MealCategories element is missing
+//DONE: time and cooking station aren't working atm
+//DONE: revise FlavorWithIndices system: you probably don't need a separate class for this
+//DONE: check for cooking station and time in ValidFlavorDefs: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
 
 
 //RELEASED: update XML files
 //RELEASED: check add to game
-//RELEASED: check remove from game
+//RELEASE: check remove from game
 //RELEASED: check new game
 //RELEASED: check save and reload game
 //RELEASED: check updating FlavorText on save
-//RELEASED: check all meal types
-//RELEASED: check food modlist
+//RELEASE: check all meal types
+//RELEASE: check food modlist
 //RELEASED: check FTV
-//RELEASE: check your own saves
+//RELEASED: check your own saves
 //RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASE: disable log messages
+//RELEASED: disable log messages
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
-//RELEASE: 3 nuggets runs out of memory
+//RELEASED: 3 nuggets runs out of memory
 
-//DONE: load warning when FlavorDef MealCategories element is missing
-//DONE: time and cooking station aren't working atm
 
-//DONE: revise FlavorWithIndices system: you probably don't need a separate class for this
-//DONE: check for cooking station and time in ValidFlavorDefs: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
 //TODO: options to prevent merging meals
 //TODO: variety matters warnings and errors?
 //TODO: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
 //TODO: meal types of taglist for dry, wet, sweet, savory meals  // allows auto-labeling of soups vs dishes vs desserts, etc.
-
-//fixedIngredientFilter: which items are allowed
-//defaultIngredientFilter: default assignment of fixedIngredientFilter
-//fixedIngredient: used if fixedIngredientFilter.Count == 1
 
 
 namespace FlavorText;
@@ -217,7 +213,7 @@ public class CompFlavor : ThingComp
                 if (FinalFlavorDefs is null || FinalFlavorDefs.Any(def => def is null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) is null))
                 {
                     FinalFlavorDefs = [];
-                    if (Prefs.DevMode) Log.Warning($"Found a null or unknown FlavorDef in list of saved FlavorDefs for {parent.ThingID}, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
+                    if (Prefs.DevMode) Log.Warning($"Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
                 }
 
             }
@@ -225,7 +221,7 @@ public class CompFlavor : ThingComp
         }
         catch (Exception ex)
         {
-            if (Prefs.DevMode) Log.Warning($"Invalid FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Will get new Flavor Text. Error: {ex}");
+            if (Prefs.DevMode) Log.Warning($"Found an invalid FlavorDef. Will attempt to get new Flavor Text. Error: {ex}");
         }
 
         // check if current flavorDefs are still valid, otherwise try and get completely new flavor text
@@ -411,7 +407,7 @@ public class CompFlavor : ThingComp
             }
             catch (Exception ex) when (ex is NullReferenceException || ex is InvalidOperationException)
             {
-                if (Prefs.DevMode) Log.Warning($"Saved Flavor Text no longer matches for {parent.ThingID}, it is probably from an older version of FlavorText. Will attempt to get new Flavor Text.");
+                if (Prefs.DevMode) Log.Warning($"Saved Flavor Text no longer matches for a meal, it is probably from an older version of FlavorText. Will attempt to get new Flavor Text.");
                 bestFlavors = [];
             }
         }
@@ -546,7 +542,7 @@ public class CompFlavor : ThingComp
             // if flavorDef is null, skip
             if (flavorDef == null)
             {
-                if (Prefs.DevMode) Log.Warning($"Found a null FlavorDef in list of FinalFlavorDefs to search. Probably deprecated from an older version of FlavorText. Skipping...");
+                if (Prefs.DevMode) Log.Warning($"Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
                 return null;
             }
 
@@ -666,26 +662,22 @@ public class CompFlavor : ThingComp
             // remove words repeated directly after each other
             static string RemoveRepeatedWords(string inflection, Match placeholder)
             {
-                if (inflection == "_") return "";  // _ represents a blank inflection, currently only used for the adjectival form of "flour"
+                if (inflection == "") return inflection;  // return if a blank inflection, currently only used for the adjectival form of "flour"
                 List<string> inflectionSplit = [.. inflection.Split(' ')];
+                if (placeholder.Groups.Count != 3) throw new ArgumentOutOfRangeException($"The number of capture groups from Regex.Match for {inflection} was not 3.");
 
                 // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
-                if (placeholder.Groups.Count > 1)
+                if (Remove.RemoveDiacritics(placeholder.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
                 {
-                    if (Remove.RemoveDiacritics(placeholder.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
-                    {
-                        inflectionSplit.RemoveAt(0);
-                    }
+                    inflectionSplit.RemoveAt(0);
                 }
 
                 // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
-                if (placeholder.Groups.Count > 2)
+                if (Remove.RemoveDiacritics(placeholder.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
                 {
-                    if (Remove.RemoveDiacritics(placeholder.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
-                    {
-                        inflectionSplit.RemoveAt(inflectionSplit.Count - 1);
-                    }
+                    inflectionSplit.RemoveLast();
                 }
+                
 
                 inflection = string.Join(" ", inflectionSplit);
                 return inflection;

@@ -1,12 +1,11 @@
-﻿using RimWorld;
+﻿using LinqToDB.Common;
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
-using LinqToDB.Common;
 using Verse;
-using System.Data;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to FlavorCategoryDef.childCategories
 
@@ -53,12 +52,12 @@ public static class FlavorCategoryDefUtility
 
     private static bool tag;  // DEBUG
 
-    internal static Dictionary<ThingDef, List<string>> ThingDefInflectionsDictionary = DefDatabase<ThingDefInflectionsDictionary>.AllDefs
+    internal static Dictionary<ThingDef, List<string>> ThingDefInflectionsDictionary = DefDatabase<ThingDefInflectionsData>.AllDefs
         .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
         .SelectMany(dict => dict.dictionary)
         .ToDictionary(kvp => DefDatabase<ThingDef>.GetNamed(kvp.Key), kvp => kvp.Value);
-    
-    internal static Dictionary<FlavorCategoryDef, List<string>> FlavorCategoryDefInflectionsDictionary = DefDatabase<FlavorCategoryDefInflectionsDictionary>.AllDefs
+
+    internal static Dictionary<FlavorCategoryDef, List<string>> FlavorCategoryDefInflectionsDictionary = DefDatabase<FlavorCategoryDefInflectionsData>.AllDefs
         .Where(dict => ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
         .SelectMany(dict => dict.dictionary)
         .ToDictionary(kvp => DefDatabase<FlavorCategoryDef>.GetNamed(kvp.Key), kvp => kvp.Value);
@@ -73,9 +72,9 @@ public static class FlavorCategoryDefUtility
             InheritSingularCollectiveIfNull(); // FT_Categories inherit some data from parents
             FlavorCategoryDef.FinalizeInit();
             FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDef.Named("FT_Root"), 0);
-            
+
             AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
-           
+
             // can't do this until now, needs previous method and a built DefDatabase
             DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
             DefDatabase<FlavorDef>.ResolveAllReferences();
@@ -101,22 +100,22 @@ public static class FlavorCategoryDefUtility
 
     private static void Debug()
     {
-/*        foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
-        {
-            Log.Warning($">{thing.defName} is in categories:");
-            foreach (FlavorCategoryDef category in ItemCategories[thing])
-            {
-                Log.Message($"{category.defName}");
-            }
-        }*/
+        /*        foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
+                {
+                    Log.Warning($">{thing.defName} is in categories:");
+                    foreach (FlavorCategoryDef category in ItemCategories[thing])
+                    {
+                        Log.Message($"{category.defName}");
+                    }
+                }*/
 
-/*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
-        {
-            if (thingDef.HasComp<CompFlavor>() && FlavorCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
-            {
-                Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
-            }
-        }*/
+        /*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
+                {
+                    if (thingDef.HasComp<CompFlavor>() && FlavorCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
+                    {
+                        Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
+                    }
+                }*/
 
         /*foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
         {
@@ -186,34 +185,34 @@ public static class FlavorCategoryDefUtility
         }
 
 
-            var allMealSourceBuildings = DefDatabase<ThingDef>.AllDefs.Where(b => b.building is { isMealSource: true }).ToList();
-            foreach (ThingDef building in allMealSourceBuildings)
+        var allMealSourceBuildings = DefDatabase<ThingDef>.AllDefs.Where(b => b.building is { isMealSource: true }).ToList();
+        foreach (ThingDef building in allMealSourceBuildings)
+        {
+            try
             {
-                try
+                if (!ThingCategories.ContainsKey(building)) ThingCategories.Add(building, []);
+                var categories = ThingCategories.TryGetValue(building) ?? throw new NullReferenceException($"list of FlavorCategories for {building} in the ItemCategories dictionary was null.");
+                if (categories.Empty())
                 {
-                    if (!ThingCategories.ContainsKey(building)) ThingCategories.Add(building, []);
-                    var categories = ThingCategories.TryGetValue(building) ?? throw new NullReferenceException($"list of FlavorCategories for {building} in the ItemCategories dictionary was null.");
-                    if (categories.Empty())
-                    {
-                        //Log.Warning($"{building?.ToStringSafe()} from mod {building?.modContentPack?.PackageId.ToStringSafe()}");
-                        List<string> splitNames = ExtractNames(building);
-                        FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, building, FlavorCategoryDefOf.FT_Buildings);
+                    //Log.Warning($"{building?.ToStringSafe()} from mod {building?.modContentPack?.PackageId.ToStringSafe()}");
+                    List<string> splitNames = ExtractNames(building);
+                    FlavorCategoryDef newParent = GetBestFlavorCategory(splitNames, building, FlavorCategoryDefOf.FT_Buildings);
 
-                        if (newParent != null)
-                        {
-                            ThingCategories[building].AddDistinct(newParent);
-                            newParent.childThingDefs.Add(building);
-                        }
+                    if (newParent != null)
+                    {
+                        ThingCategories[building].AddDistinct(newParent);
+                        newParent.childThingDefs.Add(building);
                     }
-                    tag = false;
                 }
-                catch (Exception)
+                tag = false;
+            }
+            catch (Exception)
             {
                 Log.Error($"{building?.ToStringSafe()} from mod {building?.modContentPack?.PackageId?.ToStringSafe()} had an error");
                 throw;
-                }
             }
-        
+        }
+
 
 
     }
@@ -289,7 +288,7 @@ public static class FlavorCategoryDefUtility
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndChildCategoryDefs.ToList();
         List<FlavorCategoryDef> categoriesToSkip = [];
-        
+
         try
         {
             if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
@@ -314,11 +313,11 @@ public static class FlavorCategoryDefUtility
             if (bestFlavorCategory == null)
             {
                 //{ Log.Error($"No category found for {searchedDef.defName}, looking at its parent categories"); }
-                
+
                 ThingCategoryDef topLevelThingCategoryDef = !topLevelCategory.sisterCategories.Empty()
                     ? topLevelCategory.sisterCategories.FirstOrDefault()
                     : null;
-                
+
                 var defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelThingCategoryDef)).ToList();
                 while (true)
                 {
@@ -328,7 +327,7 @@ public static class FlavorCategoryDefUtility
                     foreach (ThingCategoryDef defParent in defParents!)
                     {
                         splitNames = ExtractNames(defParent);
-                        
+
                         foreach (var flavorCategory in categoriesToSearch)
                         {
                             // if the current flavor category being tested has a sister category, give it a flat score of 3
@@ -354,13 +353,13 @@ public static class FlavorCategoryDefUtility
                         .Where(parent => parent != null)];
                     defParents.RemoveDuplicates();
                 }
-                if (bestFlavorCategory != null & Prefs.DevMode) Log.Warning($"Using its parent categories, found new best flavor category {bestFlavorCategory.defName} for Def {searchedDef.defName}");
+                //if (bestFlavorCategory != null & Prefs.DevMode) Log.Warning($"Using its parent categories, found new best flavor category {bestFlavorCategory.defName} for Def {searchedDef.defName}");
             }
 
             if (bestFlavorCategory != null) return bestFlavorCategory;
-            
+
             bestFlavorCategory = topLevelCategory;
-            Log.Warning($"Could not find appropriate FT_FlavorCategoryDef for {searchedDef.defName}, using {topLevelCategory.defName} instead.");
+            //Log.Warning($"Could not find appropriate FT_FlavorCategoryDef for {searchedDef.defName}, using {topLevelCategory.defName} instead.");
             return bestFlavorCategory;
         }
         catch (Exception ex)
@@ -467,7 +466,7 @@ public static class FlavorCategoryDefUtility
 
     // get various grammatical forms of each ingredient
     private static void AssignIngredientInflections()
-    { 
+    {
         foreach (ThingDef ingredient in FlavorCategoryDefOf.FT_Foods.DescendantThingDefs.Distinct().ToList())
         {
             try
@@ -476,37 +475,24 @@ public static class FlavorCategoryDefUtility
                     // try and get inflections defined in the XML
                     // if an inflection field is null it will inherit the value of the one before it
                     // the first inflection field must be non-null
-                    var inflections = ThingDefInflectionsDictionary.TryGetValue(ingredient);
+                    List<string> inflections = ThingDefInflectionsDictionary.TryGetValue(ingredient);
                     if (inflections is null)
                     {
+                        ThingDefInflectionsDictionary.Add(ingredient, []);
                         if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
                         inflections = FlavorCategoryDefInflectionsDictionary.TryGetValue(ThingCategories[ingredient].First());
                         if (inflections is null)
                         {
                             if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined category inflections, will generate inflections instead.");
-                            // generate inflections
-                            var generatedInflections = GenerateIngredientInflections(ingredient);
-                            if (generatedInflections.Any(inf => inf.NullOrEmpty()))
-                            {
-                                string errorString =
-                                    $"\nplur = {generatedInflections[0]}\ncoll = {generatedInflections[1]}\nsing = {generatedInflections[2]}\nadj = {generatedInflections[3]}";
-                                throw new NullReferenceException(
-                                    $"Generated inflections for {ingredient} but some or all of them were null" + errorString);
-                            }
-
-                            ThingDefInflectionsDictionary.Add(ingredient, [generatedInflections[0],
-                                generatedInflections[1],
-                                generatedInflections[2],
-                                generatedInflections[3]]);
-                            continue;
                         }
                     }
 
-                    // get inflections from one of the dictionaries
-                    if (inflections[0].NullOrEmpty()) throw new NullReferenceException($"Found inflection dictionary entry for {ingredient}, but it or its first inflection was null.");
-                    for (int i = 1; i < inflections.Count; i++)
+                    // generate inflections
+                    inflections = GenerateIngredientInflections(ingredient, inflections);
+                    if (inflections.Any(inflect => inflect.NullOrEmpty()))
                     {
-                        if (inflections[i] == "*") inflections[i] = inflections[i - 1];
+                        string errorString = $"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}";
+                        throw new NullReferenceException($"Generated inflections for {ingredient} but some or all of them were null" + errorString);
                     }
                     ThingDefInflectionsDictionary[ingredient] = inflections;
                     //Log.Warning($"Found all predefined inflections for {ingredient}");
@@ -522,7 +508,7 @@ public static class FlavorCategoryDefUtility
     }
 
     // generate various grammatical forms of each ingredient
-    public static List<string> GenerateIngredientInflections(ThingDef ingredient)
+    public static List<string> GenerateIngredientInflections(ThingDef ingredient, List<string> inflections = null)
     {
         tag = false;
         /*if (ing.defName.ToLower().Contains("egg")) { tag = true; }*/
@@ -532,135 +518,167 @@ public static class FlavorCategoryDefUtility
         // adjectival form // PEANUT brittle
 
         string plur, coll, sing, adj;
-        GenerateInflections(ingredient);
+        plur = coll = sing = adj = null;
+        // if there were predefined inflections, fill them out as much as possible
+        // depending on the result, you may be able to skip inflection generation
+        bool doGeneration = false;
+        if (inflections is not null)
+        {
+            if (inflections.Count != 4) throw new ArgumentOutOfRangeException($"{ingredient} had wrong number of inflections. Expected 4 inflections, found {inflections.Count} instead");
+            if (inflections[0] == "^") throw new NullReferenceException($"Got predefined inflections for {ingredient}, but its first inflection used '^' which is invalid.");
+            for (int i = 0; i < inflections.Count; i++)
+            {
+                if (inflections[i] == "_") inflections[i] = "";
 
-        return [plur, coll, sing, adj];
+                if (inflections[i].Contains("*") || inflections[i].Contains("{0}")) doGeneration = true;
+                else if (inflections[i] == "^") inflections[i] = inflections[i - 1];
+
+            }
+        }
+
+        if (doGeneration) GenerateInflections(ingredient, inflections);
+
+        return inflections;
 
         // determine correct inflections for plural, collective, singular, and adjectival forms of the ing's label
-        void GenerateInflections(ThingDef ing)
+        void GenerateInflections(ThingDef ing, List<string> inflections)
         {
-            
-                List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("us$", "us"), ("([aeiouy][cs]h)es$", "$1"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
 
-                string label = ing.label;
-                if (tag) { Log.Warning($">>>starting label is {label}"); }
-                string labelCapDiacritic = label;
-                string defNameCompare = ing.defName;
-                if (tag) { Log.Warning($">>>starting defName is {defNameCompare}"); }
-                defNameCompare = Regex.Replace(defNameCompare, "([_])", " ");  // remove spacer chars
+            List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("us$", "us"), ("([aeiouy][cs]h)es$", "$1"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
 
-                // remove diacritics and capitalization
-                string labelCompare = Remove.RemoveDiacritics(labelCapDiacritic);
-                labelCompare = labelCompare.ToLower();
-                defNameCompare = Remove.RemoveDiacritics(defNameCompare);
-                defNameCompare = Regex.Replace(defNameCompare, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words
-                defNameCompare = Regex.Replace(defNameCompare, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences
-                if (tag) { Log.Message($"split up defName, is now {defNameCompare}"); }
-                defNameCompare = defNameCompare.ToLower();
+            string label = ing.label;
+            if (tag) { Log.Warning($">>>starting label is {label}"); }
+            string labelCapDiacritic = label;
+            string defNameCompare = ing.defName;
+            if (tag) { Log.Warning($">>>starting defName is {defNameCompare}"); }
+            defNameCompare = Regex.Replace(defNameCompare, "([_])", " ");  // remove spacer chars
 
-                // unnecessary whole words
-                List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "eggs*", "flour", "meat"];  // bits to delete
+            // remove diacritics and capitalization
+            string labelCompare = Remove.RemoveDiacritics(labelCapDiacritic);
+            labelCompare = labelCompare.ToLower();
+            defNameCompare = Remove.RemoveDiacritics(defNameCompare);
+            defNameCompare = Regex.Replace(defNameCompare, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words
+            defNameCompare = Regex.Replace(defNameCompare, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences
+            if (tag) { Log.Message($"split up defName, is now {defNameCompare}"); }
+            defNameCompare = defNameCompare.ToLower();
 
-                // don't delete certain word combinations that include "meat"
-                List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
-                foreach (string combination in excludedCombinations)
+            // unnecessary whole words
+            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "eggs*", "flour", "meat"];  // bits to delete
+
+            // don't delete certain word combinations that include "meat"
+            List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
+            foreach (string combination in excludedCombinations)
+            {
+                if (labelCompare == combination)
                 {
-                    if (labelCompare == combination)
-                    {
-                        delete.Remove("meat");
-                        break;
-                    }
+                    delete.Remove("meat");
+                    break;
                 }
+            }
 
-                // remove bits
-                string temp;
-                foreach (string del in delete)
+            // remove bits
+            string temp;
+            foreach (string del in delete)
+            {
+                temp = Regex.Replace(labelCompare, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
+                if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from labelCompare if letters remain
+                if (tag) { Log.Message($"deleted bit from labelCompare, is now {labelCompare}"); }
+
+                temp = Regex.Replace(defNameCompare, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from defNameCompare that match those in "delete"
+                if (Regex.IsMatch(temp, "[a-zA-Z]")) { defNameCompare = temp; }  // accept deletion from defNameCompare if letters remain
+                if (tag) { Log.Message($"deleted bit from defNameCompare, is now {defNameCompare}"); }
+            }
+
+            // remove parentheses and their contents
+            //TODO: this is separate b/c it doesn't work with the delete list for some reason; probably some conflict between how C# and Regex read strings
+            temp = Regex.Replace(labelCompare, @"\(.*\)", "").Trim();
+            if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from label if letters remain
+            if (tag) { Log.Message($">removed parentheses to make: {labelCompare}"); }
+
+            // formulate inflections by comparing label and defName; if you're unable to, use the label
+            string root = LongestCommonSubstring(defNameCompare, labelCompare);  // e.g. VCE_RawPumpkin + mammoth gold pumpkins => pumpkin
+            if (tag) { Log.Warning($"Longest common substring was {root}"); }
+
+            // try to get plural form from label, b/c it's usually plural
+            // you can't just rely on checking -s endings b/c meat will never end in -s
+            // you can't rely on label on its own b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
+            if (root is not null && !delete.Contains(root) && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root isn't some generic term like "meat", and that it starts at the start of a word
+            {
+                // if plur has a placeholder, replace it with root
+                // otherwise plur is root extended to the end of the label // mammoth gold pumpkins & pumpkin => pumpkins
+                if (inflections[0] is not null && inflections[0].Contains("{0}")) plur = inflections[0].Formatted(root);
+                else
                 {
-                    temp = Regex.Replace(labelCompare, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
-                    if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from labelCompare if letters remain
-                    if (tag) { Log.Message($"deleted bit from labelCompare, is now {labelCompare}"); }
+                    plur = string.Join(" ", inflections[0], Regex.Match(labelCompare, "(?i)" + root + "[^ ]*").Value);
 
-                    temp = Regex.Replace(defNameCompare, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from defNameCompare that match those in "delete"
-                    if (Regex.IsMatch(temp, "[a-zA-Z]")) { defNameCompare = temp; }  // accept deletion from defNameCompare if letters remain
-                    if (tag) { Log.Message($"deleted bit from defNameCompare, is now {defNameCompare}"); }
-                }
-
-                // remove parentheses and their contents
-                //TODO: this is separate b/c it doesn't work with the list for some reason; probably some conflict between how C# and Regex read strings
-                temp = Regex.Replace(labelCompare, @"\(.*\)", "").Trim();
-                if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelCompare = temp; }  // accept deletion from label if letters remain
-                if (tag) { Log.Message($">removed parentheses to make: {labelCompare}"); }
-
-                // formulate inflections by comparing label and defName; if you're unable to, use the label
-                string root = LongestCommonSubstring(defNameCompare, labelCompare);  // e.g. VCE_RawPumpkin + mammoth gold pumpkins => pumpkin
-                if (tag) { Log.Warning($"Longest common substring was {root}"); }
-
-                // eggs are a special case b/c label isn't plural and it's a different order from the defName
-                // down here b/c you need 'root'
-                if (FlavorCategoryDef.Named("FT_Egg").ContainedInThisOrDescendant(ing))
-                {
-                    plur = $"{root} eggs";
-                    coll = plur;
-                    sing = $"{root} egg";
-                    adj = sing;
-                    return;
-                }
-
-                // try to get plural form from label, b/c it's usually plural
-                // you can't just rely on checking -s endings b/c meat will never end in -s
-                // you can't rely on label on its own b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
-                if (root != null && !delete.Contains(root) && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root isn't some generic term like "meat", and that it starts at the start of a word
-                {
-
-                    // extend the overlap to the end of a word in label // mammoth gold pumpkins & pumpkin => pumpkins
-                    Match match = Regex.Match(labelCompare, "(?i)" + root + "[^ ]*");
-                    plur = match.Value;
                     if (tag) { Log.Message($"plural matched = {plur}"); }
                     int head = labelCompare.IndexOf(root, StringComparison.Ordinal);
                     plur = labelCapDiacritic.Substring(head, plur.Length);  // get diacritics and capitalization back
-
                     if (tag) { Log.Message($"plural final = {plur}"); }
 
-                    // if the 2 forms differ by more than 2 letters, discard them and use reduced label
+                    // if the 2 forms differ in length by more than 2 letters, discard them and use reduced label
                     if (root.Length == 0 || root.Length < plur.Length - 2)
                     {
                         if (tag) { Log.Message($"root was {root}"); }
                         plur = labelCapDiacritic;
                         if (tag) { Log.Message($"plural fallback = {plur}"); }
                     }
-
-
                 }
+            }
+            // otherwise use reduced label
+            else
+            {
+                plur = labelCapDiacritic;
+                if (tag) { Log.Message($"plural fallback2 = {plur}"); }
+            }
+            if (tag) { Log.Message($"plural final = {plur}"); }
 
-                // use reduced label
-                else
-                {
-                    plur = labelCapDiacritic;
-                    if (tag) { Log.Message($"plural fallback2 = {plur}"); }
-                }
-
-                // try to get singular form from plural form
-                // done this way so that plural form matches singular form if label and defName aren't similar (e.g. VCE_Oranges = mandarins when other mods are installed)
-                sing = plur;
+            // try to get singular form from plural form
+            // done this way so that plural form matches singular form if label and defName aren't similar (e.g. VCE_Oranges => mandarins when other mods are installed)
+            if (inflections[2] is not null)
+            {
+                if (inflections[2] == "^") sing = plur;
+                else if (inflections[2].Contains("{0}")) sing = inflections[2].Formatted(root);
+            }
+            else
+            {
+                string sing2 = plur;
                 foreach (var pair in singularPairs)
                 {
-                    if (Regex.IsMatch(sing, pair.Item1))
+                    if (Regex.IsMatch(sing2, pair.Item1))
                     {
-                        sing = Regex.Replace(sing, pair.Item1, pair.Item2);
+                        sing2 = Regex.Replace(sing2, pair.Item1, pair.Item2);
                         break;
                     }
                 }
-                if (tag) { Log.Message($"sing = {sing}"); }
+                sing = string.Join(" ", inflections[2], sing2);
+            }
+            if (tag) { Log.Message($"sing = {sing}"); }
 
-                // try to get collective form (either based on singular or plural depending on FT_Category)
+
+            // try to get collective form (either based on singular or plural depending on FT_Category)
+            if (inflections[1] is not null)
+            {
+                if (inflections[1] == "^") coll = plur;
+                else if (inflections[1].Contains("{0}")) coll = inflections[1].Formatted(root);
+            }
+            else
+            {
                 FlavorCategoryDef parentCategory = ThingCategories[ing].First();
                 bool? singularCollective = parentCategory.singularCollective;
-                coll = singularCollective == true ? sing : plur;
-                if (tag) { Log.Message($"coll = {coll}"); }
+                coll = singularCollective == true ? string.Join(" ", coll, sing) : string.Join(" ", coll, plur);
+            }
+            if (tag) { Log.Message($"coll = {coll}"); }
 
-                // try to get adjectival form (based on singular)
-                adj = sing;
-            
+            // try to get adjectival form (based on singular)
+            if (inflections[3] is not null)
+            {
+                if (inflections[3] == "^") adj = sing;
+                else if (inflections[3].Contains("{0}")) adj = inflections[3].Formatted(root);
+            }
+            else adj = string.Join(" ", adj, sing);
+            if (tag) { Log.Message($"adj = {adj}"); }
+
         }
 
         static string LongestCommonSubstring(string string1, string string2)
