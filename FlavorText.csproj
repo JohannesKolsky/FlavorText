@@ -67,7 +67,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DefInflectionsDictionary.cs" />
+    <Compile Include="DefInflectionsData.cs" />
     <Compile Include="CompFlavor.cs" />
     <Compile Include="FlavorCategoryDef.cs" />
     <Compile Include="HarmonyPatches.cs" />
