@@ -473,8 +473,6 @@ public static class FlavorCategoryDefUtility
             {
                 {
                     // try and get inflections defined in the XML
-                    // if an inflection field is null it will inherit the value of the one before it
-                    // the first inflection field must be non-null
                     List<string> inflections = ThingDefInflectionsDictionary.TryGetValue(ingredient);
                     if (inflections is null)
                     {
@@ -510,15 +508,12 @@ public static class FlavorCategoryDefUtility
     // generate various grammatical forms of each ingredient
     public static List<string> GenerateIngredientInflections(ThingDef ingredient, List<string> inflections = null)
     {
-        tag = false;
         /*if (ing.defName.ToLower().Contains("egg")) { tag = true; }*/
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
         // singular form // a slice of BRUSSELS SPROUT
         // adjectival form // PEANUT brittle
 
-        string plur, coll, sing, adj;
-        plur = coll = sing = adj = null;
         // if there were predefined inflections, fill them out as much as possible
         // depending on the result, you may be able to skip inflection generation
         bool doGeneration = false;
@@ -535,14 +530,17 @@ public static class FlavorCategoryDefUtility
 
             }
         }
+        else doGeneration = true;
 
-        if (doGeneration) GenerateInflections(ingredient, inflections);
+        if (doGeneration) inflections = GenerateInflections(ingredient, inflections);
 
         return inflections;
 
         // determine correct inflections for plural, collective, singular, and adjectival forms of the ing's label
-        void GenerateInflections(ThingDef ing, List<string> inflections)
+        static List<string> GenerateInflections(ThingDef ing, List<string> inflections = null)
         {
+            string plur, coll, sing, adj;
+            plur = coll = sing = adj = null;
 
             List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("us$", "us"), ("([aeiouy][cs]h)es$", "$1"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
 
@@ -566,8 +564,8 @@ public static class FlavorCategoryDefUtility
             List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "eggs*", "flour", "meat"];  // bits to delete
 
             // don't delete certain word combinations that include "meat"
-            List<string> excludedCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
-            foreach (string combination in excludedCombinations)
+            List<string> exemptCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
+            foreach (string combination in exemptCombinations)
             {
                 if (labelCompare == combination)
                 {
@@ -600,16 +598,16 @@ public static class FlavorCategoryDefUtility
             if (tag) { Log.Warning($"Longest common substring was {root}"); }
 
             // try to get plural form from label, b/c it's usually plural
-            // you can't just rely on checking -s endings b/c meat will never end in -s
+            // you can't just rely on checking -s endings b/c some names like "meat" will never end in -s
             // you can't rely on label on its own b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
             if (root is not null && !delete.Contains(root) && Regex.IsMatch(labelCompare, $"\\b{root}"))  // make sure root isn't some generic term like "meat", and that it starts at the start of a word
             {
                 // if plur has a placeholder, replace it with root
                 // otherwise plur is root extended to the end of the label // mammoth gold pumpkins & pumpkin => pumpkins
-                if (inflections[0] is not null && inflections[0].Contains("{0}")) plur = inflections[0].Formatted(root);
-                else
+                if (inflections?[0] is not null && inflections[0].Contains("{0}")) plur = inflections[0].Formatted(root);
+                else if (inflections is null || inflections[0] == "*")
                 {
-                    plur = string.Join(" ", inflections[0], Regex.Match(labelCompare, "(?i)" + root + "[^ ]*").Value);
+                    plur = Regex.Match(labelCompare, "(?i)" + root + "[^ ]*").Value;
 
                     if (tag) { Log.Message($"plural matched = {plur}"); }
                     int head = labelCompare.IndexOf(root, StringComparison.Ordinal);
@@ -635,29 +633,28 @@ public static class FlavorCategoryDefUtility
 
             // try to get singular form from plural form
             // done this way so that plural form matches singular form if label and defName aren't similar (e.g. VCE_Oranges => mandarins when other mods are installed)
-            if (inflections[2] is not null)
+            if (inflections?[2] is not null)
             {
                 if (inflections[2] == "^") sing = plur;
                 else if (inflections[2].Contains("{0}")) sing = inflections[2].Formatted(root);
             }
             else
             {
-                string sing2 = plur;
+                sing = plur;
                 foreach (var pair in singularPairs)
                 {
-                    if (Regex.IsMatch(sing2, pair.Item1))
+                    if (Regex.IsMatch(sing, pair.Item1))
                     {
-                        sing2 = Regex.Replace(sing2, pair.Item1, pair.Item2);
+                        sing = Regex.Replace(sing, pair.Item1, pair.Item2);
                         break;
                     }
                 }
-                sing = string.Join(" ", inflections[2], sing2);
             }
             if (tag) { Log.Message($"sing = {sing}"); }
 
 
             // try to get collective form (either based on singular or plural depending on FT_Category)
-            if (inflections[1] is not null)
+            if (inflections?[1] is not null)
             {
                 if (inflections[1] == "^") coll = plur;
                 else if (inflections[1].Contains("{0}")) coll = inflections[1].Formatted(root);
@@ -666,19 +663,20 @@ public static class FlavorCategoryDefUtility
             {
                 FlavorCategoryDef parentCategory = ThingCategories[ing].First();
                 bool? singularCollective = parentCategory.singularCollective;
-                coll = singularCollective == true ? string.Join(" ", coll, sing) : string.Join(" ", coll, plur);
+                coll = singularCollective == true ? sing : plur;
             }
             if (tag) { Log.Message($"coll = {coll}"); }
 
             // try to get adjectival form (based on singular)
-            if (inflections[3] is not null)
+            if (inflections?[3] is not null)
             {
                 if (inflections[3] == "^") adj = sing;
                 else if (inflections[3].Contains("{0}")) adj = inflections[3].Formatted(root);
             }
-            else adj = string.Join(" ", adj, sing);
+            else adj = sing;
             if (tag) { Log.Message($"adj = {adj}"); }
 
+            return [plur, coll, sing, adj];
         }
 
         static string LongestCommonSubstring(string string1, string string2)
