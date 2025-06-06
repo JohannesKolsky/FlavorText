@@ -369,7 +369,7 @@ public class CompFlavor : ThingComp
                 ThingDef ingredient = Ingredients[i];
                 flavorSummary += $"\ningredient {i} was {ingredient.defName}";
                 flavorSummary += $"\ningredient was in the following Flavor Categories";
-                foreach (var cat in FlavorCategoryDefUtility.ThingCategories[Ingredients[i]])
+                foreach (var cat in CategoryUtility.ThingCategories[Ingredients[i]])
                 {
                     flavorSummary += $"\n{cat.defName}";
                 }
@@ -620,7 +620,7 @@ public class CompFlavor : ThingComp
             // find placeholders and replace them with the appropriate inflection of the right ingredient
             for (int i = 0; i < ingredients.Count; i++)
             {
-                var inflections = FlavorCategoryDefUtility.ThingDefInflectionsDictionary[ingredients[i]];
+                var inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[i]];
                 while (true)
                 {
                     var placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");  //capture the placeholder and the word before and after it
@@ -778,17 +778,17 @@ public class CompFlavor : ThingComp
 
             List<int> ranking = [ing1 switch
             {
-                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
-                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
-                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
-                not null when FlavorCategoryDefUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
+                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
+                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
+                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
+                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
                 _ => 12
             }, ing2 switch
             {
-                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
-                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
-                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
-                not null when FlavorCategoryDefUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
+                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
+                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
+                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
+                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
                 _ => 12
             }];
 

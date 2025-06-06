@@ -70,9 +70,10 @@
     <Compile Include="DefInflectionsData.cs" />
     <Compile Include="CompFlavor.cs" />
     <Compile Include="FlavorCategoryDef.cs" />
+    <Compile Include="InflectionUtility.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Remove.cs" />
-    <Compile Include="FlavorCategoryDefUtility.cs" />
+    <Compile Include="CategoryUtility.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />
     <Compile Include="CompProperties_Flavor.cs" />
