@@ -60,7 +60,7 @@ public static class CategoryUtility
             DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
             DefDatabase<FlavorDef>.ResolveAllReferences();
 
-            FlavorDef.SetCategoryData(); // get total specificity for each FlavorDef; get other static data
+            FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
             InflectionUtility.AssignIngredientInflections();
             Debug();
 
@@ -157,11 +157,11 @@ public static class CategoryUtility
                 if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty on the second try.");
 
                 // if ThingDef should have CompFlavor, postpend a new one
-                // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsBasic
+                // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsCooked
                 if (food.HasComp<CompIngredients>() && categories.Any(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat)))
                 {
                     food.comps.Add(new CompProperties_Flavor());
-                    var qualityCats = categories.Where(cat => FlavorCategoryDef.Named("FT_MealsQuality").ThisAndChildCategoryDefs.Contains(cat)).ToList();
+                    var qualityCats = categories.Where(cat => FlavorCategoryDefOf.FT_MealsQualities.ThisAndChildCategoryDefs.Contains(cat)).ToList();
                     foreach (var qualityCat in qualityCats)
                     {
                         if (MealsQualities.ContainsKey(food)) MealsQualities[food].Add(qualityCat);
@@ -170,8 +170,8 @@ public static class CategoryUtility
                     }
                     if (ThingCategories[food].Empty())
                     {
-                        ThingCategories[food].Add(FlavorCategoryDefOf.FT_MealsBasic);
-                        FlavorCategoryDefOf.FT_MealsBasic.childThingDefs.Add(food);
+                        ThingCategories[food].Add(FlavorCategoryDefOf.FT_MealsCooked);
+                        FlavorCategoryDefOf.FT_MealsCooked.childThingDefs.Add(food);
                     }
                 }
                 tag = false;
@@ -276,7 +276,7 @@ public static class CategoryUtility
     {
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
-        int categoryScore;
+        int categoryScore = 0;
         Dictionary<FlavorCategoryDef, int> bestFlavorCategories = [];
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndChildCategoryDefs.ToList();
@@ -338,12 +338,12 @@ public static class CategoryUtility
                             }
 
                             // otherwise do the normal keyword tests
-                            else
+                            else if (!bestFlavorCategories.ContainsKey(flavorCategory))
                             {
                                 GetKeywordScores(flavorCategory);
                             }
 
-                            CompareCategoryScores(flavorCategory);
+                            if (!bestFlavorCategories.ContainsKey(flavorCategory)) CompareCategoryScores(flavorCategory);
                         }
                     }
 
