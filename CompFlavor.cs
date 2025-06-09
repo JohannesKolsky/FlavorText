@@ -75,23 +75,26 @@ using System.Linq.Expressions;
 //DONE: time and cooking station aren't working atm
 //DONE: revise FlavorWithIndices system: you probably don't need a separate class for this
 //DONE: check for cooking station and time in ValidFlavorDefs: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
+//RELEASED: rearranging vanilla ingredients in spreadsheet messed up ingredient placeholders
+//RELEASED: milk is staying as ^
 
 
 //RELEASED: update XML files
-//RELEASED: check add to game
+//RELEASE: check add to game
 //RELEASE: check remove from game
-//RELEASED: check new game
-//RELEASED: check save and reload game
-//RELEASED: check updating FlavorText on save
+//RELEASE: check new game
+//RELEASE: check save and reload game
+//RELEASE: check updating FlavorText on save
 //RELEASE: check all meal types
 //RELEASE: check food modlist
-//RELEASED: check FTV
-//RELEASED: check your own saves
-//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASE: check FTV
+//RELEASE: check your own saves
+//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASED: disable log messages
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
-//RELEASED: 3 nuggets runs out of memory
+//RELEASE: 3 nuggets runs out of memory
+//RELEASE: "egg" isn't appearing in labels
 
 
 //TODO: options to prevent merging meals
@@ -104,12 +107,10 @@ using System.Linq.Expressions;
 namespace FlavorText;
 
 /// <summary>
-///  the main body of Flavor Text
-///     CompFlavor attaches automatically to appropriate meals
-///         appropriate meals are generic, not specific ones like modded sushi
-///         stores ingredients and recipe data
-///         makes and stores new flavor labels
-///         makes and stores new flavor descriptions
+///  CompFlavor is attached to each meal that should get a new Flavor Text label
+///     stores FlavorDef data
+///     makes and stores new flavor labels
+///     makes and stores new flavor descriptions
 /// </summary>
 
 public class CompFlavor : ThingComp
@@ -415,6 +416,7 @@ public class CompFlavor : ThingComp
         if (bestFlavors.Empty())
         {
             var validFlavorDefsForMealType = FlavorDef.ValidFlavorDefs(parent).ToList();
+            Log.Message("found valid flavor defs");
             if (validFlavorDefsForMealType.NullOrEmpty())
             {
                 throw new InvalidOperationException($"Attempted to get list of all valid Flavor Defs for meal type '{parent.def.defName}' but there were none. Please report.");
@@ -513,7 +515,7 @@ public class CompFlavor : ThingComp
             // pick the most specific matching FlavorDef
             if (matchingFlavors.Count > 0)
             {
-                matchingFlavors = [.. matchingFlavors.OrderBy(entry => entry.Item1.Specificity)];
+                matchingFlavors = [.. matchingFlavors.OrderBy(entry => entry.Item1.specificity)];
                 //foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.Specificity); }
                 var flavor = matchingFlavors.First();
                 if (flavor.Item1 is null || flavor.Item2 is null) throw new NullReferenceException($"Failed to find a matching Flavor Def. The best Flavor Def [{flavor.Item1}] or its list of indices [{flavor.Item2.ToStringSafeEnumerable()}] was null.");
@@ -553,7 +555,7 @@ public class CompFlavor : ThingComp
             }
 
             // if ingredients aren't wholly contained within the FinalFlavorDefs lowest common category of ingredients, skip
-            if (!foods.All(flavorDef.LowestCommonIngredientCategory.ContainedInThisOrDescendant))
+            if (!foods.All(flavorDef.lowestCommonIngredientCategory.ContainedInThisOrDescendant))
             {
                 return null;
             }
@@ -692,9 +694,13 @@ public class CompFlavor : ThingComp
         if (!FlavorLabels.NullOrEmpty())
         {
             StringBuilder stringBuilder = new();
+            // don't ask
             if (MealTags.Contains("hairy"))
             {
-                stringBuilder.Append("hairy ");
+                GrammarRequest request = default;
+                request.Includes.Add(RulePackDef.Named("FT_Tags"));
+                var hairy = GrammarResolver.Resolve("hairy", request);
+                stringBuilder.Append(hairy);
             }
 
             for (int j = 0; j < FlavorLabels.Count; j++)
@@ -718,7 +724,7 @@ public class CompFlavor : ThingComp
                 int seed = ingredientDefNamesJoined.GetHashCode();
                 Rand.PushState(seed);
 
-                RulePackDef sideDishClauses = RulePackDef.Named("SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
+                RulePackDef sideDishClauses = RulePackDef.Named("FT_SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
 
                 StringBuilder stringBuilder = new();
                 for (int j = 0; j < FlavorDescriptions.Count; j++)
@@ -732,7 +738,7 @@ public class CompFlavor : ThingComp
                     {
                         // connector clause with side dish label
                         GrammarRequest request = default;
-                        if (sideDishClauses != null) { request.Includes.Add(sideDishClauses); }
+                        request.Includes.Add(sideDishClauses);
                         string sideDishText = GrammarResolver.Resolve("sidedish", request);  // get a random connector sentence
                         sideDishText = string.Format(sideDishText, FlavorLabels[j], FlavorDescriptions[j]);  // place the current flavor label in its placeholder spot within the sentence
                         sideDishText = CleanUpDescription(sideDishText);
@@ -750,7 +756,6 @@ public class CompFlavor : ThingComp
         }
         finally
         {
-            // exit pseudorandom generation
             Rand.PopState();
         }
     }

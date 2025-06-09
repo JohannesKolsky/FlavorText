@@ -4,6 +4,10 @@ using Verse;
 
 namespace FlavorText;
 
+/// <summary>
+/// categories to categorize meal ingredients in a custom system with fine detail vs vanilla
+/// also categorizes meals and meal source buildings
+/// </summary>
 public class FlavorCategoryDef : Def
 {
     // vanilla category that corresponds to the FT_Category
@@ -16,7 +20,7 @@ public class FlavorCategoryDef : Def
 
     // whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
     // if null, value will be inherited from its category parent
-    internal bool? singularCollective = null;  
+    internal bool? singularCollective = null;
 
     internal List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
 
