@@ -95,6 +95,7 @@ using System.Linq.Expressions;
 //RELEASED: check gameplay impact
 //RELEASE: 3 nuggets runs out of memory
 //RELEASE: "egg" isn't appearing in labels
+//RELEASE: VGEP: substring error out of range in CategoryUtility on startup
 
 
 //TODO: options to prevent merging meals
@@ -416,7 +417,6 @@ public class CompFlavor : ThingComp
         if (bestFlavors.Empty())
         {
             var validFlavorDefsForMealType = FlavorDef.ValidFlavorDefs(parent).ToList();
-            Log.Message("found valid flavor defs");
             if (validFlavorDefsForMealType.NullOrEmpty())
             {
                 throw new InvalidOperationException($"Attempted to get list of all valid Flavor Defs for meal type '{parent.def.defName}' but there were none. Please report.");

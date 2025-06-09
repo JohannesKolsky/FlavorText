@@ -37,6 +37,7 @@ internal static class InflectionUtility
             try
             {
                 {
+                    tag = ingredient.defName.ToLower().Contains("fruit");
                     // try and get inflections defined in the XML
                     List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
                     if (inflections is null)
@@ -59,8 +60,7 @@ internal static class InflectionUtility
                         throw new NullReferenceException($"Generated inflections for {ingredient} but some or all of them were null" + errorString);
                     }
                     ThingInflectionsDictionary[ingredient] = inflections;
-                    //Log.Warning($"Found all predefined inflections for {ingredient}");
-                    //Log.Message($"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}");
+                    if (tag) Log.Message($"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}");
                 }
 
             }
@@ -129,7 +129,7 @@ internal static class InflectionUtility
             if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelNoParentheses = temp; }  // accept deletion from label if letters remain  // Gruyère cheese meal
 
             // unnecessary whole words
-            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "seeds*", "cones*", "flour", "meat"];  // bits to delete
+            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "flour", "meat"];  // bits to delete
 
             // don't delete certain word combinations that include "meat"
             List<string> exemptCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
@@ -140,7 +140,7 @@ internal static class InflectionUtility
             foreach (string del in delete)
             {
                 temp = Regex.Replace(labelNoParentheses.ToLower(), $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
-                // accept deletion from labelCompare if letters remain
+                // accept deletion if letters remain
                 if (Regex.IsMatch(temp, "[a-zA-Z]"))
                 {
                     int head = labelNoParentheses.ToLower().IndexOf(temp, StringComparison.Ordinal);
