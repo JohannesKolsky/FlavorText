@@ -70,6 +70,7 @@
     <Compile Include="DefInflectionsData.cs" />
     <Compile Include="CompFlavor.cs" />
     <Compile Include="FlavorCategoryDef.cs" />
+    <Compile Include="FlavorCategoryDefOf.cs" />
     <Compile Include="InflectionUtility.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Remove.cs" />
