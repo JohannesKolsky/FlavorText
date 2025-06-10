@@ -135,19 +135,20 @@ public static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("mushroom");
+                //tag = food.defName.ToLower().Contains("ball");
                 var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
                 if (categories.Empty())
                 {
-                    //Log.Warning($"figuring out best FlavorCategory for {food} from mod {food?.modContentPack?.PackageId?.ToStringSafe()}");
+                    if (tag) Log.Warning($"figuring out best FlavorCategory for {food} from mod {food?.modContentPack?.PackageId?.ToStringSafe()}");
                     List<string> splitNames = ExtractNames(food);
                     newParents = GetBestFlavorCategory(splitNames, food, FlavorCategoryDefOf.FT_Foods);
-                    newParentsSorted = newParents.OrderByDescending(element => element.Value).Select(element => element.Key).ToList();
+                    newParentsSorted = [.. newParents.OrderByDescending(element => element.Value).Select(element => element.Key)];
 
                     if (!newParentsSorted.Empty())
                     {
+                        if (tag) Log.Message(newParents.ToStringSafeEnumerable());
                         var newParent = newParentsSorted.First();
                         ThingCategories[food].AddDistinct(newParent);
                         newParent.childThingDefs.Add(food);
@@ -174,7 +175,6 @@ public static class CategoryUtility
                         FlavorCategoryDefOf.FT_MealsCooked.childThingDefs.Add(food);
                     }
                 }
-                tag = false;
             }
             catch (Exception)
             {
@@ -203,7 +203,6 @@ public static class CategoryUtility
                         newParent.childThingDefs.Add(building);
                     }
                 }
-                tag = false;
             }
             catch (Exception)
             {
@@ -274,6 +273,7 @@ public static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsFlavorScore = 6)
     {
+        //tag = searchedDef.defName.ToLower().Contains("ball");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         int categoryScore = 0;
@@ -289,10 +289,10 @@ public static class CategoryUtility
             for (var i = 0; i < categoriesToSearch.Count; i++)
             {
                 var flavorCategory = categoriesToSearch[i];
-                if (!categoriesToSkip.Contains(flavorCategory))
+                if (!categoriesToSkip.Contains(flavorCategory) && !bestFlavorCategories.ContainsKey(flavorCategory))
                 {
                     GetKeywordScores(flavorCategory);
-                    CompareCategoryScores(flavorCategory);
+                    if (categoryScore >= 1) bestFlavorCategories.Add(flavorCategory, categoryScore);
                 }
             }
 
@@ -308,21 +308,20 @@ public static class CategoryUtility
                     }
                 }
             }
-
-            // if nothing matched, try using the Def's vanilla parent categories as the search keywords
+            // if you couldn't find any categories, try using the Def's vanilla parent categories as the search keywords
+            // this strategy forbids allowing the item to get a CompFlavor, to avoid overriding specialized modded meals
             if (bestFlavorCategories.Count == 0)
             {
-                //{ Log.Error($"No category found for {searchedDef.defName}, looking at its parent categories"); }
-
+                categoriesToSearch.RemoveAll(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat));
                 ThingCategoryDef topLevelThingCategoryDef = !topLevelCategory.sisterCategories.Empty()
-                    ? topLevelCategory.sisterCategories.FirstOrDefault()
+                    ? topLevelCategory.sisterCategories.First()
                     : null;
 
                 var defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelThingCategoryDef)).ToList();
                 while (true)
                 {
                     if (defParents.NullOrEmpty()) break;
-                    //Log.Warning($"{searchedDef.defName} had parent categories [{defParents.ToStringSafeEnumerable()}]");
+                    if (tag) Log.Warning($"{searchedDef.defName} had parent categories [{defParents.ToStringSafeEnumerable()}]");
 
                     foreach (ThingCategoryDef defParent in defParents!)
                     {
@@ -330,11 +329,11 @@ public static class CategoryUtility
 
                         foreach (var flavorCategory in categoriesToSearch)
                         {
-                            // if the current flavor category being tested has a sister category, give it a flat score of 3
+                            // if the current flavor category being tested has a sister category, give it a flat score of 6
                             var sisterCategories = flavorCategory.sisterCategories;
                             if (sisterCategories != null && sisterCategories.Contains(defParent))
                             {
-                                categoryScore = 3;
+                                categoryScore = 6;
                             }
 
                             // otherwise do the normal keyword tests
@@ -343,17 +342,17 @@ public static class CategoryUtility
                                 GetKeywordScores(flavorCategory);
                             }
 
-                            if (!bestFlavorCategories.ContainsKey(flavorCategory)) CompareCategoryScores(flavorCategory);
+                            if (categoryScore >= 1) 
+                                bestFlavorCategories.AddDistinct(flavorCategory, categoryScore);
                         }
                     }
 
                     defParents = [.. defParents
-                        .Where(cat => cat != topLevelThingCategoryDef)
-                        .Select(cat => cat.parent)
-                        .Where(parent => parent != null)];
+                    .Where(cat => cat != topLevelThingCategoryDef)
+                    .Select(cat => cat.parent)
+                    .Where(parent => parent != null)];
                     defParents.RemoveDuplicates();
                 }
-                //if (bestFlavorCategory != null & Prefs.DevMode) Log.Warning($"Using its parent categories, found new best flavor category {bestFlavorCategory.defName} for Def {searchedDef.defName}");
             }
 
             if (bestFlavorCategories.Count() > 0) return bestFlavorCategories;
@@ -372,7 +371,7 @@ public static class CategoryUtility
         {
             // get a score based on how well the flavorCategory keywords match the searchedDef's names
             categoryScore = 0;
-            if (tag) Log.Warning($"keywords for {flavorCategory}");
+            //if (tag) Log.Warning($"keywords for {flavorCategory}");
             List<string> keywords = flavorCategory.keywords;
             foreach (string keyword in keywords)
             {
@@ -393,26 +392,6 @@ public static class CategoryUtility
             foreach (var cat in flavorCategory.ThisAndChildCategoryDefs)
             {
                 categoriesToSkip.AddDistinct(cat);
-            }
-        }
-
-        void CompareCategoryScores(FlavorCategoryDef flavorCategory)
-        {
-            if (categoryScore >= 1)
-            {
-                if (bestFlavorCategories.Count == 0)
-                {
-                    bestFlavorCategories.Add(flavorCategory, categoryScore);
-                }
-                // if matched category is subcategory of a previously matched category, add its parents score to its score
-                else if (new List<int>(bestFlavorCategories.Where(element => element.Key.ThisAndChildCategoryDefs.Contains(flavorCategory)).Select(element => element.Value)) is var matchedParents && !matchedParents.Empty())
-                {
-                    bestFlavorCategories.Add(flavorCategory, categoryScore + matchedParents.Max());
-                }
-                else
-                {
-                    bestFlavorCategories.Add(flavorCategory, categoryScore);
-                }
             }
         }
     }

@@ -1,6 +1,8 @@
-﻿using System;
+﻿using RimWorld.Planet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using Verse;
 
@@ -37,14 +39,19 @@ internal static class InflectionUtility
             try
             {
                 {
-                    tag = ingredient.defName.ToLower().Contains("fruit");
+                    //tag = ingredient.defName.ToLower().Contains("vagp");
                     // try and get inflections defined in the XML
                     List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
                     if (inflections is null)
                     {
                         ThingInflectionsDictionary.Add(ingredient, []);
                         if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
-                        inflections = CategoryInflectionsData.TryGetValue(CategoryUtility.ThingCategories[ingredient].First());
+                        var thisAndParents = CategoryUtility.ThingCategories[ingredient].First().ThisAndParents;
+                        foreach (var cat in thisAndParents)
+                        {
+                            inflections = CategoryInflectionsData.TryGetValue(cat);
+                            if (inflections is not null) break;
+                        }
                         if (inflections is null)
                         {
                             if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined category inflections, will generate inflections instead.");
@@ -126,6 +133,7 @@ internal static class InflectionUtility
             //TODO: this doesn't work with the delete list for some reason; probably some conflict between how C# and Regex read strings
             string labelNoParentheses = labelOriginal;
             temp = Regex.Replace(labelOriginal, @"\(.*\)", "").Trim();
+            temp = temp.Replace("  ", " ");
             if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelNoParentheses = temp; }  // accept deletion from label if letters remain  // Gruyère cheese meal
 
             // unnecessary whole words
@@ -140,14 +148,16 @@ internal static class InflectionUtility
             foreach (string del in delete)
             {
                 temp = Regex.Replace(labelNoParentheses.ToLower(), $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
+                temp = temp.Replace("  ", " ");
                 // accept deletion if letters remain
                 if (Regex.IsMatch(temp, "[a-zA-Z]"))
                 {
                     int head = labelNoParentheses.ToLower().IndexOf(temp, StringComparison.Ordinal);
-                    labelBitsDeleted = labelNoParentheses.Substring(head, temp.Length);  // Gruyère cheese
+                    if (head != -1) labelBitsDeleted = labelNoParentheses.Substring(head, temp.Length);  // Gruyère cheese
                 }
 
                 temp = Regex.Replace(defNameClean, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from defNameCompare that match those in "delete"
+                temp = temp.Replace("  ", " ");
                 if (Regex.IsMatch(temp, "[a-zA-Z]")) { defNameClean = temp; }  // accept deletion from defNameCompare if letters remain
             }
 
@@ -179,10 +189,10 @@ internal static class InflectionUtility
                     {
                         plur = Regex.Match(labelClean, "(?i)" + root + "[^ ]*").Value;
                         int head = labelClean.IndexOf(root, StringComparison.Ordinal);
-                        plur = labelOriginal.Substring(head, plur.Length);  // get diacritics and capitalization back
+                        if (head != -1) plur = labelOriginal.Substring(head, plur.Length);  // get diacritics and capitalization back
 
                         // if the 2 forms differ in length by more than 2 letters, discard them and use reduced label
-                        if (root.Length == 0 || root.Length < plur.Length - 2)
+                        if (head == -1 || root.Length == 0 || root.Length < plur.Length - 2)
                         {
                             plur = labelBitsDeleted;
                         }

@@ -42,15 +42,15 @@ public class FlavorCategoryDef : Def
 
     public List<ThingDef> SortedChildThingDefs => sortedChildThingDefsCached;
 
-    public IEnumerable<FlavorCategoryDef> Parents
+    public IEnumerable<FlavorCategoryDef> ThisAndParents
     {
         get
         {
+            yield return this;
             if (parent != null)
             {
-                yield return parent;
-                foreach (FlavorCategoryDef grandParent in parent.Parents)
-                    yield return grandParent;
+                foreach (FlavorCategoryDef thisAndParent in parent.ThisAndParents)
+                    yield return thisAndParent;
             }
         }
     }

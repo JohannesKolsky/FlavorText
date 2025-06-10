@@ -77,9 +77,11 @@ using System.Linq.Expressions;
 //DONE: check for cooking station and time in ValidFlavorDefs: this is a fast way to discard invalid FlavorDefs // OR check in CheckIfFlavorMatches before checking ingredients
 //RELEASED: rearranging vanilla ingredients in spreadsheet messed up ingredient placeholders
 //RELEASED: milk is staying as ^
+//RELEASED: "egg" isn't appearing in labels
+//RELEASED: VGEP: substring error out of range in CategoryUtility on startup
 
 
-//RELEASED: update XML files
+//RELEASE: update XML files
 //RELEASE: check add to game
 //RELEASE: check remove from game
 //RELEASE: check new game
@@ -90,12 +92,11 @@ using System.Linq.Expressions;
 //RELEASE: check FTV
 //RELEASE: check your own saves
 //RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASED: disable log messages
+//RELEASE: disable log messages
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
 //RELEASE: 3 nuggets runs out of memory
-//RELEASE: "egg" isn't appearing in labels
-//RELEASE: VGEP: substring error out of range in CategoryUtility on startup
+//RELEASE: add {food} {food, food} {food, food, food} to all mealKinds
 
 
 //TODO: options to prevent merging meals

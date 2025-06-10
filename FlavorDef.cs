@@ -25,7 +25,7 @@ public class FlavorDef : Def
 
     public FlavorCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
-    private string varietyTexture;
+    private readonly string varietyTexture;
     public string VarietyTexture => varietyTexture;
 
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
@@ -136,7 +136,7 @@ public class FlavorDef : Def
             List<List<FlavorCategoryDef>> allCategoriesInDefAndParents = [.. flavorDef.ingredients
                     .SelectMany(slot => slot.categories)
                     .Distinct()
-                    .Select(cat => cat.Parents.Prepend(cat).ToList())];
+                    .Select(cat => cat.ThisAndParents.ToList())];
 
             // compare the corresponding elements of each parent list, going from last to first
             // if they are no longer equal, then the previous element was the lowest common category
@@ -167,12 +167,8 @@ public class FlavorDef : Def
         List<FlavorCategoryDef> activeMealParents = [];
         foreach (var cat in ThingCategories[meal.def])
         {
-            if (activeMealKinds.Contains(cat)) activeMealParents.Add(cat);
-            else
-            {
-                var temp = cat.Parents.FirstOrDefault(activeMealKinds.Contains);
-                if (temp is not null) activeMealParents.Add(temp);
-            }
+            var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
+            if (temp is not null) activeMealParents.Add(temp);
         }
         return ActiveFlavorDefs
             .Where(flavorDef =>
