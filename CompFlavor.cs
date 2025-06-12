@@ -80,6 +80,7 @@ using System.Linq.Expressions;
 //RELEASED: "egg" isn't appearing in labels
 //RELEASED: VGEP: substring error out of range in CategoryUtility on startup
 
+//TODO: a/an is/are grammar
 
 //RELEASE: update XML files
 //RELEASE: check add to game
@@ -706,8 +707,8 @@ public class CompFlavor : ThingComp
 
             for (int j = 0; j < FlavorLabels.Count; j++)
             {
-                var conj = j == 0 ? "" : j == 1 ? " with " : " and ";
-                stringBuilder.Append(conj + GenText.CapitalizeAsTitle(FlavorLabels[j]));
+                var conj = j == 0 ? "" : j == 1 ? "with" : "and";
+                stringBuilder.AppendWithSeparator(conj + GenText.CapitalizeAsTitle(FlavorLabels[j]), " ");
             }
             FinalFlavorLabel = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
@@ -766,7 +767,6 @@ public class CompFlavor : ThingComp
         if (!flavorDescription.NullOrEmpty())
         {
             flavorDescription = flavorDescription.Trim(',', ' ');
-            /*            flavorDescription = flavorDescription.EndWithPeriod();*/
             flavorDescription = GenText.CapitalizeSentences(flavorDescription);
         }
 

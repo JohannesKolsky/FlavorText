@@ -137,7 +137,7 @@ internal static class InflectionUtility
             if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelNoParentheses = temp; }  // accept deletion from label if letters remain  // Gruyère cheese meal
 
             // unnecessary whole words
-            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "flour", "meat"];  // bits to delete
+            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "grains*", "flour", "meat"];  // bits to delete
 
             // don't delete certain word combinations that include "meat"
             List<string> exemptCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
