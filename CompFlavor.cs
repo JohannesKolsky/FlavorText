@@ -79,9 +79,11 @@ using System.Linq.Expressions;
 //RELEASED: milk is staying as ^
 //RELEASED: "egg" isn't appearing in labels
 //RELEASED: VGEP: substring error out of range in CategoryUtility on startup
+//RELEASED: add {food} {food, food} {food, food, food} to all mealKinds
 
 //TODO: a/an is/are grammar
 
+//RELEASE: check all with v1.6
 //RELEASE: update XML files
 //RELEASE: check add to game
 //RELEASE: check remove from game
@@ -97,7 +99,6 @@ using System.Linq.Expressions;
 //RELEASED: check startup impact
 //RELEASED: check gameplay impact
 //RELEASE: 3 nuggets runs out of memory
-//RELEASE: add {food} {food, food} {food, food, food} to all mealKinds
 
 
 //TODO: options to prevent merging meals
@@ -707,7 +708,7 @@ public class CompFlavor : ThingComp
 
             for (int j = 0; j < FlavorLabels.Count; j++)
             {
-                var conj = j == 0 ? "" : j == 1 ? "with" : "and";
+                var conj = j == 0 ? "" : j == 1 ? "with " : "and ";
                 stringBuilder.AppendWithSeparator(conj + GenText.CapitalizeAsTitle(FlavorLabels[j]), " ");
             }
             FinalFlavorLabel = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());

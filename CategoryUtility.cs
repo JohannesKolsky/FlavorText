@@ -135,7 +135,7 @@ public static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("ball");
+                //tag = food.defName.ToLower().Contains("pastry");
                 var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
@@ -156,6 +156,8 @@ public static class CategoryUtility
                 }
                 categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null on the second try.");
                 if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty on the second try.");
+
+                if (tag) Log.Warning($"testing {food} with categories {categories.ToStringSafeEnumerable()}");
 
                 // if ThingDef should have CompFlavor, postpend a new one
                 // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsCooked
