@@ -169,6 +169,8 @@ public class FlavorDef : Def
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) activeMealParents.Add(temp);
+            Log.Warning($"active meal parents was {activeMealParents.ToStringSafeEnumerable()}");
+            Log.Warning($"active meal kinds was {activeMealKinds.ToStringSafeEnumerable()}");
         }
         return ActiveFlavorDefs
             .Where(flavorDef =>

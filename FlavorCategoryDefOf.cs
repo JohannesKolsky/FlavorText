@@ -12,7 +12,7 @@ public static class FlavorCategoryDefOf
     public static FlavorCategoryDef FT_MealsWithCompFlavor;  // all items that should get their label changed via Flavor Text
     public static FlavorCategoryDef FT_MealsKinds;  // all meals of all kinds, ignoring quality
     public static FlavorCategoryDef FT_MealsQualities; // all qualities of meals
-    public static FlavorCategoryDef FT_MealsCooked; // unspecialized meals (simple meal, fine meal, lavish meal); this is the default if meal kind is unknown
+    public static FlavorCategoryDef FT_MealsCooked; // meals cooked at a cooking station, excluding baby food (simple meal, fine meal, lavish meal, packaged survival); this is the default if meal kind is unknown
 }
 
 
