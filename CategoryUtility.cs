@@ -173,8 +173,8 @@ public static class CategoryUtility
                     }
                     if (ThingCategories[food].Empty())
                     {
-                        ThingCategories[food].Add(FlavorCategoryDefOf.FT_MealsCooked);
-                        FlavorCategoryDefOf.FT_MealsCooked.childThingDefs.Add(food);
+                        ThingCategories[food].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+                        FlavorCategoryDefOf.FT_MealsNonSpecial.childThingDefs.Add(food);
                     }
                 }
             }
