@@ -65,7 +65,7 @@ public class FlavorDef : Def
     }
     
     // remove mealKind categories that aren't being used (e.g. FT_MealsSoup if no mods add soup meals)
-    // if this means a FlavorDef has no mealKind, add FT_MealsCooked to it, so it can be used by basic meals and survival pack meals
+    // if this means a FlavorDef has no mealKind, add FT_MealsNonSpecial to it, so it can be used by normal meals and survival pack meals
     private static void SetActiveMealKinds()
     {
         List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndChildCategoryDefs.Where(cat => cat.DescendantThingDefs.Count() == 0)];
@@ -73,7 +73,10 @@ public class FlavorDef : Def
         {
             flavorDef.mealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
-            if (flavorDef.mealKinds.Empty()) flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsCooked);
+            if (flavorDef.mealKinds.Empty() || (!FlavorTextSettings.strictRecipeMatching && activeMealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            {
+                flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+            }
         }
     }
 
@@ -164,24 +167,24 @@ public class FlavorDef : Def
     public static IEnumerable<FlavorDef> ValidFlavorDefs(Thing meal)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
-        List<FlavorCategoryDef> activeMealParents = [];
+        List<FlavorCategoryDef> thisMealParents = [];
         foreach (var cat in ThingCategories[meal.def])
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
-            if (temp is not null) activeMealParents.Add(temp);
-            Log.Warning($"active meal parents was {activeMealParents.ToStringSafeEnumerable()}");
+            if (temp is not null) thisMealParents.Add(temp);
+            Log.Warning($"active meal parents was {thisMealParents.ToStringSafeEnumerable()}");
             Log.Warning($"active meal kinds was {activeMealKinds.ToStringSafeEnumerable()}");
         }
         return ActiveFlavorDefs
-            .Where(flavorDef =>
-                flavorDef.mealKinds.Any(mealKind => activeMealParents.Contains(mealKind))
-                && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
-                && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
-                    cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
-                && ((flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
-                        compFlavor.HourOfDay <= flavorDef.hoursOfDay.max))
-                && (flavorDef.ingredientsHitPointPercentage.Includes(
-                    (float)compFlavor.IngredientsHitPointPercentage!)));
+        .Where(flavorDef =>
+            flavorDef.mealKinds.Any(mealKind => thisMealParents.Contains(mealKind))
+            && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
+            && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
+                cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
+            && ((flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
+                    compFlavor.HourOfDay <= flavorDef.hoursOfDay.max))
+            && (flavorDef.ingredientsHitPointPercentage.Includes(
+                (float)compFlavor.IngredientsHitPointPercentage!)));
 
     }
 }
