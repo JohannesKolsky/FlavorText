@@ -73,7 +73,7 @@ public class FlavorDef : Def
         {
             flavorDef.mealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
-            if (flavorDef.mealKinds.Empty() || (!FlavorTextSettings.strictRecipeMatching && activeMealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            if (flavorDef.mealKinds.Empty() || (!FlavorTextSettings.strictRecipeMatching && flavorDef.mealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             {
                 flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
             }
@@ -164,7 +164,7 @@ public class FlavorDef : Def
 
 
     // all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
-    public static IEnumerable<FlavorDef> ValidFlavorDefs(Thing meal)
+    public static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, IEnumerable<FlavorDef> flavorDefsToSearch = null)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
         List<FlavorCategoryDef> thisMealParents = [];
@@ -172,10 +172,11 @@ public class FlavorDef : Def
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) thisMealParents.Add(temp);
-            Log.Warning($"active meal parents was {thisMealParents.ToStringSafeEnumerable()}");
-            Log.Warning($"active meal kinds was {activeMealKinds.ToStringSafeEnumerable()}");
+            Log.Warning($"this meal parents were {thisMealParents.ToStringSafeEnumerable()}");
+            Log.Warning($"active meal kinds were {activeMealKinds.ToStringSafeEnumerable()}");
         }
-        return ActiveFlavorDefs
+        flavorDefsToSearch ??= ActiveFlavorDefs;
+        return flavorDefsToSearch
         .Where(flavorDef =>
             flavorDef.mealKinds.Any(mealKind => thisMealParents.Contains(mealKind))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))

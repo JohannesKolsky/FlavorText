@@ -196,7 +196,6 @@ public class CompFlavor : ThingComp
     {
         base.PostExposeData();
 
-        Scribe_Values.Look(ref TriedFlavorText, "TriedFlavorText");
         Scribe_Defs.Look(ref CookingStation, "cookingStation");
         Scribe_Values.Look(ref HourOfDay, "hourOfDay");
         Scribe_Values.Look(ref IngredientsHitPointPercentage, "ingredientsHitPointPercentage");
@@ -408,7 +407,8 @@ public class CompFlavor : ThingComp
         {
             try
             {
-                bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch))];
+                flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, flavorDefsToSearch)];
+                if (!flavorDefsToSearch.Empty()) bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch))];
             }
             catch (Exception ex) when (ex is NullReferenceException || ex is InvalidOperationException)
             {
