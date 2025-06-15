@@ -12,7 +12,7 @@ namespace FlavorText
             Listing_Standard listing_Standard = new();
             listing_Standard.Begin(inRect);
             listing_Standard.Gap();
-            listing_Standard.CheckboxLabeled("strictRecipeMatching".Translate(), ref strictRecipeMatching);
+            listing_Standard.CheckboxLabeled("strictRecipeMatching".Translate(), ref strictRecipeMatching, "strictRecipeMatchingTooltip".Translate());
             listing_Standard.End();
         }
 
