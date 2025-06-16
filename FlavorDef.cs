@@ -73,7 +73,7 @@ public class FlavorDef : Def
         {
             flavorDef.mealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
-            if (flavorDef.mealKinds.Empty() || (!FlavorTextSettings.strictRecipeMatching && flavorDef.mealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            if (flavorDef.mealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             {
                 flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
             }
@@ -172,8 +172,6 @@ public class FlavorDef : Def
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) thisMealParents.Add(temp);
-            Log.Warning($"this meal parents were {thisMealParents.ToStringSafeEnumerable()}");
-            Log.Warning($"active meal kinds were {activeMealKinds.ToStringSafeEnumerable()}");
         }
         flavorDefsToSearch ??= ActiveFlavorDefs;
         return flavorDefsToSearch

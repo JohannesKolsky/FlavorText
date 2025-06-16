@@ -80,7 +80,8 @@ internal static class InflectionUtility
     // generate various grammatical forms of each ingredient
     internal static List<string> GenerateIngredientInflections(ThingDef ingredient, List<string> inflections)
     {
-        /*if (ing.defName.ToLower().Contains("egg")) { tag = true; }*/
+        //tag = ingredient.defName.ToLower().Contains("pickled");
+
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
         // singular form // a slice of BRUSSELS SPROUT
@@ -126,48 +127,48 @@ internal static class InflectionUtility
             string temp;
 
             string labelOriginal = ingredient.label;  // (French) Gruyère cheese meal (fresh)
+            string labelNoSpacers = Regex.Replace(labelOriginal, "([-])", " "); // remove spacer chars
             string defNameClean = ingredient.defName;  // EX_GruyereCheese
             defNameClean = Regex.Replace(defNameClean, "([_])", " ");  // remove spacer chars // EX GruyereCheese
+            defNameClean = Regex.Replace(defNameClean, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words  // EX Gruyere Cheese
+            defNameClean = Regex.Replace(defNameClean, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences  // E X Gruyere Cheese
 
             // remove parentheses and their contents
             //TODO: this doesn't work with the delete list for some reason; probably some conflict between how C# and Regex read strings
-            string labelNoParentheses = labelOriginal;
+            string labelNoParentheses = labelNoSpacers;
             temp = Regex.Replace(labelOriginal, @"\(.*\)", "").Trim();
             temp = temp.Replace("  ", " ");
             if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelNoParentheses = temp; }  // accept deletion from label if letters remain  // Gruyère cheese meal
 
             // unnecessary whole words
-            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "grains*", "flour", "meat"];  // bits to delete
+            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "grains*", "flour", "eggs*", "meat"];  // bits to delete
 
             // don't delete certain word combinations that include "meat"
             List<string> exemptCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
             if (exemptCombinations.Any(combo => labelNoParentheses.ToLower() == combo)) delete.Remove("meat");
 
-            // remove bits
+            // remove unnecessary whole words
             string labelBitsDeleted = labelNoParentheses;
             foreach (string del in delete)
             {
-                temp = Regex.Replace(labelNoParentheses.ToLower(), $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
+                temp = Regex.Replace(labelBitsDeleted.ToLower(), $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
                 temp = temp.Replace("  ", " ");
                 // accept deletion if letters remain
                 if (Regex.IsMatch(temp, "[a-zA-Z]"))
                 {
                     int head = labelNoParentheses.ToLower().IndexOf(temp, StringComparison.Ordinal);
-                    if (head != -1) labelBitsDeleted = labelNoParentheses.Substring(head, temp.Length);  // Gruyère cheese
+                    if (head != -1) labelBitsDeleted = labelNoParentheses.Substring(head, temp.Length); // Gruyère cheese
                 }
 
                 temp = Regex.Replace(defNameClean, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from defNameCompare that match those in "delete"
                 temp = temp.Replace("  ", " ");
-                if (Regex.IsMatch(temp, "[a-zA-Z]")) { defNameClean = temp; }  // accept deletion from defNameCompare if letters remain
+                if (Regex.IsMatch(temp, "[a-zA-Z]")) defNameClean = temp; // accept deletion from defNameCompare if letters remain
             }
 
             // remove diacritics and capitalization
             string labelClean = Remove.RemoveDiacritics(labelBitsDeleted);  // Gruyere cheese
-            labelClean = Regex.Replace(labelClean, "([-])", " "); // remove spacer chars
             labelClean = labelClean.ToLower();  // gruyere cheese
             defNameClean = Remove.RemoveDiacritics(defNameClean); // EX GruyereCheese
-            defNameClean = Regex.Replace(defNameClean, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words  // EX Gruyere Cheese
-            defNameClean = Regex.Replace(defNameClean, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences  // E X Gruyere Cheese
             defNameClean = defNameClean.ToLower();  // e x gruyere cheese
 
             // formulate inflections by comparing label and defName; if you're unable to, use the label
