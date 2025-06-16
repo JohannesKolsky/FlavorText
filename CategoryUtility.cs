@@ -273,7 +273,7 @@ public static class CategoryUtility
         return splitNames;
     }
 
-    private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsFlavorScore = 6)
+    private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = 5)
     {
         //tag = searchedDef.defName.ToLower().Contains("ball");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
@@ -298,15 +298,18 @@ public static class CategoryUtility
                 }
             }
 
-            // if the best category was FT_MealsWithCompFlavor but its score wasn't high enough, replace it with FT_FoodMeals
+            // if the best category was in FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, replace it with FT_FoodMeals
             if (bestFlavorCategories.Count > 0)
             {
                 var bestCategory = bestFlavorCategories.MaxBy(element => element.Value);
                 {
-                    if (bestCategory.Key == FlavorCategoryDefOf.FT_MealsWithCompFlavor && bestCategory.Value < minMealsFlavorScore)
+                    if (bestCategory.Key.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsWithCompFlavor))
                     {
-                        bestFlavorCategories.Remove(bestCategory.Key);
-                        bestFlavorCategories.Add(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
+                        if (bestCategory.Value < minMealsWithCompFlavorScore || !FlavorTextSettings.dynamicMealIncorporation) 
+                        {
+                            bestFlavorCategories.Remove(bestCategory.Key);
+                            bestFlavorCategories.Add(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
+                        }
                     }
                 }
             }

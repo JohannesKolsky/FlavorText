@@ -80,6 +80,9 @@ using System.Linq.Expressions;
 //RELEASED: "egg" isn't appearing in labels
 //RELEASED: VGEP: substring error out of range in CategoryUtility on startup
 //RELEASED: add {food} {food, food} {food, food, food} to all mealKinds
+//RELEASED: GAB pickled eggs is becoming "pickled eggs eggs"
+//DONE: meal types of taglist for dry, wet, sweet, savory meals  // allows auto-labeling of soups vs dishes vs desserts, etc.
+//DONE: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 
 //TODO: a/an is/are grammar
 
@@ -96,16 +99,13 @@ using System.Linq.Expressions;
 //RELEASE: check your own saves
 //RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASE: disable log messages
-//RELEASED: check startup impact
-//RELEASED: check gameplay impact
 //RELEASE: 3 nuggets runs out of memory
+//RELEASE: FTV is becoming generic again
 
 
 //TODO: options to prevent merging meals
 //TODO: variety matters warnings and errors?
-//TODO: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
-//TODO: meal types of taglist for dry, wet, sweet, savory meals  // allows auto-labeling of soups vs dishes vs desserts, etc.
 
 
 namespace FlavorText;
