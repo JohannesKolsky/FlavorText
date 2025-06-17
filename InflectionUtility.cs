@@ -50,7 +50,7 @@ internal static class InflectionUtility
                         foreach (var cat in thisAndParents)
                         {
                             inflections = CategoryInflectionsData.TryGetValue(cat);
-                            if (inflections is not null) break;
+                            if (inflections is not null) {Log.Message($"found category inflections! [{inflections.ToStringSafeEnumerable()}]"); break;}
                         }
                         if (inflections is null)
                         {
@@ -80,7 +80,7 @@ internal static class InflectionUtility
     // generate various grammatical forms of each ingredient
     internal static List<string> GenerateIngredientInflections(ThingDef ingredient, List<string> inflections)
     {
-        //tag = ingredient.defName.ToLower().Contains("pickled");
+        tag = ingredient.defName.ToLower().Contains("flour");
 
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
@@ -95,7 +95,7 @@ internal static class InflectionUtility
         if (!inflections.Empty())
         {
             if (inflections.Count != numInflections) throw new ArgumentOutOfRangeException($"{ingredient} had wrong number of inflections. Expected {numInflections} inflections, found {inflections.Count} instead");
-            if (inflections[0] == "^") throw new NullReferenceException($"Got predefined inflections for {ingredient}, but its first inflection used '^' which is invalid.");
+            if (inflections[0] == "^") throw new NullReferenceException($"Got predefined inflections for {ingredient}, but its first inflection contained '^' which is invalid.");
             for (int i = 0; i < inflections.Count; i++)
             {
                 if (inflections[i] == "_") generatedInflections.Add("");
@@ -122,16 +122,17 @@ internal static class InflectionUtility
                 adj = generatedInflections[3];
             }
             else plur = coll = sing = adj = null;
+            if (tag) Log.Message($"starting generated inflections were [{generatedInflections?.ToStringSafeEnumerable()}]");
 
             List<(string, string)> singularPairs = [("ies$", "y"), ("sses$", "ss"), ("us$", "us"), ("([aeiouy][cs]h)es$", "$1"), ("([o])es$", "$1"), ("([^s])s$", "$1")];  // English conversions from plural to singular noun endings
             string temp;
 
             string labelOriginal = ingredient.label;  // (French) Gruyère cheese meal (fresh)
             string labelNoSpacers = Regex.Replace(labelOriginal, "([-])", " "); // remove spacer chars
-            string defNameClean = ingredient.defName;  // EX_GruyereCheese
-            defNameClean = Regex.Replace(defNameClean, "([_])", " ");  // remove spacer chars // EX GruyereCheese
-            defNameClean = Regex.Replace(defNameClean, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words  // EX Gruyere Cheese
-            defNameClean = Regex.Replace(defNameClean, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences  // E X Gruyere Cheese
+            string defNameSplit = ingredient.defName;  // EX_GruyereCheese
+            defNameSplit = Regex.Replace(defNameSplit, "([_])", " ");  // remove spacer chars // EX GruyereCheese
+            defNameSplit = Regex.Replace(defNameSplit, "(?<=[a-zA-Z])([A-Z][a-z]+)", " $1");  // split up name based on capitalized words  // EX Gruyere Cheese
+            defNameSplit = Regex.Replace(defNameSplit, "(?<=[a-z])([A-Z]+)", " $1");  // split up names based on unbroken all-caps sequences  // E X Gruyere Cheese
 
             // remove parentheses and their contents
             //TODO: this doesn't work with the delete list for some reason; probably some conflict between how C# and Regex read strings
@@ -140,72 +141,88 @@ internal static class InflectionUtility
             temp = temp.Replace("  ", " ");
             if (Regex.IsMatch(temp, "[a-zA-Z]")) { labelNoParentheses = temp; }  // accept deletion from label if letters remain  // Gruyère cheese meal
 
+
+            // remove diacritics and capitalization
+            string labelClean = Remove.RemoveDiacritics(labelNoParentheses);  // Gruyere cheese
+            labelClean = labelClean.ToLower();  // gruyere cheese
+            string defNameClean = Remove.RemoveDiacritics(defNameSplit); // EX GruyereCheese
+            defNameClean = defNameClean.ToLower();  // e x gruyere cheese
+
+
             // unnecessary whole words
             List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "grains*", "flour", "eggs*", "meat"];  // bits to delete
 
             // don't delete certain word combinations that include "meat"
             List<string> exemptCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];
-            if (exemptCombinations.Any(combo => labelNoParentheses.ToLower() == combo)) delete.Remove("meat");
+            if (exemptCombinations.Any(combo => labelClean == combo)) delete.Remove("meat");
 
             // remove unnecessary whole words
-            string labelBitsDeleted = labelNoParentheses;
+            string labelBitsDeleted = labelClean;
+            string defNameBitsDeleted = defNameClean;
             foreach (string del in delete)
             {
-                temp = Regex.Replace(labelBitsDeleted.ToLower(), $@"(?i)\b{del}\b", "").Trim();  // delete complete words from labelCompare that match those in "delete"
-                temp = temp.Replace("  ", " ");
-                // accept deletion if letters remain
-                if (Regex.IsMatch(temp, "[a-zA-Z]"))
-                {
-                    int head = labelNoParentheses.ToLower().IndexOf(temp, StringComparison.Ordinal);
-                    if (head != -1) labelBitsDeleted = labelNoParentheses.Substring(head, temp.Length); // Gruyère cheese
-                }
-
-                temp = Regex.Replace(defNameClean, $@"(?i)\b{del}\b", "").Trim();  // delete complete words from defNameCompare that match those in "delete"
-                temp = temp.Replace("  ", " ");
-                if (Regex.IsMatch(temp, "[a-zA-Z]")) defNameClean = temp; // accept deletion from defNameCompare if letters remain
+                labelBitsDeleted = Regex.Replace(labelBitsDeleted, $@"(?i)\b{del}\b", "").Replace("  ", " ").Trim();  // gruyere cheese
+                defNameBitsDeleted = Regex.Replace(defNameBitsDeleted, $@"(?i)\b{del}\b", "").Replace("  ", " ").Trim();
             }
 
-            // remove diacritics and capitalization
-            string labelClean = Remove.RemoveDiacritics(labelBitsDeleted);  // Gruyere cheese
-            labelClean = labelClean.ToLower();  // gruyere cheese
-            defNameClean = Remove.RemoveDiacritics(defNameClean); // EX GruyereCheese
-            defNameClean = defNameClean.ToLower();  // e x gruyere cheese
+            // figure out common words by comparing label and defName
+            string root = LongestCommonSubstring(defNameBitsDeleted, labelBitsDeleted);  // e.g. EX_GruyereCheese + GruyèreCheese => gruyere cheese
+            // if that didn't work, try again without deleted words
+            if (root.Length == 0 && inflections.Empty())
+            {
+                root = LongestCommonSubstring(defNameClean, labelClean);
+                if (root.Length == 0) root = labelClean;
+            }
 
-            // formulate inflections by comparing label and defName; if you're unable to, use the label
-            string root = LongestCommonSubstring(defNameClean, labelClean);  // e.g. EX_GruyereCheese + GruyèreCheese => gruyere cheese
+            // VCE_Flour: root = ""
+            // KIT_ManiocFlour: root = "manioc"
 
+            // EX_Greb + clak: root = clak
+            // EX_Pijot + pijót: root = pijot
+            // EX_EggFlour + egg flour: root = "egg flour"
 
             // try to get plural form from label, b/c it's usually plural
             // you can't just rely on checking -s endings b/c some names like "meat" will never end in -s
             // you can't rely on label on its own b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
+
             if (plur is null)
             {
-                // if root is some generic term like "meat" or doesn't start at the start of a word, used reduced label instead
-                if (!root.NullOrEmpty() && !delete.Contains(root) && Regex.IsMatch(labelClean, $"\\b{root}"))
+                if (Regex.IsMatch(labelClean, $"\\b{root}"))
                 {
-                    // if plur has a placeholder, replace it with root
-                    // otherwise plur is root extended to the end of the label // mammoth gold pumpkins & pumpkin => pumpkins
-                    if (!inflections.Empty() && inflections[0].Contains("{0}")) plur = inflections[0].Formatted(root);
-                    else
+                    if (!inflections.Empty())
                     {
-                        plur = Regex.Match(labelClean, "(?i)" + root + "[^ ]*").Value;
-                        int head = labelClean.IndexOf(root, StringComparison.Ordinal);
-                        if (head != -1) plur = labelOriginal.Substring(head, plur.Length);  // get diacritics and capitalization back
-
-                        // if the 2 forms differ in length by more than 2 letters, discard them and use reduced label
-                        if (head == -1 || root.Length == 0 || root.Length < plur.Length - 2)
+                        // if plur has a placeholder, replace it with root
+                        if (inflections[0].Contains("{0}")) 
                         {
-                            plur = labelBitsDeleted;
-                        }
+                            plur = inflections[0].Formatted(root);
+                            goto End;
+                        } 
+                        // otherwise plur is root extended to the end of the word // mammoth gold pumpkins & pumpkin => pumpkins
+                        else
+                        {
+                            plur = Regex.Match(labelNoParentheses, "(?i)" + root + "[^ ]*").Value;
+                            int head = labelNoParentheses.IndexOf(root, StringComparison.Ordinal);
+                            if (head != -1) // get diacritics and capitalization back
+                            {
+                                plur = labelOriginal.Substring(head, plur.Length);
+                                goto End;
+                            }
+                        } 
                     }
-
                 }
                 // otherwise use reduced label
-                else
+                if (labelBitsDeleted.Length > 0)
                 {
-                    plur = labelBitsDeleted;
+                    int head = labelNoParentheses.IndexOf(labelBitsDeleted, StringComparison.Ordinal);
+                    if (head != -1)
+                    {
+                        plur = labelOriginal.Substring(head, labelBitsDeleted.Length);
+                        goto End;
+                    }
                 }
+                plur = labelNoParentheses;
             }
+            End:
 
             // try to get singular form from plural form
             // done this way so that plural form matches singular form if label and defName aren't similar (e.g. VCE_Oranges => mandarins when other mods are installed)

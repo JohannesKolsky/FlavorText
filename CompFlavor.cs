@@ -85,6 +85,7 @@ using System.Linq.Expressions;
 //DONE: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 
 //TODO: a/an is/are grammar
+//TODO: common sense spawned bread is becoming sourdough
 
 //RELEASE: check all with v1.6
 //RELEASE: update XML files
