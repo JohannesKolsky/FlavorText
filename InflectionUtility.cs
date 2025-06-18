@@ -50,7 +50,7 @@ internal static class InflectionUtility
                         foreach (var cat in thisAndParents)
                         {
                             inflections = CategoryInflectionsData.TryGetValue(cat);
-                            if (inflections is not null) {Log.Message($"found category inflections! [{inflections.ToStringSafeEnumerable()}]"); break;}
+                            if (inflections is not null) break;
                         }
                         if (inflections is null)
                         {
@@ -80,7 +80,7 @@ internal static class InflectionUtility
     // generate various grammatical forms of each ingredient
     internal static List<string> GenerateIngredientInflections(ThingDef ingredient, List<string> inflections)
     {
-        tag = ingredient.defName.ToLower().Contains("flour");
+        //tag = ingredient.defName.ToLower().Contains("flour");
 
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS

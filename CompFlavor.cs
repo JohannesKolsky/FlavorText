@@ -88,20 +88,20 @@ using System.Linq.Expressions;
 //TODO: common sense spawned bread is becoming sourdough
 
 //RELEASE: check all with v1.6
-//RELEASE: update XML files
-//RELEASE: check add to game
-//RELEASE: check remove from game
-//RELEASE: check new game
-//RELEASE: check save and reload game
-//RELEASE: check updating FlavorText on save
-//RELEASE: check all meal types
-//RELEASE: check food modlist
-//RELEASE: check FTV
+//RELEASED: update XML files
+//RELEASED: check remove from game
+//RELEASED: check add to game
+//RELEASED: check new game
+//RELEASED: check updating FlavorText on save
+//RELEASED: check save and reload game
+//RELEASED: check all meal types
+//RELEASED: check food modlist
+//RELEASED: check FTV
 //RELEASE: check your own saves
-//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASE: disable log messages
+//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: disable log messages
 //RELEASE: 3 nuggets runs out of memory
-//RELEASE: FTV is becoming generic again
+//RELEASED: FTV is becoming generic again
 
 
 //TODO: options to prevent merging meals
@@ -157,12 +157,9 @@ public class CompFlavor : ThingComp
 
     public List<string> MealTags = [];
 
-    /*    public bool fail = false;  // has an attempt been made to find a flavorLabel and failed? if so, don't ever try again*/
-
     // should FlavorText apply to this meal? Not everything with a CompFlavor gets FlavorText (yes this is messy, but it's the easiest way atm)
     public bool HasFlavorText => parent.HasComp<CompFlavor>();
 
-    // ReSharper disable once UnusedMember.Global
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
     // if there's a flavor label made, transform the original meal label into it
@@ -328,6 +325,7 @@ public class CompFlavor : ThingComp
                 stopwatch.Start();*/
         try
         {
+            tag = true;
             // reset the flavor data
             FlavorLabels = [];
             FinalFlavorLabel = null;
@@ -355,7 +353,7 @@ public class CompFlavor : ThingComp
                 var allCookingStations = FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct().ToList();
                 CookingStation = allCookingStations[r.Next(allCookingStations.Count)];
             }
-            IngredientsHitPointPercentage ??= Rand.Range(0, 1);
+            IngredientsHitPointPercentage ??= Rand.Range(0f, 1f);
             Rand.PopState();
 
             GetFlavorText(flavorDefsToSearch);
