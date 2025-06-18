@@ -25,9 +25,6 @@ public class FlavorDef : Def
 
     public FlavorCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
-    private readonly string varietyTexture;
-    public string VarietyTexture => varietyTexture;
-
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
     public List<FlavorCategoryDef> mealQualities = [];
@@ -44,12 +41,14 @@ public class FlavorDef : Def
                     .Where(flavorDef => flavorDef.ingredients
                         .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
 
-    private static List<FlavorCategoryDef> activeMealKinds = [];
+
+    private readonly string varietyTexture;
+    public string VarietyTexture => varietyTexture;
+
+    private static readonly List<FlavorCategoryDef> activeMealKinds = [];
 
     public List<IngredientSlot> ingredients = [];
 
-    // about how many possible ingredients could fulfill each FlavorDef?
-    // also calculate the lowest common category containing all ingredients for each FlavorDef
     public static void SetStaticData()
     {
         try
@@ -80,9 +79,9 @@ public class FlavorDef : Def
         }
     }
 
+    // register all allowed Defs for each ingredient slot in each Flavor Def
     private static void SetAllowedIngredients()
     {
-        // register all allowed Defs for each ingredient slot in each Flavor Def
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
             foreach (var slot in flavorDef.ingredients)
