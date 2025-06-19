@@ -46,8 +46,8 @@ public static class CategoryUtility
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
     static CategoryUtility()
     {
-        Stopwatch stopwatch = new();
-        stopwatch.Start();
+/*        Stopwatch stopwatch = new();
+        stopwatch.Start();*/
         try
         {
             FlavorCategoryDef.FinalizeInit();
@@ -70,12 +70,12 @@ public static class CategoryUtility
             Log.Error($"Error when setting up FlavorCategoryDefs for Flavor Text. Error: {ex}");
         }
 
-        stopwatch.Stop();
+/*        stopwatch.Stop();
         TimeSpan elapsed = stopwatch.Elapsed;
         if (Prefs.DevMode)
         {
             Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
-        }
+        }*/
 
     }
 
