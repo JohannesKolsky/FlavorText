@@ -83,11 +83,13 @@ using System.Linq.Expressions;
 //RELEASED: GAB pickled eggs is becoming "pickled eggs eggs"
 //DONE: meal types of taglist for dry, wet, sweet, savory meals  // allows auto-labeling of soups vs dishes vs desserts, etc.
 //DONE: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
+//RELEASE: 3 nuggets runs out of memory xx// not b/c of FlavorText
+//RELEASED: FTV is becoming generic again
 
 //TODO: a/an is/are grammar
 //TODO: common sense spawned bread is becoming sourdough
 
-//RELEASE: check all with v1.6
+//RELEASED: check all with v1.6
 //RELEASED: update XML files
 //RELEASED: check remove from game
 //RELEASED: check add to game
@@ -100,8 +102,6 @@ using System.Linq.Expressions;
 //RELEASE: check your own saves
 //RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASED: disable log messages
-//RELEASE: 3 nuggets runs out of memory
-//RELEASED: FTV is becoming generic again
 
 
 //TODO: options to prevent merging meals
@@ -212,7 +212,8 @@ public class CompFlavor : ThingComp
             // if FinalFlavorDefs has null values, make it an empty list
             if (Scribe.mode is LoadSaveMode.PostLoadInit)
             {
-                if (FinalFlavorDefs is null || FinalFlavorDefs.Any(def => def is null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) is null))
+                if (FinalFlavorDefs is null) FinalFlavorDefs = [];
+                else if (FinalFlavorDefs.Any(def => def is null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) is null))
                 {
                     FinalFlavorDefs = [];
                     if (Prefs.DevMode) Log.Warning($"Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
@@ -321,8 +322,8 @@ public class CompFlavor : ThingComp
         if (TriedFlavorText) return;
         TriedFlavorText = true;
 
-        /*        Stopwatch stopwatch = new Stopwatch();
-                stopwatch.Start();*/
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
         try
         {
             tag = true;
@@ -382,7 +383,7 @@ public class CompFlavor : ThingComp
             if (Prefs.DevMode) Log.Error($"Error: {ex}\n{ex.Data["flavorSummary"]}\n{ex.Data["flavorDef"]}\n{ex.Data["ingredients"]}");
             return;
         }
-        /*finally
+        finally
         {
             stopwatch.Stop();
             TimeSpan elapsed = stopwatch.Elapsed;
@@ -390,7 +391,7 @@ public class CompFlavor : ThingComp
             {
                 Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
             }
-        }*/
+        }
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
@@ -625,6 +626,7 @@ public class CompFlavor : ThingComp
             for (int i = 0; i < ingredients.Count; i++)
             {
                 var inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[i]];
+                if (inflections.Count != InflectionUtility.numInflections) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorDef}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
                 while (true)
                 {
                     var placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");  //capture the placeholder and the word before and after it
@@ -635,8 +637,8 @@ public class CompFlavor : ThingComp
                         continue;
                     }
                     placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_coll\\} *([^ ]*)");
-                    if (placeholder.Success)
-                    {
+                        if (placeholder.Success)
+                        {
                         string inflection = RemoveRepeatedWords(inflections[1], placeholder);
                         flavorString = Regex.Replace(flavorString, "\\{" + i + "_coll\\}", inflection);
                         continue;

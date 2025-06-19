@@ -163,6 +163,7 @@ public class FlavorDef : Def
 
 
     // all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
+    // can be restricted to a given list of flavorDefsToSearch, which is used when loading a saved meal that already has flavor text to reduce search time
     public static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, IEnumerable<FlavorDef> flavorDefsToSearch = null)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
