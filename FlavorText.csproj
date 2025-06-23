@@ -30,7 +30,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\1.5\Assemblies\</OutputPath>
+    <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\Assemblies\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>

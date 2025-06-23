@@ -61,6 +61,7 @@ public static class CategoryUtility
             DefDatabase<FlavorDef>.ResolveAllReferences();
 
             FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
+            Log.Warning("AssignIngredientInflections");
             InflectionUtility.AssignIngredientInflections();
             Debug();
 

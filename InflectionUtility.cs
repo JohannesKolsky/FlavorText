@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using Verse;
+using static RimWorld.ColonistBar;
 
 namespace FlavorText;
 
@@ -20,16 +21,30 @@ internal static class InflectionUtility
     public const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
 
     // predefined inflections from XML for active mods
-    internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = DefDatabase<ThingInflectionsData>.AllDefs
+    internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];
+    internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsData = [];
+    static InflectionUtility()
+    {
+         var list1 = DefDatabase<ThingInflectionsData>.AllDefs
         .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
-        .SelectMany(dict => dict.dictionary)
-        .ToDictionary(kvp => DefDatabase<ThingDef>.GetNamed(kvp.Key), kvp => kvp.Value);
+        .SelectMany(dict => dict.dictionary);
+        foreach (var kvp in list1)
+        {
+            var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
+            ThingInflectionsDictionary.AddDistinct(key, kvp.Value);
+        }
 
-    // predefined category-wide inflections from XML for active mods
-    internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsData = DefDatabase<FlavorCategoryInflectionsData>.AllDefs
+        var list2 = DefDatabase<FlavorCategoryInflectionsData>.AllDefs
         .Where(dict => ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
-        .SelectMany(dict => dict.dictionary)
-        .ToDictionary(kvp => DefDatabase<FlavorCategoryDef>.GetNamed(kvp.Key), kvp => kvp.Value);
+        .SelectMany(dict => dict.dictionary);
+        foreach (var kvp in list2)
+        {
+            var key = DefDatabase<FlavorCategoryDef>.GetNamed(kvp.Key);
+            CategoryInflectionsData.AddDistinct(key, kvp.Value);
+        }
+    }
+
+
 
     // get various grammatical forms of each ingredient
     internal static void AssignIngredientInflections()
@@ -39,6 +54,7 @@ internal static class InflectionUtility
             try
             {
                 {
+                    Log.Message(ingredient);
                     //tag = ingredient.defName.ToLower().Contains("vagp");
                     // try and get inflections defined in the XML
                     List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
