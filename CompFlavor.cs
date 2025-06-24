@@ -319,11 +319,11 @@ public class CompFlavor : ThingComp
 
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-        if (TriedFlavorText) return;
+/*        if (TriedFlavorText) return;
         TriedFlavorText = true;
 
         Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
+        stopwatch.Start();*/
         try
         {
             tag = true;
@@ -383,7 +383,7 @@ public class CompFlavor : ThingComp
             if (Prefs.DevMode) Log.Error($"Error: {ex}\n{ex.Data["flavorSummary"]}\n{ex.Data["flavorDef"]}\n{ex.Data["ingredients"]}");
             return;
         }
-        finally
+/*        finally
         {
             stopwatch.Stop();
             TimeSpan elapsed = stopwatch.Elapsed;
@@ -391,7 +391,7 @@ public class CompFlavor : ThingComp
             {
                 Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
             }
-        }
+        }*/
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
@@ -422,7 +422,7 @@ public class CompFlavor : ThingComp
             var validFlavorDefsForMealType = FlavorDef.ValidFlavorDefs(parent).ToList();
             if (validFlavorDefsForMealType.NullOrEmpty())
             {
-                throw new InvalidOperationException($"Attempted to get list of all valid Flavor Defs for meal type '{parent.def.defName}' but there were none. Please report.");
+                throw new InvalidOperationException($"Attempted to get list of all valid Flavor Defs for meal type '{parent.def.defName}' in [{CategoryUtility.ThingCategories.TryGetValue(parent.def).ToStringSafeEnumerable()}] but there were none. Please report.");
             }
             bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, validFlavorDefsForMealType))];
             if (bestFlavors.Empty()) throw new InvalidOperationException($"Could not find any best Flavor Defs for meal {parent.ThingID}");

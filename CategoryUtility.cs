@@ -61,7 +61,6 @@ public static class CategoryUtility
             DefDatabase<FlavorDef>.ResolveAllReferences();
 
             FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
-            Log.Warning("AssignIngredientInflections");
             InflectionUtility.AssignIngredientInflections();
             Debug();
 
@@ -90,14 +89,9 @@ public static class CategoryUtility
                         Log.Message($"{category.defName}");
                     }
                 }*/
-
-        /*        foreach (ThingDef thingDef in DefDatabase<ThingDef>.AllDefs.ToList())
-                {
-                    if (thingDef.HasComp<CompFlavor>() && FlavorCategoryDef.Named("FT_MealsFlavor").ContainedInThisOrDescendant(thingDef))
-                    {
-                        Log.Warning($">>>{thingDef.defName} has CompFlavor and is in FT_MealsFlavor");
-                    }
-                }*/
+/*
+        Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
+        Log.Message($"[{ThingCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");*/
 
         /*foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
         {

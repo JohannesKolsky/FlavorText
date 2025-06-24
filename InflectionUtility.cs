@@ -54,7 +54,6 @@ internal static class InflectionUtility
             try
             {
                 {
-                    Log.Message(ingredient);
                     //tag = ingredient.defName.ToLower().Contains("vagp");
                     // try and get inflections defined in the XML
                     List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
