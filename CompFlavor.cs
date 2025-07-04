@@ -1,7 +1,6 @@
 using RimWorld;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,7 +8,7 @@ using JetBrains.Annotations;
 using Verse;
 using Verse.Grammar;
 using static FlavorText.CompProperties_Flavor;
-using System.Linq.Expressions;
+using System.Diagnostics;
 
 //DONE: make flavor entries a class
 //DONE: eggs + eggs makes weird names like omlette w/eggs
@@ -149,7 +148,7 @@ public class CompFlavor : ThingComp
 
     public List<FlavorDef> FinalFlavorDefs = [];  // final chosen FinalFlavorDefs for the meal
 
-    [CanBeNull] public ThingDef CookingStation;  // which station this meal was cooked on
+    public ThingDef CookingStation;  // which station this meal was cooked on
 
     public int? HourOfDay;  // what hour of the day this meal was completed
 
@@ -319,11 +318,11 @@ public class CompFlavor : ThingComp
 
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-/*        if (TriedFlavorText) return;
+        if (TriedFlavorText) return;
         TriedFlavorText = true;
 
         Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();*/
+        stopwatch.Start();
         try
         {
             tag = true;
@@ -383,7 +382,7 @@ public class CompFlavor : ThingComp
             if (Prefs.DevMode) Log.Error($"Error: {ex}\n{ex.Data["flavorSummary"]}\n{ex.Data["flavorDef"]}\n{ex.Data["ingredients"]}");
             return;
         }
-/*        finally
+        finally
         {
             stopwatch.Stop();
             TimeSpan elapsed = stopwatch.Elapsed;
@@ -391,7 +390,7 @@ public class CompFlavor : ThingComp
             {
                 Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
             }
-        }*/
+        }
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
