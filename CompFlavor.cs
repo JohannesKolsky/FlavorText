@@ -101,6 +101,8 @@ using System.Diagnostics;
 //RELEASE: check your own saves
 //RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASED: disable log messages
+//RELEASE: test C# meats
+//RELEASE: test medieval overhaul
 
 
 //TODO: options to prevent merging meals
@@ -321,8 +323,8 @@ public class CompFlavor : ThingComp
         if (TriedFlavorText) return;
         TriedFlavorText = true;
 
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
+/*        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();*/
         try
         {
             tag = true;
@@ -382,7 +384,7 @@ public class CompFlavor : ThingComp
             if (Prefs.DevMode) Log.Error($"Error: {ex}\n{ex.Data["flavorSummary"]}\n{ex.Data["flavorDef"]}\n{ex.Data["ingredients"]}");
             return;
         }
-        finally
+/*        finally
         {
             stopwatch.Stop();
             TimeSpan elapsed = stopwatch.Elapsed;
@@ -390,7 +392,7 @@ public class CompFlavor : ThingComp
             {
                 Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
             }
-        }
+        }*/
     }
     
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
