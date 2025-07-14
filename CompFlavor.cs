@@ -88,19 +88,19 @@ using System.Diagnostics;
 //TODO: a/an is/are grammar
 //TODO: common sense spawned bread is becoming sourdough
 
-//RELEASED: check all with v1.6
-//RELEASED: update XML files
-//RELEASED: check remove from game
-//RELEASED: check add to game
-//RELEASED: check new game
-//RELEASED: check updating FlavorText on save
-//RELEASED: check save and reload game
+//RELEASE: check all with v1.6
+//RELEASE: update XML files
+//RELEASE: check remove from game
+//RELEASE: check add to game
+//RELEASE: check new game
+//RELEASE: check updating FlavorText on save
+//RELEASE: check save and reload game
 //RELEASED: check all meal types
 //RELEASED: check food modlist
 //RELEASED: check FTV
-//RELEASE: check your own saves
-//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASED: disable log messages
+//RELEASED: check your own saves
+//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASE: disable log messages
 //RELEASE: test C# meats
 //RELEASE: test medieval overhaul
 
@@ -157,9 +157,6 @@ public class CompFlavor : ThingComp
     public float? IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient group (ignoring quantity in group)
 
     public List<string> MealTags = [];
-
-    // should FlavorText apply to this meal? Not everything with a CompFlavor gets FlavorText (yes this is messy, but it's the easiest way atm)
-    public bool HasFlavorText => parent.HasComp<CompFlavor>();
 
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
@@ -327,7 +324,6 @@ public class CompFlavor : ThingComp
         stopwatch.Start();*/
         try
         {
-            tag = true;
             // reset the flavor data
             FlavorLabels = [];
             FinalFlavorLabel = null;
@@ -339,11 +335,6 @@ public class CompFlavor : ThingComp
             {
                 //if (Prefs.DevMode) Log.Message($"List of ingredients in CompIngredients was empty or null for {parent.ThingID} at {parent.PositionHeld}, cancelling the search. This is normal for meals without ingredients.");
                 return;
-            }
-
-            if (!HasFlavorText)
-            {
-                throw new InvalidOperationException($"Parent {parent.def} does not have CompFlavor, cancelling the search. Please report.");
             }
 
             // fill in the extra parameters with pseudorandom data if they are null

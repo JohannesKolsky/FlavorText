@@ -54,7 +54,7 @@ internal static class InflectionUtility
             try
             {
                 {
-                    //tag = ingredient.defName.ToLower().Contains("vagp");
+                    //tag = ingredient.defName.ToLower().Contains("flour");
                     // try and get inflections defined in the XML
                     List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
                     if (inflections is null)
@@ -188,6 +188,7 @@ internal static class InflectionUtility
                 root = LongestCommonSubstring(defNameClean, labelClean);
                 if (root.Length == 0) root = labelClean;
             }
+            if (!Regex.IsMatch(labelClean, $"\\b{root}")) root = null;
 
             // VCE_Flour: root = ""
             // KIT_ManiocFlour: root = "manioc"
@@ -200,30 +201,28 @@ internal static class InflectionUtility
             // you can't just rely on checking -s endings b/c some names like "meat" will never end in -s
             // you can't rely on label on its own b/c it might have unnecessary words (e.g. "mammoth gold" pumpkins)
 
+            //TODO: log a warning if inflection has {0} and root is null
             if (plur is null)
             {
-                if (Regex.IsMatch(labelClean, $"\\b{root}"))
+                if (root is not null && !inflections.Empty())
                 {
-                    if (!inflections.Empty())
+                    // if plur has a placeholder, replace it with root
+                    if (inflections[0].Contains("{0}")) 
                     {
-                        // if plur has a placeholder, replace it with root
-                        if (inflections[0].Contains("{0}")) 
+                        plur = inflections[0].Formatted(root);
+                        goto End;
+                    } 
+                    // otherwise plur is root extended to the end of the word // mammoth gold pumpkins & pumpkin => pumpkins
+                    else
+                    {
+                        plur = Regex.Match(labelNoParentheses, "(?i)" + root + "[^ ]*").Value;
+                        int head = labelNoParentheses.IndexOf(root, StringComparison.Ordinal);
+                        if (head != -1) // get diacritics and capitalization back
                         {
-                            plur = inflections[0].Formatted(root);
+                            plur = labelOriginal.Substring(head, plur.Length);
                             goto End;
-                        } 
-                        // otherwise plur is root extended to the end of the word // mammoth gold pumpkins & pumpkin => pumpkins
-                        else
-                        {
-                            plur = Regex.Match(labelNoParentheses, "(?i)" + root + "[^ ]*").Value;
-                            int head = labelNoParentheses.IndexOf(root, StringComparison.Ordinal);
-                            if (head != -1) // get diacritics and capitalization back
-                            {
-                                plur = labelOriginal.Substring(head, plur.Length);
-                                goto End;
-                            }
-                        } 
-                    }
+                        }
+                    } 
                 }
                 // otherwise use reduced label
                 if (labelBitsDeleted.Length > 0)
@@ -237,13 +236,13 @@ internal static class InflectionUtility
                 }
                 plur = labelNoParentheses;
             }
-            End:
+        End:
 
             // try to get singular form from plural form
             // done this way so that plural form matches singular form if label and defName aren't similar (e.g. VCE_Oranges => mandarins when other mods are installed)
             if (sing is null)
             {
-                if (!inflections.Empty() && inflections[2].Contains("{0}")) sing = inflections[2].Formatted(root);
+                if (root is not null && !inflections.Empty() && inflections[2].Contains("{0}")) sing = inflections[2].Formatted(root);
                 else
                 {
                     sing = plur;
@@ -261,7 +260,7 @@ internal static class InflectionUtility
             // try to get collective form (either based on singular or plural depending on FT_Category)
             if (coll is null)
             {
-                if (!inflections.Empty() && inflections[1].Contains("{0}")) coll = inflections[1].Formatted(root);
+                if (root is not null && !inflections.Empty() && inflections[1].Contains("{0}")) coll = inflections[1].Formatted(root);
                 else
                 {
                     FlavorCategoryDef parentCategory = CategoryUtility.ThingCategories[ingredient].First();
@@ -273,7 +272,7 @@ internal static class InflectionUtility
             // try to get adjectival form (based on singular)
             if (adj is null)
             {
-                if (!inflections.Empty() && inflections[3].Contains("{0}")) adj = inflections[3].Formatted(root);
+                if (root is not null && !inflections.Empty() && inflections[3].Contains("{0}")) adj = inflections[3].Formatted(root);
                 else adj = sing;
             }
 
