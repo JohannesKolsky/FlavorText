@@ -165,7 +165,7 @@ internal static class InflectionUtility
 
 
             // unnecessary whole words
-            List<string> delete = ["meal", "leaf", "leaves", "stalks*", "cones*", "grains*", "flour", "eggs*", "meat"];  // bits to delete
+            List<string> delete = ["raw", "meal", "leaf", "leaves", "stalks*", "cones*", "grains*", "flour", "eggs*", "meat"];  // bits to delete
 
             // don't delete certain word combinations that include "meat"
             List<string> exemptCombinations = ["canned meat", "pickled meat", "dried meat", "dehydrated meat", "salted meat", "trimmed meat", "cured meat", "prepared meat", "marinated meat"];

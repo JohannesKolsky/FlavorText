@@ -31,6 +31,10 @@ using Verse;
 //DONE: keep canned and pickled and such; problem is atm not deleting those causes "meat" to be deleted
 //DONE: can you get link FT_MealsFlavor to FT_FoodMeals and not have this funkiness where you assign to the second and then check if it also belongs in the first?
 
+//TODO: examine more items that may be food: anything that has nutrition (drugs, alcohol)
+//TODO: if defName and label are different, the meal is never categorized: e.g. DankPyon_Slop_Simple (stew)
+//TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
+
 namespace FlavorText;
 
 /// <summary>
@@ -132,7 +136,7 @@ public static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("pastry");
+                //tag = food.defName.ToLower().Contains("ration");
                 var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
@@ -272,7 +276,7 @@ public static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = 5)
     {
-        //tag = searchedDef.defName.ToLower().Contains("ball");
+        //tag = searchedDef.defName.ToLower().Contains("slop");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         int categoryScore = 0;
@@ -312,6 +316,7 @@ public static class CategoryUtility
             }
             // if you couldn't find any categories, try using the Def's vanilla parent categories as the search keywords
             // this strategy forbids allowing the item to get a CompFlavor, to avoid overriding specialized modded meals
+            //TODO: can you allow getting a CompFlavor via this method, maybe if the match is strong enough combined with the defName/label?
             if (bestFlavorCategories.Count == 0)
             {
                 categoriesToSearch.RemoveAll(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat));
