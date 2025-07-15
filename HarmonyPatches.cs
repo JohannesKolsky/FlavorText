@@ -51,7 +51,7 @@ public static class HarmonyPatches
                         .FindAll(i => i?.def != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i.def))
                         .Where(i => i.def.useHitPoints)
                         .Sum(j => (float)j.HitPoints / j.MaxHitPoints) / ingredients.Count;
-                    if (ModsConfig.BiotechActive && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
+                    if (ModsConfig.BiotechActive && worker?.genes is not null && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
                         Rand.PushState(product.thingIDNumber);
                         if (Rand.Range(0, 20) == 0)

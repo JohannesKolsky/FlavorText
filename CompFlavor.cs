@@ -84,25 +84,26 @@ using System.Diagnostics;
 //DONE: null ingredient option: e.g. if an ingredient is optional  // but the name will probably change, so isn't a new FlavorDef better?
 //RELEASE: 3 nuggets runs out of memory xx// not b/c of FlavorText
 //RELEASED: FTV is becoming generic again
+//RELEASED: haute error -xx not FlavorText
 
 //TODO: a/an is/are grammar
 //TODO: common sense spawned bread is becoming sourdough
 
-//RELEASE: check all with v1.6
-//RELEASE: update XML files
-//RELEASE: check remove from game
-//RELEASE: check add to game
-//RELEASE: check new game
-//RELEASE: check updating FlavorText on save
-//RELEASE: check save and reload game
+//RELEASED: check all with v1.6
+//RELEASED: update XML files
+//RELEASED: check remove from game
+//RELEASED: check add to game
+//RELEASED: check new game
+//RELEASED: check updating FlavorText on save
+//RELEASED: check save and reload game
 //RELEASED: check all meal types
 //RELEASED: check food modlist
 //RELEASED: check FTV
 //RELEASED: check your own saves
-//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASE: disable log messages
-//RELEASE: test C# meats
-//RELEASE: test medieval overhaul
+//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: disable log messages
+//RELEASED: test C# meats
+//RELEASED: test medieval overhaul
 
 
 //TODO: options to prevent merging meals
