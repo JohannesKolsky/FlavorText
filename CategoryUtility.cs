@@ -314,7 +314,7 @@ public static class CategoryUtility
                     }
                 }
             }
-            // if you couldn't find any categories, try using the Def's vanilla parent categories as the search keywords
+            // if you couldn't find any categories, try using the Def's original parent categories as the search keywords
             // this strategy forbids allowing the item to get a CompFlavor, to avoid overriding specialized modded meals
             //TODO: can you allow getting a CompFlavor via this method, maybe if the match is strong enough combined with the defName/label?
             if (bestFlavorCategories.Count == 0)
@@ -406,21 +406,25 @@ public static class CategoryUtility
     // see how well the keyword fits into splitNames: element matches keyword exactly, element starts or ends with keyword, element contains keyword, keyword phrase is present in combined splitNames
     private static int ScoreKeyword(List<string> splitNames, string keyword)
     {
+        bool tag2 = false;
         int keywordScore = 0;
 
         foreach (string name in splitNames)
         {
             // contains: +1 to score each time if the keyword matches any part of an element in splitNames (e.g. 2x 'ump' in [pumpkin, orange, smoothie, sugar, pumpkins]
+            if (tag2) Log.Message($"checking if {name} contains {keyword}");
             if (!name.Contains(keyword)) continue;
             keywordScore += 1;
             if (tag) Log.Message($"+1 to {name} contains {keyword}");
 
             // start/end: +2 to score each time if the keyword matches the start or end of an element in splitNames (e.g. 2x 'pumpkin' in [pumpkin, orange, smoothie, sugar, pumpkins]
+            if (tag2) Log.Message($"checking if {name} starts/ends with {keyword}");
             if (!(name.StartsWith(keyword) || name.EndsWith(keyword))) continue;
             keywordScore += 1;
-            if (tag) Log.Message($"+1 to {name} starts with {keyword}");
+            if (tag) Log.Message($"+1 to {name} starts/ends with {keyword}");
 
             // exact: +3 to score each time the keyword matches an element exactly in splitNames (e.g. 1x 'pumpkin' in [pumpkin, orange, smoothie, sugar, pumpkins])
+            if (tag2) Log.Message($"checking if {name} == {keyword}");
             if (name != keyword) continue;
             keywordScore += 1;
             if (tag) Log.Message($"+1 to {name} == {keyword}");
@@ -433,6 +437,7 @@ public static class CategoryUtility
             string joinedNames = string.Join(" ", splitNames);
             for (int i = 0; i < joinedNames.Length - keyword.Length + 1; i++)
             {
+                if (tag2) Log.Message($"checking if {joinedNames} has substring {keyword}");
                 if (joinedNames.Substring(i, keyword.Length) == keyword)
                 {
                     count++;
@@ -441,6 +446,7 @@ public static class CategoryUtility
             }
             keywordScore += 6 * count;
         }
+        tag2 = false;
         return keywordScore;
     }
 }

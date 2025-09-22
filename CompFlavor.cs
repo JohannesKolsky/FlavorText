@@ -616,45 +616,56 @@ public class CompFlavor : ThingComp
             }
 
             // find placeholders and replace them with the appropriate inflection of the right ingredient
+            int n = 0;
+            List<NamedArgument> placeholderList = [];
             for (int i = 0; i < ingredients.Count; i++)
             {
                 var inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[i]];
                 if (inflections.Count != InflectionUtility.numInflections) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorDef}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
                 while (true)
                 {
-                    var placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");  //capture the placeholder and the word before and after it
-                    if (placeholder.Success)
+                    var placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");  //capture the placeholder and the word before and after it
+                    if (placeholderWithContext.Success)
                     {
-                        string inflection = RemoveRepeatedWords(inflections[0], placeholder);
-                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_plur\\}", inflection);
+                        string inflection = RemoveRepeatedWords(inflections[0], placeholderWithContext);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_plur\\}", "{" + n + "}");
+                        placeholderList.Add(inflection.Named(n.ToString()));
+                        n++;
                         continue;
                     }
-                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_coll\\} *([^ ]*)");
-                        if (placeholder.Success)
+                    placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_coll\\} *([^ ]*)");
+                        if (placeholderWithContext.Success)
                         {
-                        string inflection = RemoveRepeatedWords(inflections[1], placeholder);
-                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_coll\\}", inflection);
+                        string inflection = RemoveRepeatedWords(inflections[1], placeholderWithContext);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_coll\\}", "{" + n + "}");
+                        placeholderList.Add(inflection.Named(n.ToString()));
+                        n++;
                         continue;
                     }
-                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_sing\\} *([^ ]*)");
-                    if (placeholder.Success)
+                    placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_sing\\} *([^ ]*)");
+                    if (placeholderWithContext.Success)
                     {
-                        string inflection = RemoveRepeatedWords(inflections[2], placeholder);
-                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_sing\\}", inflection);
+                        string inflection = RemoveRepeatedWords(inflections[2], placeholderWithContext);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_sing\\}", "{" + n + "}");
+                        placeholderList.Add(inflection.Named(n.ToString()));
+                        n++;
                         continue;
                     }
 
-                    placeholder = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_adj\\} *([^ ]*)");
-                    if (placeholder.Success)
+                    placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_adj\\} *([^ ]*)");
+                    if (placeholderWithContext.Success)
                     {
-                        string inflection = RemoveRepeatedWords(inflections[3], placeholder);
-                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_adj\\}", inflection);
+                        string inflection = RemoveRepeatedWords(inflections[3], placeholderWithContext);
+                        flavorString = Regex.Replace(flavorString, "\\{" + i + "_adj\\}", "{" + n + "}");
+                        placeholderList.Add(inflection.Named(n.ToString()));
+                        n++;
                         continue;
                     }
                     break;
                 }
             }
 
+            flavorString = flavorString.Formatted(placeholderList);
             return flavorString;
 
 
