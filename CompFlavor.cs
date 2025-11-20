@@ -85,8 +85,8 @@ using System.Diagnostics;
 //RELEASE: 3 nuggets runs out of memory xx// not b/c of FlavorText
 //RELEASED: FTV is becoming generic again
 //RELEASED: haute error -xx not FlavorText
+//DONE: a/an grammar
 
-//TODO: a/an is/are grammar
 //TODO: common sense spawned bread is becoming sourdough
 
 //RELEASED: check all with v1.6
@@ -109,12 +109,14 @@ using System.Diagnostics;
 //TODO: options to prevent merging meals
 //TODO: variety matters warnings and errors?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
+//TODO: WhatsThatMod loses color in its tag
 
 
 namespace FlavorText;
 
 /// <summary>
-///  CompFlavor is attached to each meal that should get a new Flavor Text label
+///  CompFlavor contains the primary code execution
+///     one is attached to each meal that should get a new Flavor Text label
 ///     stores FlavorDef data
 ///     makes and stores new flavor labels
 ///     makes and stores new flavor descriptions
@@ -153,9 +155,11 @@ public class CompFlavor : ThingComp
 
     public ThingDef CookingStation;  // which station this meal was cooked on
 
-    public int? HourOfDay;  // what hour of the day this meal was completed
+    public int? HourOfDay = null;  // what hour of the day this meal was completed
 
-    public float? IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient group (ignoring quantity in group)
+    public int? TickCreated = null;  // what tick the meal was created on
+
+    public float? IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient type (ignoring quantity in each type)
 
     public List<string> MealTags = [];
 
@@ -195,6 +199,7 @@ public class CompFlavor : ThingComp
 
         Scribe_Defs.Look(ref CookingStation, "cookingStation");
         Scribe_Values.Look(ref HourOfDay, "hourOfDay");
+        Scribe_Values.Look(ref TickCreated, "tickCreated");
         Scribe_Values.Look(ref IngredientsHitPointPercentage, "ingredientsHitPointPercentage");
 
         Scribe_Collections.Look(ref MealTags, "tags");
@@ -253,6 +258,7 @@ public class CompFlavor : ThingComp
                 otherCompFlavor.FinalFlavorDescription = FinalFlavorDescription;
                 otherCompFlavor.CookingStation = CookingStation;
                 otherCompFlavor.HourOfDay = HourOfDay;
+                otherCompFlavor.TickCreated = TickCreated;
                 otherCompFlavor.MealTags = MealTags;
                 otherCompFlavor.IngredientsHitPointPercentage = IngredientsHitPointPercentage;
             }
@@ -276,10 +282,11 @@ public class CompFlavor : ThingComp
             FinalFlavorDescription = null;
             FinalFlavorDefs = [];
 
-            // for cookingStation and hourOfDay, choose randomly
-            Rand.PushState(otherStack.thingIDNumber);
+            // choose variables randomly from either stack
+            Rand.PushState((int)TickCreated);
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
+            TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
 
 
             try
@@ -339,7 +346,8 @@ public class CompFlavor : ThingComp
             }
 
             // fill in the extra parameters with pseudorandom data if they are null
-            Rand.PushState(parent.thingIDNumber);
+            TickCreated ??= GenTicks.TicksAbs;
+            Rand.PushState((int)TickCreated);
             Random r = new();
             HourOfDay ??= r.Next(0, 24);
             if (CookingStation is null)
@@ -421,7 +429,6 @@ public class CompFlavor : ThingComp
             if (bestFlavors.Empty()) throw new InvalidOperationException($"Could not find any best Flavor Defs for meal {parent.ThingID}");
         }
 
-
         // assemble all the flavor labels chosen into one big label that looks nice
         for (int i = 0; i < bestFlavors.Count; i++)
         {
@@ -482,7 +489,7 @@ public class CompFlavor : ThingComp
 
 
     // see which FinalFlavorDefs match with the ingredients you have, and choose the most specific FlavorDef you find
-    private static (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> foodsToSearchFor, List<FlavorDef> flavorDefsToSearch)
+    private (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> foodsToSearchFor, List<FlavorDef> flavorDefsToSearch)
     {
         try
         {
@@ -511,9 +518,13 @@ public class CompFlavor : ThingComp
             // pick the most specific matching FlavorDef
             if (matchingFlavors.Count > 0)
             {
-                matchingFlavors = [.. matchingFlavors.OrderBy(entry => entry.Item1.specificity)];
-                //foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.Specificity); }
-                var flavor = matchingFlavors.First();
+                matchingFlavors = [.. matchingFlavors.OrderByDescending(entry => entry.Item1.specificity)];
+                Log.Warning($"getting specificies for {parent}");
+                foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.specificity); }
+                Log.Warning($"TickCreated = {TickCreated}");
+                Rand.PushState((int)TickCreated);
+                var flavor = matchingFlavors.RandomElementByWeight(((FlavorDef, List<int>) matchingFlavor) => matchingFlavor.Item1.specificity);
+                Rand.PopState();
                 if (flavor.Item1 is null || flavor.Item2 is null) throw new NullReferenceException($"Failed to find a matching Flavor Def. The best Flavor Def [{flavor.Item1}] or its list of indices [{flavor.Item2.ToStringSafeEnumerable()}] was null.");
                 return flavor;
             }
