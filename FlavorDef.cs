@@ -72,7 +72,7 @@ public class FlavorDef : Def
         {
             flavorDef.mealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
-            if (flavorDef.mealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            if (flavorDef.mealKinds.Empty())
             {
                 flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
             }
@@ -105,31 +105,36 @@ public class FlavorDef : Def
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
             }
 
+            float restrictions = 0;
+
             foreach (var slot in flavorDef.ingredients)
             {
-                flavorDef.specificity += slot.AllowedThingDefs.Count();
+                restrictions += slot.AllowedThingDefs.Count();
             }
 
             // more specific if it has a required meal type, weighted to half-impact
-            flavorDef.specificity = (flavorDef.specificity * (flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes + 1) / 2);
+            restrictions = (restrictions * (flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes + 1) / 2);
 
             // more specific if it has a required cooking station, weighted to half-impact
             if (!flavorDef.cookingStations.NullOrEmpty())
             {
-                flavorDef.specificity = ((flavorDef.specificity * flavorDef.cookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations + 1) / 2);
+                restrictions = ((restrictions * flavorDef.cookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations + 1) / 2);
             }
             // more specific if it has a required cooking time of day, weighted to half-impact
             if (flavorDef.hoursOfDay != new IntRange(0, 23))
             {
                 int timeLength = flavorDef.hoursOfDay.max - flavorDef.hoursOfDay.min;
                 timeLength = timeLength % 24 + 1;
-                flavorDef.specificity *= ((float)timeLength / 24 + 1) / 2;
+                restrictions *= ((float)timeLength / 24 + 1) / 2;
             }
 
             if (flavorDef.ingredientsHitPointPercentage != new FloatRange(0, 1))
             {
-                flavorDef.specificity *= flavorDef.ingredientsHitPointPercentage.Span;
+                restrictions *= flavorDef.ingredientsHitPointPercentage.Span;
             }
+
+            if (restrictions > 0) flavorDef.specificity = 100 / restrictions;
+
 
             // calculate the lowest category containing all the ingredients in the FlavorDef
             // no need to include disallowed categories b/c those should always be a subcategory of a valid category
@@ -176,14 +181,14 @@ public class FlavorDef : Def
         flavorDefsToSearch ??= ActiveFlavorDefs;
         return flavorDefsToSearch
         .Where(flavorDef =>
-            flavorDef.mealKinds.Any(mealKind => thisMealParents.Contains(mealKind))
+            (flavorDef.mealKinds.Any(mealKind => thisMealParents.Contains(mealKind)) || (FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
-            && ((flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
-                    compFlavor.HourOfDay <= flavorDef.hoursOfDay.max))
-            && (flavorDef.ingredientsHitPointPercentage.Includes(
-                (float)compFlavor.IngredientsHitPointPercentage!)));
+            && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
+                    compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
+            && flavorDef.ingredientsHitPointPercentage.Includes(
+                (float)compFlavor.IngredientsHitPointPercentage!));
 
     }
 }

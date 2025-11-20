@@ -5,7 +5,7 @@ namespace FlavorText
 {
     public class FlavorTextSettings : ModSettings
     {
-        public static bool laxRecipeMatching = true;  // true: if modded soups are present, soup-type labels won't appear for normal meals
+        public static bool laxRecipeMatching = true;  // true: if modded soups are present, soup-type labels will still appear for normal meals
 
         public static bool dynamicMealIncorporation = true; // true: add flavor text to meals outside of the explicitly defined ones
 
