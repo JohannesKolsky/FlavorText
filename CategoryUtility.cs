@@ -161,7 +161,7 @@ public static class CategoryUtility
                 if (tag) Log.Warning($"testing {food} with categories {categories.ToStringSafeEnumerable()}");
 
                 // if ThingDef should have CompFlavor, postpend a new one
-                // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsCooked
+                // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
                 if (food.HasComp<CompIngredients>() && categories.Any(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat)))
                 {
                     food.comps.Add(new CompProperties_Flavor());
@@ -299,7 +299,7 @@ public static class CategoryUtility
                 }
             }
 
-            // if the best category was in FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, replace it with FT_FoodMeals
+            // if the best category was FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, put the thing in FT_FoodMeals
             if (bestFlavorCategories.Count > 0)
             {
                 var bestCategory = bestFlavorCategories.MaxBy(element => element.Value);

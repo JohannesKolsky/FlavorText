@@ -12,8 +12,6 @@ public class CompProperties_Flavor : CompProperties
     {
         compClass = typeof(CompFlavor);
     }
-
-    internal static int WorldSeed => GenText.StableStringHash(Find.World.info.seedString);
 }
 
 

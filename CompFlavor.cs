@@ -275,6 +275,8 @@ public class CompFlavor : ThingComp
     {
         try
         {
+            base.PreAbsorbStack(otherStack, count);
+            if (!TriedFlavorText) TryGetFlavorText();
             var otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
             FlavorLabels = [];
             FinalFlavorLabel = null;
@@ -635,7 +637,7 @@ public class CompFlavor : ThingComp
                 if (inflections.Count != InflectionUtility.numInflections) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorDef}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
                 while (true)
                 {
-                    var placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_plur\\} *([^ ]*)");  //capture the placeholder and the word before and after it
+                    var placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + i + "_plur\\} *([^ .,;:]*)");  //capture the placeholder and the word before and after it
                     if (placeholderWithContext.Success)
                     {
                         string inflection = RemoveRepeatedWords(inflections[0], placeholderWithContext);
@@ -644,7 +646,7 @@ public class CompFlavor : ThingComp
                         n++;
                         continue;
                     }
-                    placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_coll\\} *([^ ]*)");
+                    placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + i + "_coll\\} *([^ .,;:]*)");
                         if (placeholderWithContext.Success)
                         {
                         string inflection = RemoveRepeatedWords(inflections[1], placeholderWithContext);
@@ -653,7 +655,7 @@ public class CompFlavor : ThingComp
                         n++;
                         continue;
                     }
-                    placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_sing\\} *([^ ]*)");
+                    placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + i + "_sing\\} *([^ .,;:]*)");
                     if (placeholderWithContext.Success)
                     {
                         string inflection = RemoveRepeatedWords(inflections[2], placeholderWithContext);
@@ -663,7 +665,7 @@ public class CompFlavor : ThingComp
                         continue;
                     }
 
-                    placeholderWithContext = Regex.Match(flavorString, "([^ ]*) *\\{" + i + "_adj\\} *([^ ]*)");
+                    placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + i + "_adj\\} *([^ .,;:]*)");
                     if (placeholderWithContext.Success)
                     {
                         string inflection = RemoveRepeatedWords(inflections[3], placeholderWithContext);
@@ -681,20 +683,20 @@ public class CompFlavor : ThingComp
 
 
             // remove words repeated directly after each other
-            static string RemoveRepeatedWords(string inflection, Match placeholder)
+            static string RemoveRepeatedWords(string inflection, Match placeholderWithContext)
             {
                 if (inflection == "") return inflection;  // return if a blank inflection, currently only used for the adjectival form of "flour"
                 List<string> inflectionSplit = [.. inflection.Split(' ')];
-                if (placeholder.Groups.Count != 3) throw new ArgumentOutOfRangeException($"The number of capture groups from Regex.Match for {inflection} was not 3.");
+                if (placeholderWithContext.Groups.Count != 3) throw new ArgumentOutOfRangeException($"The number of capture groups from Regex.Match for {inflection} was not 3.");
 
                 // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
-                if (Remove.RemoveDiacritics(placeholder.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
+                if (Remove.RemoveDiacritics(placeholderWithContext.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
                 {
                     inflectionSplit.RemoveAt(0);
                 }
 
                 // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
-                if (Remove.RemoveDiacritics(placeholder.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
+                if (Remove.RemoveDiacritics(placeholderWithContext.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
                 {
                     inflectionSplit.RemoveLast();
                 }

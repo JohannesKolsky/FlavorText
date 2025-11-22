@@ -7,7 +7,7 @@ namespace FlavorText
     {
         public static bool laxRecipeMatching = true;  // true: if modded soups are present, soup-type labels will still appear for normal meals
 
-        public static bool dynamicMealIncorporation = true; // true: add flavor text to meals outside of the explicitly defined ones
+        public static bool dynamicMealIncorporation = true; // true: add flavor text to meals outside of the explicitly defined ones; requires restart
 
         public static void DoWindowContents(Rect inRect)
         {
@@ -44,5 +44,10 @@ namespace FlavorText
         {
             FlavorTextSettings.DoWindowContents(inRect);
         }
+/*        public override void WriteSettings()
+        {
+            base.WriteSettings();
+            if (FlavorTextSettings.) Scribe_Values.Read
+        }*/
     }
 }
