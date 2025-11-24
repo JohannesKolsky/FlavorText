@@ -47,6 +47,7 @@ public static class HarmonyPatches
                     compFlavor.CookingStation = ((Thing)billGiver).def;
                     compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
                     compFlavor.TickCreated = GenTicks.TicksAbs;
+                    compFlavor.CookID = worker?.thingIDNumber;
                     // average percentage of hit points of each ingredient group (ignoring quantity in group)
                     compFlavor.IngredientsHitPointPercentage = ingredients
                         .FindAll(i => i?.def != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i.def))

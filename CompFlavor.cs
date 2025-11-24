@@ -110,6 +110,8 @@ using System.Diagnostics;
 //TODO: variety matters warnings and errors?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
 //TODO: WhatsThatMod loses color in its tag
+//TODO: VCE_Soup names are re-rolled after cooking
+//TODO: merge stack error on dev quicktest
 
 
 namespace FlavorText;
@@ -158,6 +160,8 @@ public class CompFlavor : ThingComp
     public int? HourOfDay = null;  // what hour of the day this meal was completed
 
     public int? TickCreated = null;  // what tick the meal was created on
+
+    public int? CookID = null; // id of the cook
 
     public float? IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient type (ignoring quantity in each type)
 

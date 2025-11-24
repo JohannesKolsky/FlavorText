@@ -34,6 +34,7 @@ using Verse;
 //TODO: examine more items that may be food: anything that has nutrition (drugs, alcohol)
 //TODO: if defName and label are different, the meal is never categorized: e.g. DankPyon_Slop_Simple (stew)
 //TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
+//TODO: hitting the blacklist isn't triggering the removal of the category and its descendants
 
 namespace FlavorText;
 
@@ -56,7 +57,7 @@ public static class CategoryUtility
         {
             FlavorCategoryDef.FinalizeInit();
             FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDef.Named("FT_Root"), 0);
-            InheritSingularCollectiveIfNull(); // FT_Categories inherit some data from parents
+            InheritParentData(); // FT_Categories inherit some data from parents
 
             AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
 
@@ -110,12 +111,12 @@ public static class CategoryUtility
     }
 
     // for FT_Categories, inherit mod extension variables from parent where appropriate
-    public static void InheritSingularCollectiveIfNull()
+    public static void InheritParentData()
     {
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildCategoryDefs)
         {
-            // inherit singularCollective field value from parent if it is null in child
-            cat.singularCollective ??= cat.parent.singularCollective;
+            cat.singularCollective ??= cat.parent.singularCollective;  // inherit singularCollective field value from parent if it is null in child
+            cat.blacklist.AddRange(cat.parent.blacklist);  // inherit blacklist of parent
         }
     }
 
@@ -136,7 +137,7 @@ public static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("ration");
+                tag = food.defName.ToLower().Contains("octopus");
                 var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
@@ -276,7 +277,7 @@ public static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = 5)
     {
-        //tag = searchedDef.defName.ToLower().Contains("slop");
+        tag = searchedDef.defName.ToLower().Contains("octopus");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         int categoryScore = 0;
@@ -378,7 +379,7 @@ public static class CategoryUtility
         {
             // get a score based on how well the flavorCategory keywords match the searchedDef's names
             categoryScore = 0;
-            //if (tag) Log.Warning($"keywords for {flavorCategory}");
+            if (tag) Log.Warning($"keywords for {flavorCategory}");
             List<string> keywords = flavorCategory.keywords;
             foreach (string keyword in keywords)
             {
@@ -387,7 +388,7 @@ public static class CategoryUtility
 
             if (categoryScore < 3) return;
 
-            // check blacklist, if score is too low after doing so, remove flavorCategory and its descendants from the list of categories to search
+            // check blacklist, if score is too low after doing so, remove that FlavorCategory and its descendants from the list of categories to search
             if (tag) Log.Warning($"blacklist for {flavorCategory}");
             List<string> blacklist = flavorCategory.blacklist;
             foreach (string black in blacklist)
@@ -406,7 +407,7 @@ public static class CategoryUtility
     // see how well the keyword fits into splitNames: element matches keyword exactly, element starts or ends with keyword, element contains keyword, keyword phrase is present in combined splitNames
     private static int ScoreKeyword(List<string> splitNames, string keyword)
     {
-        bool tag2 = false;
+        bool tag2 = false; //splitNames.Contains("octopus") && keyword.Contains("egg");
         int keywordScore = 0;
 
         foreach (string name in splitNames)
