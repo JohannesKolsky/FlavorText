@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Verse;
+using PipeSystem;
+using ProcessorFramework;
 
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
@@ -21,12 +23,18 @@ public static class HarmonyPatches
     {
         var patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
-        harmony.Patch(AccessTools.Method(typeof(CompIngredients), "RegisterIngredient"), null, new HarmonyMethod(patchType, "RegisterIngredientPostFix"));
-        harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostFix"));
+        harmony.Patch(AccessTools.Method(typeof(CompIngredients), "RegisterIngredient"), null, new HarmonyMethod(patchType, "RegisterIngredientPostfix"));
+        harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), null, new HarmonyMethod(patchType, "MakeRecipeProductsPostfix"));
+
+        //TODO: ProcessorFramework uses .NET 4.8
+        if (ModLister.GetActiveModWithIdentifier("syrchalis.processor.framework") != null)
+        {
+            harmony.Patch(AccessTools.Method(typeof(CompProcessor), "TakeOutProduct"), new HarmonyMethod(patchType, "TakeOutProductPrefix"), new HarmonyMethod(patchType, "TakeOutProductPostfix"));
+        }
     }
 
     // dirty ingredient cache when a new ingredient is added, forcing a recheck once TryGetFlavorText is next called
-    public static void RegisterIngredientPostFix(ref CompIngredients __instance)
+    public static void RegisterIngredientPostfix(ref CompIngredients __instance)
     {
         if (!__instance.parent.HasComp<CompFlavor>()) return;
         CompFlavor compFlavor = __instance.parent.TryGetComp<CompFlavor>();
@@ -35,7 +43,7 @@ public static class HarmonyPatches
 
 
     // after making a product with CompIngredients, add information about how it was cooked
-    public static IEnumerable<Thing> MakeRecipeProductsPostFix(IEnumerable<Thing> __result, IBillGiver billGiver, Pawn worker, List<Thing> ingredients)
+    public static IEnumerable<Thing> MakeRecipeProductsPostfix(IEnumerable<Thing> __result, IBillGiver billGiver, Pawn worker, List<Thing> ingredients)
     {
         foreach (Thing product in __result)
         {
@@ -68,5 +76,79 @@ public static class HarmonyPatches
         }
     }
 
+    // VEF: cache CompFlavor when meal is added to processor
+    [HarmonyPatch(typeof(CompAdvancedResourceProcessor), "AddIngredient")]
+    public static class Harmony_AddIngredient
+    {
+        public static void Prefix(ref CompAdvancedResourceProcessor comp, ref Thing thing)
+        {
+            if (ModLister.GetActiveModWithIdentifier("OskarPotocki.VanillaFactionsExpanded.Core") != null)
+            {
+                if (thing.TryGetComp(out CompFlavor compFlavor))
+                {
+                    CompFlavorUtility.ActiveProcesses.Add(comp.parent.thingIDNumber, compFlavor);
+                }
+            }
+        }
+
+    }
+
+    // VEF: retrieve CompFlavor from cache when meal is removed from processor
+    [HarmonyPatch(typeof(CompAdvancedResourceProcessor), "HandleIngredientsAndQuality")]
+    public static class Harmony_HandleIngredientsAndQuality
+    {
+        public static void Postfix(ref Thing outThing, ref Process __instance)
+        {
+            if (ModLister.GetActiveModWithIdentifier("OskarPotocki.VanillaFactionsExpanded.Core") != null)
+            {
+                if (outThing.TryGetComp(out CompFlavor outCompFlavor))
+                {
+                    int key = __instance.advancedProcessor.parent.thingIDNumber;
+                    if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
+                    {
+                        outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
+                        outCompFlavor.MealTags = cachedCompFlavor.MealTags;
+                        outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                        CompFlavorUtility.ActiveProcesses.Remove(key);
+                    }
+                }
+            }
+        }
+    }
+
+    // SYR: cache CompFlavor when meal is removed from processor
+    public static void TakeOutProductPrefix(ref ActiveProcess activeProcess, ref CompProcessor __instance)
+    {
+        if (ModLister.GetActiveModWithIdentifier("syrchalis.processor.framework") != null)
+        {
+            foreach (var ingredientThing in activeProcess.ingredientThings)
+            {
+                if (ingredientThing.TryGetComp(out CompFlavor compFlavor))
+                {
+                    CompFlavorUtility.ActiveProcesses.Add(__instance.parent.thingIDNumber, compFlavor);
+                    break;
+                }
+            }
+        }
+    }
+
+    //SYR: retrieve CompFlavor from cache when meal is removed from processor
+    public static void TakeOutProductPostfix(ref CompProcessor __instance, ref Thing __result)
+    {
+        if (ModLister.GetActiveModWithIdentifier("syrchalis.processor.framework") != null)
+        {
+            if (__result.TryGetComp(out CompFlavor outCompFlavor))
+            {
+                int key = __instance.parent.thingIDNumber;
+                if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
+                {
+                    outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
+                    outCompFlavor.MealTags = cachedCompFlavor.MealTags;
+                    outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                    CompFlavorUtility.ActiveProcesses.Remove(key);
+                }
+            } 
+        }
+    }
 
 }
