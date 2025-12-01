@@ -111,7 +111,7 @@ using System.Diagnostics;
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
 //TODO: WhatsThatMod loses color in its tag
 //TODO: VCE_Soup names are re-rolled after cooking
-//TODO: merge stack error on dev quicktest
+//TODO: merge stack error on dev quicktest b/c game starts paused
 
 
 namespace FlavorText;
