@@ -289,6 +289,7 @@ public class CompFlavor : ThingComp
             FinalFlavorDefs = [];
 
             // choose variables randomly from either stack
+            TickCreated ??= GenTicks.TicksAbs;
             Rand.PushState((int)TickCreated);
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
