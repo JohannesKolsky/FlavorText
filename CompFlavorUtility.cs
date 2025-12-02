@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 
+//TODO: LookMode.Reference errror for compFlavor
+
 namespace FlavorText
 {
     public class CompFlavorUtility: MapComponent
