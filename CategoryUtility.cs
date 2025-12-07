@@ -137,7 +137,7 @@ public static class CategoryUtility
         {
             try
             {
-                tag = food.defName.ToLower().Contains("octopus");
+                //tag = food.defName.ToLower().Contains("octopus");
                 var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
