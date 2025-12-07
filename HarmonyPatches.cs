@@ -31,9 +31,25 @@ public static class HarmonyPatches
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(CompIngredients), "RegisterIngredient"), postfix: new HarmonyMethod(patchType, "RegisterIngredientPostfix"));
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), postfix: new HarmonyMethod(patchType, "MakeRecipeProductsPostfix"));
-        if (ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core")) harmony.PatchCategory("VEF");
-        if (ModsConfig.IsActive("syrchalis.processor.framework")) harmony.PatchCategory("SYR");
+/*        if (ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core")) harmony.PatchCategory("VEF");*/
 
+        if (ModsConfig.IsActive("syrchalis.processor.framework")) harmony.Patch(AccessTools.Method(AccessTools.TypeByName("syrchalis.processor.framework.CompProcessor"), "TakeOutProduct"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPostFix"));
+
+    }
+    public static void HarmonyPatch_SYR_TakeOutProductPostfix(ref ThingComp __instance, ref Thing __result)
+    {
+        Log.Warning("TakeOutProductPostfix");
+        if (__result.TryGetComp(out CompFlavor outCompFlavor))
+        {
+            int key = __instance.parent.thingIDNumber;
+            if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
+            {
+                outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
+                outCompFlavor.MealTags = cachedCompFlavor.MealTags;
+                outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                CompFlavorUtility.ActiveProcesses.Remove(key);
+            }
+        }
     }
 
     // dirty ingredient cache when a new ingredient is added, forcing a recheck once TryGetFlavorText is next called
@@ -79,64 +95,111 @@ public static class HarmonyPatches
         }
     }
 
-    // VEF: cache CompFlavor when meal is added to processor
-    [HarmonyPatchCategory("VEF")]
-    public static class HarmonyPatch_VEF_AddIngredient
-    {
-        [HarmonyPrepare]
-        public static bool Prepare()
+    /*    // VEF: cache CompFlavor when meal is added to processor
+        [HarmonyPatchCategory("VEF")]
+        public static class HarmonyPatch_VEF_AddIngredient
         {
-            return ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core");
-        }
-
-        [HarmonyTargetMethod]
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(typeof(AdvancedProcessorsManager), "AddIngredient");
-        }
-
-        public static void Prefix(ref CompAdvancedResourceProcessor comp, ref Thing thing)
-        {
-            if (thing.TryGetComp(out CompFlavor compFlavor))
+            [HarmonyPrepare]
+            public static bool Prepare()
             {
-                if (VerifyCompFlavorIntegrity(compFlavor))
+                return ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core");
+            }
+
+            [HarmonyTargetMethod]
+            private static MethodBase TargetMethod()
+            {
+                return AccessTools.Method(typeof(AdvancedProcessorsManager), "AddIngredient");
+            }
+
+            public static void Prefix(ref CompAdvancedResourceProcessor comp, ref Thing thing)
+            {
+                if (thing.TryGetComp(out CompFlavor compFlavor))
                 {
-                    CompFlavorUtility.ActiveProcesses.Add(comp.parent.thingIDNumber, compFlavor);
+                    if (VerifyCompFlavorIntegrity(compFlavor))
+                    {
+                        CompFlavorUtility.ActiveProcesses.Add(comp.parent.thingIDNumber, compFlavor);
+                    }
+                    else Log.Error($"CompFlavor for input meal into {comp.parent} had a null field, ignoring it. Output meal CompFlavor will be regenerated. Please report.");
                 }
-                else Log.Error($"CompFlavor for input meal into {comp.parent} had a null field, ignoring it. Output meal CompFlavor will be regenerated. Please report.");
-            }
 
-            static bool VerifyCompFlavorIntegrity(CompFlavor compFlavor)
-            {
-                if (compFlavor?.TickCreated == null) return false;
-                if (compFlavor?.MealTags == null) return false;
-                if (compFlavor.IngredientsHitPointPercentage == null) return false;
-                return true;
-            }
-        }
-    }
-
-    [HarmonyPatchCategory("VEF")]
-    public static class HarmonyPatch_VEF_HandleIngredientsAndQuality
-    {
-        [HarmonyPrepare]
-        public static bool Prepare()
-        {
-            return ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core");
-        }
-
-        [HarmonyTargetMethod]
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(typeof(Process), "HandleIngredientsAndQuality");
-        }
-
-        public static void Postfix(ref Thing outThing, ref Process __instance)
-        {
-            {
-                if (outThing.TryGetComp(out CompFlavor outCompFlavor))
+                static bool VerifyCompFlavorIntegrity(CompFlavor compFlavor)
                 {
-                    int key = __instance.advancedProcessor.parent.thingIDNumber;
+                    if (compFlavor?.TickCreated == null) return false;
+                    if (compFlavor?.MealTags == null) return false;
+                    if (compFlavor.IngredientsHitPointPercentage == null) return false;
+                    return true;
+                }
+            }
+        }
+
+        [HarmonyPatchCategory("VEF")]
+        public static class HarmonyPatch_VEF_HandleIngredientsAndQuality
+        {
+            [HarmonyPrepare]
+            public static bool Prepare()
+            {
+                return ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core");
+            }
+
+            [HarmonyTargetMethod]
+            private static MethodBase TargetMethod()
+            {
+                return AccessTools.Method(typeof(Process), "HandleIngredientsAndQuality");
+            }
+
+            public static void Postfix(ref Thing outThing, ref Process __instance)
+            {
+                {
+                    if (outThing.TryGetComp(out CompFlavor outCompFlavor))
+                    {
+                        int key = __instance.advancedProcessor.parent.thingIDNumber;
+                        if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
+                        {
+                            outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
+                            outCompFlavor.MealTags = cachedCompFlavor.MealTags;
+                            outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                            CompFlavorUtility.ActiveProcesses.Remove(key);
+                        }
+                    }
+                }
+            }
+        }*/
+
+
+    /*    // SYR: cache CompFlavor when meal is removed from processor
+        [HarmonyPatchCategory("SYR")]
+        public static class HarmonyPatch_SYR_TakeOutProduct
+        {
+            [HarmonyPrepare]
+            public static bool Prepare()
+            {
+                return ModsConfig.IsActive("syrchalis.processor.framework");
+            }
+
+            [HarmonyTargetMethod]
+            private static MethodBase TargetMethod()
+            {
+                return AccessTools.Method(typeof(CompProcessor), "TakeOutProduct");
+            }
+
+            public static void Prefix(ref ActiveProcess activeProcess, ref CompProcessor __instance)
+            {
+                Log.Warning("TakeOutProductPrefix");
+                foreach (var ingredientThing in activeProcess.ingredientThings)
+                {
+                    if (ingredientThing.TryGetComp(out CompFlavor compFlavor))
+                    {
+                        CompFlavorUtility.ActiveProcesses.Add(__instance.parent.thingIDNumber, compFlavor);
+                        break;
+                    }
+                }
+            }
+            public static void Postfix(ref CompProcessor __instance, ref Thing __result)
+            {
+                Log.Warning("TakeOutProductPostfix");
+                if (__result.TryGetComp(out CompFlavor outCompFlavor))
+                {
+                    int key = __instance.parent.thingIDNumber;
                     if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
                     {
                         outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
@@ -146,52 +209,5 @@ public static class HarmonyPatches
                     }
                 }
             }
-        }
-    }
-    
-
-    // SYR: cache CompFlavor when meal is removed from processor
-    [HarmonyPatchCategory("SYR")]
-    public static class HarmonyPatch_SYR_TakeOutProduct
-    {
-        [HarmonyPrepare]
-        public static bool Prepare()
-        {
-            return ModsConfig.IsActive("syrchalis.processor.framework");
-        }
-
-        [HarmonyTargetMethod]
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(typeof(CompProcessor), "TakeOutProduct");
-        }
-
-        public static void Prefix(ref ActiveProcess activeProcess, ref CompProcessor __instance)
-        {
-            Log.Warning("TakeOutProductPrefix");
-            foreach (var ingredientThing in activeProcess.ingredientThings)
-            {
-                if (ingredientThing.TryGetComp(out CompFlavor compFlavor))
-                {
-                    CompFlavorUtility.ActiveProcesses.Add(__instance.parent.thingIDNumber, compFlavor);
-                    break;
-                }
-            }
-        }
-        public static void Postfix(ref CompProcessor __instance, ref Thing __result)
-        {
-            Log.Warning("TakeOutProductPostfix");
-            if (__result.TryGetComp(out CompFlavor outCompFlavor))
-            {
-                int key = __instance.parent.thingIDNumber;
-                if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
-                {
-                    outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
-                    outCompFlavor.MealTags = cachedCompFlavor.MealTags;
-                    outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
-                    CompFlavorUtility.ActiveProcesses.Remove(key);
-                }
-            }
-        }
-    }
+        }*/
 }
