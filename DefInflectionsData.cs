@@ -4,8 +4,10 @@ using Verse;
 /// <summary>
 /// predefined inflections for ingredients and ingredient categories, stored in ThingInflections.xml
 /// </summary>
+/// 
 namespace FlavorText
 {
+
     public class ThingInflectionsData : Def
     {
         public string packageID;

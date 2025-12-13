@@ -1,6 +1,4 @@
 using HarmonyLib;
-using PipeSystem;
-using ProcessorFramework;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -9,11 +7,13 @@ using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using Verse;
 using System.Reflection;
+using PipeSystem;
+using ProcessorFramework;
 
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
 
-//TODO: HandIngredientsAndQualityPostfix can't use a PipeSystem subclass // why??
+//TODO: HandleIngredientsAndQualityPostfix can't use a PipeSystem subclass // why??
 
 namespace FlavorText;
 
@@ -25,19 +25,25 @@ namespace FlavorText;
 [StaticConstructorOnStartup]
 public static class HarmonyPatches
 {
+
     static HarmonyPatches()
     {
         var patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(CompIngredients), "RegisterIngredient"), postfix: new HarmonyMethod(patchType, "RegisterIngredientPostfix"));
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), postfix: new HarmonyMethod(patchType, "MakeRecipeProductsPostfix"));
-        if (ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core"))
+/*        if (ModsConfig.IsActive("OskarPotocki.VanillaFactionsExpanded.Core"))
         {
+            pipeSystem = AccessTools.TypeByName("PipeSystem.Process");
             harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.AdvancedProcessorsManager"), "AddIngredient"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_AddIngredientPrefix"));
             harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.Process"), "HandleIngredientsAndQuality"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_HandleIngredientsAndQualityPostfix"));
         }
 
-        if (ModsConfig.IsActive("syrchalis.processor.framework")) harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.CompProcessor"), "TakeOutProduct"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPrefix"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPostfix"));
+        if (ModsConfig.IsActive("syrchalis.processor.framework"))
+        {
+            processorFramework = AccessTools.TypeByName("ProcessorFramework.ActiveProcess");
+            harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.CompProcessor"), "TakeOutProduct"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPrefix"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPostfix"));
+        }*/
     }
 
     // dirty ingredient cache when a new ingredient is added, forcing a recheck once TryGetFlavorText is next called
@@ -83,7 +89,7 @@ public static class HarmonyPatches
         }
     }
 
-    // VEF: cache CompFlavor when meal is added to processor
+/*    // VEF: cache CompFlavor when meal is added to processor
     public static void HarmonyPatch_VEF_AddIngredientPrefix(ref ThingComp comp, ref Thing thing)
     {
         Log.Warning("AddIngredientsPrefix");
@@ -120,9 +126,9 @@ public static class HarmonyPatches
                 CompFlavorUtility.ActiveProcesses.Remove(key);
             }
         }
-    }
+    }*/
 
-    public static void HarmonyPatch_SYR_TakeOutProductPrefix(ref ActiveProcess activeProcess, ref ThingComp __instance)
+/*    public static void HarmonyPatch_SYR_TakeOutProductPrefix(ref ActiveProcess activeProcess, ref ThingComp __instance)
     {
         Log.Warning("TakeOutProductPrefix");
         foreach (var ingredientThing in activeProcess.ingredientThings)
@@ -133,9 +139,9 @@ public static class HarmonyPatches
                 break;
             }
         }
-    }
+    }*/
 
-    public static void HarmonyPatch_SYR_TakeOutProductPostfix(ref ThingComp __instance, ref Thing __result)
+/*    public static void HarmonyPatch_SYR_TakeOutProductPostfix(ref ThingComp __instance, ref Thing __result)
     {
         Log.Warning("TakeOutProductPostfix");
         if (__result.TryGetComp(out CompFlavor outCompFlavor))
@@ -149,7 +155,7 @@ public static class HarmonyPatches
                 CompFlavorUtility.ActiveProcesses.Remove(key);
             }
         }
-    }
+    }*/
 
 
     /*    // SYR: cache CompFlavor when meal is removed from processor
