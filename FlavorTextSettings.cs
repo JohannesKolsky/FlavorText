@@ -30,9 +30,9 @@ namespace FlavorText
 
     internal class FlavorTextMod : Mod
     {
-        public FlavorTextMod(ModContentPack content) : base(content) 
+        public FlavorTextMod(ModContentPack content) : base(content)
         {
-           GetSettings<FlavorTextSettings>();
+            GetSettings<FlavorTextSettings>();
         }
 
         public override string SettingsCategory()
@@ -44,10 +44,10 @@ namespace FlavorText
         {
             FlavorTextSettings.DoWindowContents(inRect);
         }
-/*        public override void WriteSettings()
-        {
-            base.WriteSettings();
-            if (FlavorTextSettings.) Scribe_Values.Read
-        }*/
+        /*        public override void WriteSettings()
+                {
+                    base.WriteSettings();
+                    if (FlavorTextSettings.) Scribe_Values.Read
+                }*/
     }
 }

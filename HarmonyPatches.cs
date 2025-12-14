@@ -1,14 +1,8 @@
 using HarmonyLib;
 using RimWorld;
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using Verse;
-using System.Reflection;
-using PipeSystem;
-using ProcessorFramework;
 
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?

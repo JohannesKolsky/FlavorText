@@ -1,17 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using RimWorld;
+﻿using System.Collections.Generic;
 using Verse;
 
 //TODO: LookMode.Reference errror for compFlavor
 
 namespace FlavorText
 {
-    public class CompFlavorUtility: MapComponent
+    public class CompFlavorUtility : MapComponent
     {
         private static Dictionary<int, CompFlavor> activeProcesses;
 
@@ -28,12 +22,12 @@ namespace FlavorText
             }
         }
 
-        public CompFlavorUtility(Map map): base(map) { }
+        public CompFlavorUtility(Map map) : base(map) { }
 
         public override void ExposeData()
         {
             Scribe_Collections.Look(ref activeProcesses, "activeProcesses", LookMode.Value, LookMode.Reference, ref thingIDNumbers, ref compFlavors);
         }
-        
+
     }
 }
