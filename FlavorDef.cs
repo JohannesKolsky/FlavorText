@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 using Verse;
 using static FlavorText.CategoryUtility;
 
@@ -20,7 +18,7 @@ namespace FlavorText;
 public class FlavorDef : Def
 {
     private bool tag;  // debug tag
-    
+
     public float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
     public FlavorCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
@@ -33,7 +31,7 @@ public class FlavorDef : Def
 
     public IntRange hoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
 
-    public FloatRange ingredientsHitPointPercentage = new (0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
+    public FloatRange ingredientsHitPointPercentage = new(0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
 
     // all FlavorDefs that can be used with the current modlist
     public static IEnumerable<FlavorDef> ActiveFlavorDefs => DefDatabase<FlavorDef>.AllDefs
@@ -62,7 +60,7 @@ public class FlavorDef : Def
             Log.Error($"Error when setting static data for Flavor Defs, error: {ex}");
         }
     }
-    
+
     // remove mealKind categories that aren't being used (e.g. FT_MealsSoup if no mods add soup meals)
     // if this means a FlavorDef has no mealKind, add FT_MealsNonSpecial to it, so it can be used by normal meals and survival pack meals
     private static void SetActiveMealKinds()
@@ -172,16 +170,16 @@ public class FlavorDef : Def
     public static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, IEnumerable<FlavorDef> flavorDefsToSearch = null)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
-        List<FlavorCategoryDef> thisMealParents = [];
+        List<FlavorCategoryDef> mealThingParentCategories = [];
         foreach (var cat in ThingCategories[meal.def])
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
-            if (temp is not null) thisMealParents.Add(temp);
+            if (temp is not null) mealThingParentCategories.Add(temp);
         }
         flavorDefsToSearch ??= ActiveFlavorDefs;
         return flavorDefsToSearch
         .Where(flavorDef =>
-            (flavorDef.mealKinds.Any(mealKind => thisMealParents.Contains(mealKind)) || (FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(kind => kind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            (flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind)) || (FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))

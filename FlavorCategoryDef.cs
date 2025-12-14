@@ -103,7 +103,10 @@ public class FlavorCategoryDef : Def
         return DefDatabase<FlavorCategoryDef>.GetNamed(defName);
     }
 
-    public override int GetHashCode() => defName.GetHashCode();
+    public override int GetHashCode()
+    {
+        return defName.GetHashCode();
+    }
 
     internal static void SetNestLevelRecursive(FlavorCategoryDef cat, int nestDepth)
     {

@@ -1,11 +1,8 @@
-﻿using RimWorld.Planet;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Text.RegularExpressions;
 using Verse;
-using static RimWorld.ColonistBar;
 
 namespace FlavorText;
 
@@ -25,9 +22,9 @@ internal static class InflectionUtility
     internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsData = [];
     static InflectionUtility()
     {
-         var list1 = DefDatabase<ThingInflectionsData>.AllDefs
-        .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
-        .SelectMany(dict => dict.dictionary);
+        var list1 = DefDatabase<ThingInflectionsData>.AllDefs
+       .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
+       .SelectMany(dict => dict.dictionary);
         foreach (var kvp in list1)
         {
             var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
@@ -207,11 +204,11 @@ internal static class InflectionUtility
                 if (root is not null && !inflections.Empty())
                 {
                     // if plur has a placeholder, replace it with root
-                    if (inflections[0].Contains("{0}")) 
+                    if (inflections[0].Contains("{0}"))
                     {
                         plur = inflections[0].Formatted(root);
                         goto End;
-                    } 
+                    }
                     // otherwise plur is root extended to the end of the word // mammoth gold pumpkins & pumpkin => pumpkins
                     else
                     {
@@ -222,7 +219,7 @@ internal static class InflectionUtility
                             plur = labelOriginal.Substring(head, plur.Length);
                             goto End;
                         }
-                    } 
+                    }
                 }
                 // otherwise use reduced label
                 if (labelBitsDeleted.Length > 0)
@@ -272,8 +269,7 @@ internal static class InflectionUtility
             // try to get adjectival form (based on singular)
             if (adj is null)
             {
-                if (root is not null && !inflections.Empty() && inflections[3].Contains("{0}")) adj = inflections[3].Formatted(root);
-                else adj = sing;
+                adj = root is not null && !inflections.Empty() && inflections[3].Contains("{0}") ? (string)inflections[3].Formatted(root) : sing;
             }
 
             return [plur, coll, sing, adj];
@@ -315,4 +311,5 @@ internal static class InflectionUtility
                 throw;
             }
         }
-    }}
+    }
+}

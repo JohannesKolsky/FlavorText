@@ -1,7 +1,6 @@
 ﻿using RimWorld;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Verse;
@@ -50,8 +49,8 @@ public static class CategoryUtility
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
     static CategoryUtility()
     {
-/*        Stopwatch stopwatch = new();
-        stopwatch.Start();*/
+        /*        Stopwatch stopwatch = new();
+                stopwatch.Start();*/
         try
         {
             FlavorCategoryDef.FinalizeInit();
@@ -74,19 +73,19 @@ public static class CategoryUtility
             Log.Error($"Error when setting up FlavorCategoryDefs for Flavor Text. Error: {ex}");
         }
 
-/*        stopwatch.Stop();
-        TimeSpan elapsed = stopwatch.Elapsed;
-        if (Prefs.DevMode)
-        {
-            Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
-        }*/
+        /*        stopwatch.Stop();
+                TimeSpan elapsed = stopwatch.Elapsed;
+                if (Prefs.DevMode)
+                {
+                    Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
+                }*/
 
     }
 
     private static void Debug()
     {
-/*        int count = DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)).Count();
-        Log.Warning($"found {count} food items");*/
+        /*        int count = DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)).Count();
+                Log.Warning($"found {count} food items");*/
         /*        foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
                 {
                     Log.Warning($">{thing.defName} is in categories:");
@@ -95,9 +94,9 @@ public static class CategoryUtility
                         Log.Message($"{category.defName}");
                     }
                 }*/
-/*
-        Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
-        Log.Message($"[{ThingCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");*/
+        /*
+                Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
+                Log.Message($"[{ThingCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");*/
 
         /*foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
         {
@@ -136,7 +135,7 @@ public static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("octopus");
+                //tag = food.defName.ToLower().Contains("stew");
                 var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
@@ -164,6 +163,7 @@ public static class CategoryUtility
                 // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
                 if (food.HasComp<CompIngredients>() && categories.Any(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat)))
                 {
+                    if (tag) Log.Message($"Adding CompFlavor to {food}");
                     food.comps.Add(new CompProperties_Flavor());
                     var qualityCats = categories.Where(cat => FlavorCategoryDefOf.FT_MealsQualities.ThisAndChildCategoryDefs.Contains(cat)).ToList();
                     foreach (var qualityCat in qualityCats)
@@ -238,11 +238,11 @@ public static class CategoryUtility
                 //Log.Warning($"absorbing ThingCategoryDef {thingCategory} into {flavorCategory}...");
                 foreach (var descendant in thingCategory.DescendantThingDefs)
                 {
-                    if (ThingCategories.ContainsKey(descendant)) 
+                    if (ThingCategories.ContainsKey(descendant))
                     {
                         var parents = ThingCategories[descendant];
                         if (!parents.Any(parent => flavorCategory.ThisAndChildCategoryDefs.Contains(parent))) ThingCategories[descendant].Add(flavorCategory);
-                    } 
+                    }
                     else ThingCategories.Add(descendant, [flavorCategory]);
                     flavorCategory.childThingDefs.AddDistinct(descendant);
                     //Log.Message($"absorbed descendant ThingDef {descendant} into {ThingCategories[descendant].ToStringSafeEnumerable()}...");
@@ -276,7 +276,7 @@ public static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = 5)
     {
-        //tag = searchedDef.defName.ToLower().Contains("sausage");
+        //tag = searchedDef.defName.ToLower().Contains("stew");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         int categoryScore = 0;
@@ -307,7 +307,7 @@ public static class CategoryUtility
                 {
                     if (bestCategory.Key.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsWithCompFlavor))
                     {
-                        if (bestCategory.Value < minMealsWithCompFlavorScore || !FlavorTextSettings.dynamicMealIncorporation) 
+                        if (bestCategory.Value < minMealsWithCompFlavorScore || !FlavorTextSettings.dynamicMealIncorporation)
                         {
                             bestFlavorCategories.Remove(bestCategory.Key);
                             bestFlavorCategories.SetOrAdd(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
@@ -350,7 +350,7 @@ public static class CategoryUtility
                                 GetKeywordScores(flavorCategory);
                             }
 
-                            if (categoryScore >= 1) 
+                            if (categoryScore >= 1)
                                 bestFlavorCategories.AddDistinct(flavorCategory, categoryScore);
                         }
                     }
