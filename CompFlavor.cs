@@ -526,9 +526,7 @@ public class CompFlavor : ThingComp
             if (matchingFlavors.Count > 0)
             {
                 matchingFlavors = [.. matchingFlavors.OrderByDescending(entry => entry.Item1.specificity)];
-                Log.Warning($"getting specificies for {parent}");
-                foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.specificity); }
-                Log.Warning($"TickCreated = {TickCreated}");
+                //foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.specificity); }
                 Rand.PushState((int)TickCreated);
                 var flavor = matchingFlavors.RandomElementByWeight(((FlavorDef, List<int>) matchingFlavor) => matchingFlavor.Item1.specificity);
                 Rand.PopState();

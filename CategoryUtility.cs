@@ -155,10 +155,10 @@ public static class CategoryUtility
                         newParent.childThingDefs.Add(food);
                     }
                 }
-                categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null on the second try.");
-                if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty on the second try.");
+                categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null after searching all FlavorCategories.");
+                if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty after searching all FlavorCategories.");
 
-                if (tag) Log.Warning($"testing {food} with categories {categories.ToStringSafeEnumerable()}");
+                if (tag) Log.Warning($"testing {food} with categories [{categories.ToStringSafeEnumerable()}]");
 
                 // if ThingDef should have CompFlavor, postpend a new one
                 // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
@@ -276,7 +276,7 @@ public static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = 5)
     {
-        tag = searchedDef.defName.ToLower().Contains("octopus");
+        //tag = searchedDef.defName.ToLower().Contains("sausage");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         int categoryScore = 0;
@@ -289,13 +289,14 @@ public static class CategoryUtility
         {
             if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
 
+            // look in each category and record its score if above 0
             for (var i = 0; i < categoriesToSearch.Count; i++)
             {
                 var flavorCategory = categoriesToSearch[i];
-                if (!categoriesToSkip.Contains(flavorCategory) && !bestFlavorCategories.ContainsKey(flavorCategory))
+                if (!categoriesToSkip.Contains(flavorCategory))
                 {
                     GetKeywordScores(flavorCategory);
-                    if (categoryScore >= 1) bestFlavorCategories.Add(flavorCategory, categoryScore);
+                    if (categoryScore > 0) bestFlavorCategories.Add(flavorCategory, categoryScore);
                 }
             }
 
@@ -309,7 +310,7 @@ public static class CategoryUtility
                         if (bestCategory.Value < minMealsWithCompFlavorScore || !FlavorTextSettings.dynamicMealIncorporation) 
                         {
                             bestFlavorCategories.Remove(bestCategory.Key);
-                            bestFlavorCategories.Add(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
+                            bestFlavorCategories.SetOrAdd(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
                         }
                     }
                 }
