@@ -22,7 +22,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>portable</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\1.5\Assemblies\</OutputPath>
+    <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\1.6\Mods\SYR\Assemblies\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>

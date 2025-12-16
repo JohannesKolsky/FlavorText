@@ -524,10 +524,15 @@ public class CompFlavor : ThingComp
             if (matchingFlavors.Count > 0)
             {
                 matchingFlavors = [.. matchingFlavors.OrderByDescending(entry => entry.Item1.specificity)];
-                foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.specificity); }
-                Rand.PushState((int)TickCreated);
-                var flavor = matchingFlavors.RandomElementByWeight(((FlavorDef, List<int>) matchingFlavor) => matchingFlavor.Item1.specificity);
-                Rand.PopState();
+                //foreach (var flavorDef in matchingFlavors) { Log.Message(flavorDef.Item1.defName + " = " + flavorDef.Item1.specificity); }
+                (FlavorDef, List<int>) flavor;
+                if (FlavorTextSettings.randomizedRecipeOuput)
+                {
+                    Rand.PushState((int)TickCreated);
+                    flavor = matchingFlavors.RandomElementByWeight(((FlavorDef, List<int>) matchingFlavor) => matchingFlavor.Item1.specificity);
+                    Rand.PopState();
+                }
+                else flavor = matchingFlavors.First();
                 return flavor.Item1 is null || flavor.Item2 is null
                     ? throw new NullReferenceException($"Failed to find a matching Flavor Def. The best Flavor Def [{flavor.Item1}] or its list of indices [{flavor.Item2.ToStringSafeEnumerable()}] was null.")
                     : flavor;
