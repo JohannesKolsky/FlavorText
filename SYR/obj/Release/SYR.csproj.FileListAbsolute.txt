@@ -1,0 +1,5 @@
+E:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Flavor Text\1.6\Mods\VEF\Assemblies\FlavorText_SYR.dll
+C:\Users\Nathan\OneDrive\Projects\RimWorld Modding\Flavor Text\SYR\obj\Release\SYR.csproj.AssemblyReference.cache
+C:\Users\Nathan\OneDrive\Projects\RimWorld Modding\Flavor Text\SYR\obj\Release\SYR.csproj.CoreCompileInputs.cache
+C:\Users\Nathan\OneDrive\Projects\RimWorld Modding\Flavor Text\SYR\obj\Release\FlavorText_SYR.dll
+E:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Flavor Text\1.6\Mods\SYR\Assemblies\FlavorText_SYR.dll
