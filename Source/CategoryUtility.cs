@@ -345,7 +345,7 @@ public static class CategoryUtility
                             }
 
                             // otherwise do the normal keyword tests
-                            else if (!bestFlavorCategories.ContainsKey(flavorCategory))
+                            else if (!bestFlavorCategories.ContainsKey(flavorCategory) && !categoriesToSkip.Contains(flavorCategory))
                             {
                                 GetKeywordScores(flavorCategory);
                             }

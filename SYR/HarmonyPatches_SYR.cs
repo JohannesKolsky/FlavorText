@@ -6,8 +6,6 @@ using Verse;
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
 
-//TODO: HandleIngredientsAndQualityPostfix can't use a PipeSystem subclass // why??
-
 namespace SYR
 {
     /// <summary>
