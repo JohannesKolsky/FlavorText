@@ -8,6 +8,10 @@ namespace FlavorText;
 /// categories to categorize meal ingredients in a custom system with fine detail vs vanilla
 /// also categorizes meals and meal source buildings
 /// </summary>
+/// 
+// TODO: what does [Unsaved] actually do in here?
+
+
 public class FlavorCategoryDef : Def
 {
     // vanilla category that corresponds to the FT_Category
@@ -29,6 +33,10 @@ public class FlavorCategoryDef : Def
     internal int nestDepth;
 
     public FlavorCategoryDef parent;
+
+    public List<string> inflectionOverride = []; // explicit inflections for weird categories like eggs
+
+    public string defaultIngredient; // default name for an ingredient when this category is empty (only used if numAllowedMissingIngredients) > 0
 
     [Unsaved]
     public List<FlavorCategoryDef> childCategories = [];

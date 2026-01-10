@@ -110,6 +110,7 @@ using static FlavorText.CompProperties_Flavor;
 //TODO: WhatsThatMod loses color in its tag
 //TODO: VCE_Soup names are re-rolled after cooking
 //TODO: merge stack error on dev quicktest b/c game starts paused
+//TODO: name generation should be based on previous meal made in this save, to make it more consistent
 
 
 namespace FlavorText;
@@ -571,7 +572,7 @@ public class CompFlavor : ThingComp
             }
 
             // if flavorDef length doesn't match ingredient list length, skip
-            if (foods.Count != flavorDef.ingredients.Count)
+            if (foods.Count > flavorDef.ingredients.Count || flavorDef.ingredients.Count > foods.Count + FlavorTextSettings.numAllowedMissingIngredients)
             {
                 return null;
             }
@@ -607,7 +608,7 @@ public class CompFlavor : ThingComp
                 }
             }
 
-            return matchedIndices.Count == foods.Count ? matchedIndices : null;
+            return matchedIndices.Count + FlavorTextSettings.numAllowedMissingIngredients >= flavorDef.ingredients.Count ? matchedIndices : null;
         }
         catch (Exception ex)
         {
@@ -617,7 +618,7 @@ public class CompFlavor : ThingComp
     }
 
 
-    private static string FormatFlavorString(FlavorDef flavorDef, List<ThingDef> ingredients, string flag)  // replace placehodlers in flavor label/description with the correctly inflected ingredient label
+    private static string FormatFlavorString(FlavorDef flavorDef, List<ThingDef> ingredients, string flag)  // replace placeholders in flavor label/description with the correctly inflected ingredient label
     {
         try
         {
@@ -648,6 +649,8 @@ public class CompFlavor : ThingComp
             {
                 var inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[i]];
                 if (inflections.Count != InflectionUtility.numInflections) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorDef}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
+
+                //TODO: add ability to format ghost ingredients and clean up
                 while (true)
                 {
                     var placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + i + "_plur\\} *([^ .,;:]*)");  //capture the placeholder and the word before and after it

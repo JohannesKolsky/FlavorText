@@ -109,6 +109,7 @@ public class FlavorDef : Def
             {
                 restrictions += slot.AllowedThingDefs.Count();
             }
+            restrictions /= flavorDef.ingredients.Count;
 
             // more specific if it has a required meal type, weighted to half-impact
             restrictions = (restrictions * (flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes + 1) / 2);

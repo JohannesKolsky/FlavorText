@@ -22,22 +22,32 @@ internal static class InflectionUtility
     internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsData = [];
     static InflectionUtility()
     {
-        var list1 = DefDatabase<ThingInflectionsData>.AllDefs
+        var thingInflectionsList = DefDatabase<ThingInflectionsData>.AllDefs
        .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
        .SelectMany(dict => dict.dictionary);
-        foreach (var kvp in list1)
+        foreach (var kvp in thingInflectionsList)
         {
             var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
             ThingInflectionsDictionary.AddDistinct(key, kvp.Value);
         }
 
-        var list2 = DefDatabase<FlavorCategoryInflectionsData>.AllDefs
-        .Where(dict => ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
-        .SelectMany(dict => dict.dictionary);
-        foreach (var kvp in list2)
+        foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
-            var key = DefDatabase<FlavorCategoryDef>.GetNamed(kvp.Key);
-            CategoryInflectionsData.AddDistinct(key, kvp.Value);
+            if (cat.childThingDefs.Count == 0)
+            {
+                foreach (var inflection in cat.inflectionOverride)
+                {
+                    inflection.Formatted("");
+                }
+            }
+/*            else if (cat.childThingDefs.Count == 1)
+            {
+                foreach (var inflection in cat.inflectionOverride)
+                {
+                    inflection.Formatted()
+                }
+            }*/
+            CategoryInflectionsData.AddDistinct(cat, cat.inflectionOverride);
         }
     }
 

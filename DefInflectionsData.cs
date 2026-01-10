@@ -13,9 +13,9 @@ namespace FlavorText
         public string packageID;
         public Dictionary<string, List<string>> dictionary;
     }
-    public class FlavorCategoryInflectionsData : Def
+/*    public class FlavorCategoryInflectionsData : Def
     {
         public string packageID;
         public Dictionary<string, List<string>> dictionary;
-    }
+    }*/
 }
