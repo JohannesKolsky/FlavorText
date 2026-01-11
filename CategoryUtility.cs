@@ -115,6 +115,8 @@ public static class CategoryUtility
         {
             cat.singularCollective ??= cat.parent.singularCollective;  // inherit singularCollective field value from parent if it is null in child
             cat.blacklist.AddRange(cat.parent.blacklist);  // inherit blacklist of parent
+            cat.alwaysUseOverride ??= cat.parent.alwaysUseOverride; // inherit alwaysUseOverride if null in child
+            if (cat.inflectionsOverride.Empty()) cat.inflectionsOverride = cat.parent.inflectionsOverride;  // inherit inflectionsOverride if empty in child
         }
     }
 
@@ -143,7 +145,7 @@ public static class CategoryUtility
                 {
                     if (tag) Log.Warning($"figuring out best FlavorCategory for {food} from mod {food?.modContentPack?.PackageId?.ToStringSafe()}");
                     List<string> splitNames = ExtractNames(food);
-                    newParents = GetBestFlavorCategory(splitNames, food, FlavorCategoryDefOf.FT_Foods);
+                    newParents = GetBestFlavorCategory(splitNames, food, FlavorCategoryDefOf.FT_Root);
                     newParentsSorted = [.. newParents.OrderByDescending(element => element.Value).Select(element => element.Key)];
 
                     if (!newParentsSorted.Empty())

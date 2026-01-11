@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Verse;
 using static FlavorText.CategoryUtility;
+using UnityEngine;
 
 //--TODO: recipe parent hierarchy
 //DONE: spreadsheet descriptions are misaligned
@@ -103,13 +104,8 @@ public class FlavorDef : Def
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
             }
 
-            float restrictions = 0;
 
-            foreach (var slot in flavorDef.ingredients)
-            {
-                restrictions += slot.AllowedThingDefs.Count();
-            }
-            restrictions /= flavorDef.ingredients.Count;
+            float restrictions = flavorDef.ingredients.Sum(ing => Mathf.Sqrt(ing.AllowedThingDefs.Count()));  //sqrt to reduce impact of high ingredient counts
 
             // more specific if it has a required meal type, weighted to half-impact
             restrictions = (restrictions * (flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes + 1) / 2);
@@ -132,12 +128,14 @@ public class FlavorDef : Def
                 restrictions *= flavorDef.ingredientsHitPointPercentage.Span;
             }
 
+            // higher restrictions: more broad (more ingredients, more cooking stations, etc)
+            // higher specificity: more narrow
             if (restrictions > 0) flavorDef.specificity = 100 / restrictions;
 
 
-            // calculate the lowest category containing all the ingredients in the FlavorDef
-            // no need to include disallowed categories b/c those should always be a subcategory of a valid category
-            flavorDef.lowestCommonIngredientCategory = FlavorCategoryDefOf.FT_Foods;
+                // calculate the lowest category containing all the ingredients in the FlavorDef
+                // no need to include disallowed categories b/c those should always be a subcategory of a valid category
+                flavorDef.lowestCommonIngredientCategory = FlavorCategoryDefOf.FT_Foods;
             // get each category and its parents
             List<List<FlavorCategoryDef>> allCategoriesInDefAndParents = [.. flavorDef.ingredients
                     .SelectMany(slot => slot.categories)

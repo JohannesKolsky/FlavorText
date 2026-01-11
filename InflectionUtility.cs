@@ -35,7 +35,7 @@ internal static class InflectionUtility
         {
             if (cat.childThingDefs.Count == 0)
             {
-                foreach (var inflection in cat.inflectionOverride)
+                foreach (var inflection in cat.inflectionsOverride)
                 {
                     inflection.Formatted("");
                 }
@@ -47,7 +47,7 @@ internal static class InflectionUtility
                     inflection.Formatted()
                 }
             }*/
-            CategoryInflectionsData.AddDistinct(cat, cat.inflectionOverride);
+            CategoryInflectionsData.AddDistinct(cat, cat.inflectionsOverride);
         }
     }
 
@@ -71,7 +71,7 @@ internal static class InflectionUtility
                         var thisAndParents = CategoryUtility.ThingCategories[ingredient].First().ThisAndParents;
                         foreach (var cat in thisAndParents)
                         {
-                            inflections = CategoryInflectionsData.TryGetValue(cat);
+                            if (cat.alwaysUseOverride == true) inflections = cat.inflectionsOverride;
                             if (inflections is not null) break;
                         }
                         if (inflections is null)
