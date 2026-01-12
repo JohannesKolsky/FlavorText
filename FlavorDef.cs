@@ -22,7 +22,7 @@ public class FlavorDef : Def
 
     public float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
-    public FlavorCategoryDef lowestCommonIngredientCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
+    public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
@@ -133,36 +133,15 @@ public class FlavorDef : Def
             if (restrictions > 0) flavorDef.specificity = 100 / restrictions;
 
 
-                // calculate the lowest category containing all the ingredients in the FlavorDef
-                // no need to include disallowed categories b/c those should always be a subcategory of a valid category
-                flavorDef.lowestCommonIngredientCategory = FlavorCategoryDefOf.FT_Foods;
             // get each category and its parents
-            List<List<FlavorCategoryDef>> allCategoriesInDefAndParents = [.. flavorDef.ingredients
+            List<FlavorCategoryDef> allCategoriesInDef = [.. flavorDef.ingredients
                     .SelectMany(slot => slot.categories)
-                    .Distinct()
-                    .Select(cat => cat.ThisAndParents.ToList())];
+                    .Distinct()];
 
-            // compare the corresponding elements of each parent list, going from last to first
-            // if they are no longer equal, then the previous element was the lowest common category
-            if (!allCategoriesInDefAndParents.NullOrEmpty())
-            {
-                int min = (from List<FlavorCategoryDef> parents in allCategoriesInDefAndParents select parents.Count).Min();
-                var first = allCategoriesInDefAndParents[0].ToList();
-                for (int i = 0; i < min; i++)
-                {
-                    if (allCategoriesInDefAndParents.All(cat => cat[cat.Count - 1 - i] == first[first.Count - 1 - i]))
-                    {
-                        flavorDef.lowestCommonIngredientCategory = first[first.Count - 1 - i];
-                        continue;
-                    }
-                    break;
-                }
-            }
+            flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
         }
     }
-
-
 
     // all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
     // can be restricted to a given list of flavorDefsToSearch, which is used when loading a saved meal that already has flavor text to reduce search time

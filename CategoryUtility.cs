@@ -1,9 +1,12 @@
-﻿using RimWorld;
+﻿using FlavorText;
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEngine;
 using Verse;
+using static FlavorText.CategoryUtility;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to FlavorCategoryDef.childCategories
 
@@ -451,6 +454,34 @@ public static class CategoryUtility
         }
         tag2 = false;
         return keywordScore;
+    }
+
+    // calculate the lowest category containing all the categories in the given list
+    // no need to include disallowed categories b/c those should always be a subcategory of a valid category
+    internal static FlavorCategoryDef FindLowestCommonCategory(List<FlavorCategoryDef> categoryList)
+    {
+
+        // compare the corresponding elements of each sublist, starting with the one with the fewest elements
+        // if they are no longer equal, then the previous element was the lowest common category
+        FlavorCategoryDef commonCategory = FlavorCategoryDefOf.FT_Foods;
+
+        if (!categoryList.NullOrEmpty())
+        {
+            var categoryListWithParents = categoryList.Select(cat => cat.ThisAndParents.ToList()).ToList();
+
+            int min = (from List<FlavorCategoryDef> sublist in categoryListWithParents select sublist.Count).Min();
+            var first = categoryListWithParents[0].ToList();
+            for (int i = 0; i < min; i++)
+            {
+                if (categoryListWithParents.All(subList => subList[subList.Count - 1 - i] == first[first.Count - 1 - i]))
+                {
+                    commonCategory = first[first.Count - 1 - i];
+                    continue;
+                }
+                break;
+            }
+        }
+        return commonCategory;
     }
 }
 
