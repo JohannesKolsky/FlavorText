@@ -172,7 +172,7 @@ public class CompFlavor : ThingComp
 
     public List<string> MealTags = [];
 
-    internal List<FlavorCategoryDef> ghostExcludedCategories = [];
+    internal List<FlavorCategoryDef> ghostExcludedCategories;
 
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
@@ -425,7 +425,7 @@ public class CompFlavor : ThingComp
         // if ghost ingredients are being used, set restrictions based on real ingredients (e.g. no ghost meat in veggie meals)
         if (FlavorTextSettings.numAllowedMissingIngredients > 0)
         {
-            ghostExcludedCategories = Props.defaultGhostExcludedCategories;
+            ghostExcludedCategories = [.. Props.defaultGhostExcludedCategories];
 
             if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)  // vegan meals
             {
@@ -609,7 +609,7 @@ public class CompFlavor : ThingComp
                 // if flavorDef length doesn't match ingredient list length, skip
                 if (ingredients.Count > flavorDef.ingredients.Count || flavorDef.ingredients.Count > ingredients.Count + FlavorTextSettings.numAllowedMissingIngredients) return null;
 
-                // if ingredients aren't wholly contained within the FinalFlavorDef's lowest common category of ingredients, skip
+                // if ingredients aren't wholly contained within the FlavorDef's lowest common category of ingredients, skip
                 if (!lowestCommonIngredientCategory.ThisAndParents.Contains(flavorDef.lowestCommonRecipeCategory)) return null;
 
                 //Log.Warning($"----------{flavorDef}----------");
@@ -687,7 +687,7 @@ public class CompFlavor : ThingComp
                 // if you're at a missing ingredient, fill it with a random one from the available categories for a slot
                 if (i >= ingredients.Count)
                 {
-                    List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany(cat => cat.ThisAndChildCategoryDefs).Where(cat => cat.childCategories.Empty() && cat.ThisAndParents.All(ele => !ghostExcludedCategories.Contains(ele)))];
+                    List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany(cat => cat.ThisAndChildCategoryDefs).Where(cat => !cat.inflectionsOverride.NullOrEmpty() && cat.ThisAndParents.All(ele => !ghostExcludedCategories.Contains(ele)))];
                     if (ghostCategories.NullOrEmpty())
                     {
                         Log.Error($"Error when generating ghost ingredients for {flavorDef.ToStringSafe()}, slot {i} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{ghostExcludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
@@ -701,7 +701,10 @@ public class CompFlavor : ThingComp
                     else
                     {
                         IEnumerable<ThingDef> eles = ghostCategories.Where(cat => cat.childThingDefs.Count > 0).SelectMany(cat => cat.childThingDefs).Where(thing => !usedIngredients.Contains(thing));
-                        if (eles.Count() == 0) inflections = ghostCategories.RandomElement().inflectionsOverride;
+                        if (eles.Count() == 0)
+                        {
+                            inflections = ghostCategories.RandomElement().inflectionsOverride;
+                        }
                         else
                         {
                             ThingDef ele = eles.RandomElement();
@@ -711,6 +714,7 @@ public class CompFlavor : ThingComp
                     }
                 }
                 else inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[i]];
+
                 if (inflections.Count != InflectionUtility.numInflections) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorDef}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
 
                 //TODO: clean up

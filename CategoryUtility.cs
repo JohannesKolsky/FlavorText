@@ -116,7 +116,12 @@ public static class CategoryUtility
     {
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildCategoryDefs)
         {
-            cat.singularCollective ??= cat.parent.singularCollective;  // inherit singularCollective field value from parent if it is null in child
+            if (cat.singularCollective == null)
+            {
+                cat.singularCollective = cat.parent.singularCollective;
+            }
+
+            //cat.singularCollective ??= cat.parent.singularCollective;  // inherit singularCollective field value from parent if it is null in child
             cat.blacklist.AddRange(cat.parent.blacklist);  // inherit blacklist of parent
             cat.alwaysUseOverride ??= cat.parent.alwaysUseOverride; // inherit alwaysUseOverride if null in child
             if (cat.inflectionsOverride.Empty()) cat.inflectionsOverride = cat.parent.inflectionsOverride;  // inherit inflectionsOverride if empty in child
