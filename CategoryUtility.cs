@@ -405,7 +405,6 @@ public static class CategoryUtility
             {
                 categoryScore -= 2 * ScoreKeyword(splitNames, black);
             }
-
             if (categoryScore >= 3) return;
             foreach (var cat in flavorCategory.ThisAndChildCategoryDefs)
             {

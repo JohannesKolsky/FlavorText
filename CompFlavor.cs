@@ -2,6 +2,7 @@ using HarmonyLib;
 using JetBrains.Annotations;
 using RimWorld;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -106,6 +107,7 @@ using static PipeSystem.ProcessDef;
 //RELEASED: disable log messages
 //RELEASED: test C# meats
 //RELEASED: test medieval overhaul
+//DONE: ghost ingredient should match vegetarian/carnivore
 
 
 //TODO: options to prevent merging meals
@@ -116,7 +118,7 @@ using static PipeSystem.ProcessDef;
 //TODO: merge stack error on dev quicktest b/c game starts paused
 //TODO: name generation should be based on previous meal made in this save, to make it more consistent
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
-//TODO: ghost ingredient should match vegetarian/carnivore
+//TODO: test iterations carryover for merge/split/save
 
 
 namespace FlavorText;
@@ -164,7 +166,7 @@ public class CompFlavor : ThingComp
 
     public int? HourOfDay = null;  // what hour of the day this meal was completed
 
-    public int? TickCreated = null;  // what tick the meal was created on
+    public int? TickCreated = null;  // what tick the meal was created on  //TODO: remove this: obsolete
 
     public int? CookID = null; // id of the cook
 
@@ -174,9 +176,11 @@ public class CompFlavor : ThingComp
 
     internal List<FlavorCategoryDef> ghostExcludedCategories;
 
+    internal int? iteration = null;
+
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
-    // if there's a flavor label made, transform the original meal label into it
+    // transform the original label into a flavor label
     public override string TransformLabel(string label)
     {
         TryGetFlavorText();
@@ -218,6 +222,7 @@ public class CompFlavor : ThingComp
         Scribe_Values.Look(ref HourOfDay, "hourOfDay");
         Scribe_Values.Look(ref TickCreated, "tickCreated");
         Scribe_Values.Look(ref IngredientsHitPointPercentage, "ingredientsHitPointPercentage");
+        Scribe_Values.Look(ref iteration, "iteration");
 
         Scribe_Collections.Look(ref MealTags, "tags");
         if (Scribe.mode == LoadSaveMode.PostLoadInit && MealTags == null)
@@ -278,6 +283,7 @@ public class CompFlavor : ThingComp
                 otherCompFlavor.TickCreated = TickCreated;
                 otherCompFlavor.MealTags = MealTags;
                 otherCompFlavor.IngredientsHitPointPercentage = IngredientsHitPointPercentage;
+                otherCompFlavor.iteration = iteration;
             }
         }
         catch (Exception e)
@@ -303,10 +309,11 @@ public class CompFlavor : ThingComp
 
             // choose variables randomly from either stack
             TickCreated ??= GenTicks.TicksAbs;
-            Rand.PushState((int)TickCreated);
+            Rand.PushState(Find.World.info.Seed + (int)iteration);
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
             TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
+            iteration = Rand.Element(iteration, otherFlavorComp.iteration);
 
 
             try
@@ -346,6 +353,12 @@ public class CompFlavor : ThingComp
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
         if (TriedFlavorText) return;
+        if (iteration == null) 
+        {
+            CompFlavorUtility.Iterate(); 
+            iteration = CompFlavorUtility.Iterations; 
+            Log.Message($"it = {CompFlavorUtility.Iterations}");
+        }
         TriedFlavorText = true;
 
         /*        Stopwatch stopwatch = new Stopwatch();
@@ -367,7 +380,7 @@ public class CompFlavor : ThingComp
 
             // fill in the extra parameters with pseudorandom data if they are null
             TickCreated ??= GenTicks.TicksAbs;
-            Rand.PushState((int)TickCreated);
+            Rand.PushState(Find.World.info.Seed + (int)iteration);
             Random r = new();
             HourOfDay ??= r.Next(0, 24);
             if (CookingStation is null)
@@ -569,7 +582,7 @@ public class CompFlavor : ThingComp
                 (FlavorDef, List<int>) flavor;
                 if (FlavorTextSettings.randomizedRecipeOuput)
                 {
-                    Rand.PushState((int)TickCreated);
+                    Rand.PushState(Find.World.info.Seed + (int)iteration);
                     flavor = matchingFlavors.RandomElementByWeight(((FlavorDef, List<int>) matchingFlavor) => matchingFlavor.Item1.specificity);
                     Rand.PopState();
                 }
@@ -672,7 +685,7 @@ public class CompFlavor : ThingComp
                     }
             }
 
-            Rand.PushState((int)TickCreated);
+            Rand.PushState(Find.World.info.Seed + (int)iteration);
 
             // find placeholders and replace them with the appropriate inflection of the right ingredient
             int n = 0;
@@ -823,11 +836,7 @@ public class CompFlavor : ThingComp
         {
             if (!FlavorDescriptions.NullOrEmpty())
             {
-                // switch to pseudorandom generation using ingredient list seed
-                IEnumerable<string> ingredientDefNames = (from ing in Ingredients select ing.defName);
-                string ingredientDefNamesJoined = string.Join(",", ingredientDefNames);
-                int seed = ingredientDefNamesJoined.GetHashCode();
-                Rand.PushState(seed);
+                Rand.PushState(Find.World.info.Seed + (int)iteration);
 
                 RulePackDef sideDishClauses = RulePackDef.Named("FT_SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
 
