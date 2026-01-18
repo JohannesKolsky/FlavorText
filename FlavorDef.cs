@@ -20,6 +20,8 @@ public class FlavorDef : Def
 {
     private bool tag;  // debug tag
 
+    internal List<int> slotIndices = [];  // the ingredients are reordered according to specificity; this tells you which matches with which index for formatting the flavor label and description
+
     public float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
     public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
@@ -35,11 +37,17 @@ public class FlavorDef : Def
     public FloatRange ingredientsHitPointPercentage = new(0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
 
     // all FlavorDefs that can be used with the current modlist
-    public static IEnumerable<FlavorDef> ActiveFlavorDefs => DefDatabase<FlavorDef>.AllDefs
-                .Where(flavorDef => flavorDef != null)
-                    .Where(flavorDef => flavorDef.ingredients
-                        .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
-
+    private static IEnumerable<FlavorDef> activeFlavorDefs;
+    public static IEnumerable<FlavorDef> ActiveFlavorDefs
+    {
+        get
+        {
+            return activeFlavorDefs ??= DefDatabase<FlavorDef>.AllDefs
+                    .Where(flavorDef => flavorDef != null)
+                        .Where(flavorDef => flavorDef.ingredients
+                            .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
+        }
+    }
 
     private readonly string varietyTexture;
     public string VarietyTexture => varietyTexture;
@@ -55,6 +63,7 @@ public class FlavorDef : Def
             SetAllowedIngredients();
             SetActiveMealKinds();
             SetSpecificities();
+            SortSlots();
         }
         catch (Exception ex)
         {
@@ -140,6 +149,18 @@ public class FlavorDef : Def
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
+        }
+    }
+
+    // sort the ingredient slots according to specificity, which is necessary for ingredient matching
+    private static void SortSlots()
+    {
+        foreach (var flavorDef in ActiveFlavorDefs)
+        {
+            IEnumerable<(IngredientSlot value, int index)> slotsSorted = flavorDef.ingredients.Select((value, index) => (value, index))
+                .OrderBy(item => item.value.AllowedThingDefs.Count());
+            flavorDef.ingredients = [.. slotsSorted.Select(slot => slot.value)];
+            flavorDef.slotIndices = [.. slotsSorted.Select(slot => slot.index)];
         }
     }
 

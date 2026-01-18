@@ -51,7 +51,6 @@ public static class HarmonyPatches
                     compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
                     compFlavor.TickCreated = GenTicks.TicksAbs;
                     compFlavor.CookID = worker?.thingIDNumber;
-                    compFlavor.iteration = CompFlavorUtility.Iterations;
                     // average percentage of hit points of each ingredient group (ignoring quantity in group)
                     compFlavor.IngredientsHitPointPercentage = ingredients
                         .FindAll(i => i?.def != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i.def))
@@ -59,7 +58,7 @@ public static class HarmonyPatches
                         .Sum(j => (float)j.HitPoints / j.MaxHitPoints) / ingredients.Count;
                     if (ModsConfig.BiotechActive && worker?.genes is not null && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
-                        Rand.PushState(Find.World.info.Seed + (int)compFlavor.iteration);
+                        Rand.PushState(Find.World.info.Seed + CompFlavorUtility.Iterations);
                         if (Rand.Range(0, 20) == 0)
                         {
                             compFlavor.MealTags.Add("hairy");
