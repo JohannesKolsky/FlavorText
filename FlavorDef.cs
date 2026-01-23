@@ -4,6 +4,7 @@ using System.Linq;
 using Verse;
 using static FlavorText.CategoryUtility;
 using UnityEngine;
+using RimWorld;
 
 //--TODO: recipe parent hierarchy
 //DONE: spreadsheet descriptions are misaligned
@@ -20,11 +21,13 @@ public class FlavorDef : Def
 {
     private bool tag;  // debug tag
 
-    internal List<int> slotIndices = [];  // the ingredients are reordered according to specificity; this tells you which matches with which index for formatting the flavor label and description
+    internal List<int> formattingIndices = [];  // this tells you which ingredient slot matches with which placeholder index for formatting the flavor label and description; this is needed because the ingredient slots are reordered according to specificity during game load
 
     public float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
     public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
+
+    internal List<FoodKind> allowedDietKinds = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
 
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
@@ -149,6 +152,36 @@ public class FlavorDef : Def
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
+
+            // calculate if the FlavorDef could be fulfilled by carnivore/vegan/vegetarian ingredients (can have multiple)
+            if (flavorDef.ingredients.All(slot => slot.categories.Intersect(FlavorCategoryDefOf.FT_MeatRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_MeatRaw.childCategories).Count() > 0))
+            {
+                flavorDef.allowedDietKinds.Add(FoodKind.Meat);
+            }
+            if (flavorDef.ingredients.All(slot => slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories).Count() > 0))
+            {
+                flavorDef.allowedDietKinds.Add(FoodKind.NonMeat);
+            }
+            bool vegetarian = false;
+            foreach (var slot in flavorDef.ingredients)
+            {
+                if (slot.categories.Intersect(FlavorCategoryDefOf.FT_AnimalProductRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_AnimalProductRaw.childCategories).Count() > 0)
+                {
+                    vegetarian = true;
+                    continue;
+                }
+                else if (slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories).Count() > 0)
+                {
+                    continue;
+                }
+                else
+                {
+                    vegetarian = false;
+                    break;
+                }
+            }
+            if (vegetarian) flavorDef.allowedDietKinds.Add(FoodKind.Any);
+
         }
     }
 
@@ -160,7 +193,7 @@ public class FlavorDef : Def
             IEnumerable<(IngredientSlot value, int index)> slotsSorted = flavorDef.ingredients.Select((value, index) => (value, index))
                 .OrderBy(item => item.value.AllowedThingDefs.Count());
             flavorDef.ingredients = [.. slotsSorted.Select(slot => slot.value)];
-            flavorDef.slotIndices = [.. slotsSorted.Select(slot => slot.index)];
+            flavorDef.formattingIndices = [.. slotsSorted.Select(slot => slot.index)];
         }
     }
 

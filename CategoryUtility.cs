@@ -36,6 +36,7 @@ using static FlavorText.CategoryUtility;
 //TODO: if defName and label are different, the meal is never categorized: e.g. DankPyon_Slop_Simple (stew)
 //TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
 //TODO: hitting the blacklist isn't triggering the removal of the category and its descendants
+//TODO: create a function for searching child and parent categories
 
 namespace FlavorText;
 
@@ -45,6 +46,7 @@ namespace FlavorText;
 [StaticConstructorOnStartup]
 public static class CategoryUtility
 {
+    //internal static readonly List<FlavorCategoryDef> DietKinds = [FlavorCategoryDefOf.FT_PlantFoodRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_MeatRaw];
 
     private static bool tag;  // DEBUG
 
