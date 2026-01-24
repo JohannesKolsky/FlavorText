@@ -51,11 +51,11 @@ public static class HarmonyPatches
                     compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
                     compFlavor.TickCreated = GenTicks.TicksAbs;
                     compFlavor.CookID = worker?.thingIDNumber;
-                    // average percentage of hit points of each ingredient group (ignoring quantity in group)
+/*                    // average percentage of hit points of each ingredient group (ignoring quantity in group)
                     compFlavor.IngredientsHitPointPercentage = ingredients
                         .FindAll(i => i?.def != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i.def))
                         .Where(i => i.def.useHitPoints)
-                        .Sum(j => (float)j.HitPoints / j.MaxHitPoints) / ingredients.Count;
+                        .Sum(j => (float)j.HitPoints / j.MaxHitPoints) / ingredients.Count;*/
                     if (ModsConfig.BiotechActive && worker?.genes is not null && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
                         Rand.PushState(Find.World.info.Seed + CompFlavorUtility.Iterations);

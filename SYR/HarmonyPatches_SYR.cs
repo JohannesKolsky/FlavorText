@@ -49,7 +49,7 @@ namespace SYR
                 {
                     outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
                     outCompFlavor.MealTags = cachedCompFlavor.MealTags;
-                    outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                    //outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
                     CompFlavorUtility.ActiveProcesses.Remove(key);
                 }
             }

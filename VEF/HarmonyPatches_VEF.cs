@@ -42,7 +42,7 @@ namespace VEF
             {
                 if (compFlavor?.TickCreated == null) return false;
                 if (compFlavor?.MealTags == null) return false;
-                if (compFlavor.IngredientsHitPointPercentage == null) return false;
+                //if (compFlavor.IngredientsHitPointPercentage == null) return false;
                 return true;
             }
         }
@@ -59,7 +59,7 @@ namespace VEF
                     Log.Message($"Changing old CompFlavor {outCompFlavor.ToStringSafe()} to cached CompFlavor {cachedCompFlavor.ToStringSafe()}");
                     outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
                     outCompFlavor.MealTags = cachedCompFlavor.MealTags;
-                    outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                    //outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
                     CompFlavorUtility.ActiveProcesses.Remove(key);
                 }
             }

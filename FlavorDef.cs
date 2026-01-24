@@ -217,8 +217,8 @@ public class FlavorDef : Def
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
             && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
                     compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
-            && flavorDef.ingredientsHitPointPercentage.Includes(
-                (float)compFlavor.IngredientsHitPointPercentage!));
+            /*&& flavorDef.ingredientsHitPointPercentage.Includes(
+                (float)compFlavor.IngredientsHitPointPercentage!)*/);
 
     }
 }
