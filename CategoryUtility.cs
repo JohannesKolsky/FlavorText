@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using Verse;
 using static FlavorText.CategoryUtility;
+using System.Diagnostics;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to FlavorCategoryDef.childCategories
 
@@ -54,8 +55,8 @@ public static class CategoryUtility
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
     static CategoryUtility()
     {
-        /*        Stopwatch stopwatch = new();
-                stopwatch.Start();*/
+        Stopwatch stopwatch = new();
+        stopwatch.Start();
         try
         {
             FlavorCategoryDef.FinalizeInit();
@@ -78,12 +79,12 @@ public static class CategoryUtility
             Log.Error($"Error when setting up FlavorCategoryDefs for Flavor Text. Error: {ex}");
         }
 
-        /*        stopwatch.Stop();
-                TimeSpan elapsed = stopwatch.Elapsed;
-                if (Prefs.DevMode)
-                {
-                    Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
-                }*/
+        stopwatch.Stop();
+        TimeSpan elapsed = stopwatch.Elapsed;
+        if (Prefs.DevMode)
+        {
+            Log.Warning("[Flavor Text] FlavorCategoryDefUtility ran in " + elapsed.ToString("ss\\.fffff") + " seconds");
+        }
 
     }
 
@@ -116,7 +117,7 @@ public static class CategoryUtility
     // for FT_Categories, inherit mod extension variables from parent where appropriate
     public static void InheritParentData()
     {
-        foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildCategoryDefs)
+        foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildren)
         {
             if (cat.singularCollective == null)
             {
@@ -173,11 +174,11 @@ public static class CategoryUtility
 
                 // if ThingDef should have CompFlavor, postpend a new one
                 // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
-                if (food.HasComp<CompIngredients>() && categories.Any(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat)))
+                if (food.HasComp<CompIngredients>() && categories.Any(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildren.Contains(cat)))
                 {
                     if (tag) Log.Message($"Adding CompFlavor to {food}");
                     food.comps.Add(new CompProperties_Flavor());
-                    var qualityCats = categories.Where(cat => FlavorCategoryDefOf.FT_MealsQualities.ThisAndChildCategoryDefs.Contains(cat)).ToList();
+                    var qualityCats = categories.Where(cat => FlavorCategoryDefOf.FT_MealsQualities.ThisAndChildren.Contains(cat)).ToList();
                     foreach (var qualityCat in qualityCats)
                     {
                         if (MealsQualities.ContainsKey(food)) MealsQualities[food].Add(qualityCat);
@@ -234,7 +235,7 @@ public static class CategoryUtility
     private static void AbsorbChildren()
     {
         // make a thingDefs of which ThingDefs belong in which FlavorCategoryDefs
-        var allFlavorCategoryDefs = FlavorCategoryDef.Named("FT_Root").ThisAndChildCategoryDefs;
+        var allFlavorCategoryDefs = FlavorCategoryDef.Named("FT_Root").ThisAndChildren;
         allFlavorCategoryDefs = allFlavorCategoryDefs.Reverse();  // by reversing, you start at the lowest categories and work your way up  // this allows absorbing specific ThingDefs before the whole group in a higher Flavor Category
         foreach (var flavorCategory in allFlavorCategoryDefs)
         {
@@ -253,7 +254,7 @@ public static class CategoryUtility
                     if (ThingCategories.ContainsKey(descendant))
                     {
                         var parents = ThingCategories[descendant];
-                        if (!parents.Any(parent => flavorCategory.ThisAndChildCategoryDefs.Contains(parent))) ThingCategories[descendant].Add(flavorCategory);
+                        if (!parents.Any(parent => flavorCategory.ThisAndChildren.Contains(parent))) ThingCategories[descendant].Add(flavorCategory);
                     }
                     else ThingCategories.Add(descendant, [flavorCategory]);
                     flavorCategory.childThingDefs.AddDistinct(descendant);
@@ -294,7 +295,7 @@ public static class CategoryUtility
         int categoryScore = 0;
         Dictionary<FlavorCategoryDef, int> bestFlavorCategories = [];
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
-        var categoriesToSearch = topLevelCategory.ThisAndChildCategoryDefs.ToList();
+        var categoriesToSearch = topLevelCategory.ThisAndChildren.ToList();
         List<FlavorCategoryDef> categoriesToSkip = [];
 
         try
@@ -332,7 +333,7 @@ public static class CategoryUtility
             //TODO: can you allow getting a CompFlavor via this method, maybe if the match is strong enough combined with the defName/label?
             if (bestFlavorCategories.Count == 0)
             {
-                categoriesToSearch.RemoveAll(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildCategoryDefs.Contains(cat));
+                categoriesToSearch.RemoveAll(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndChildren.Contains(cat));
                 ThingCategoryDef topLevelThingCategoryDef = !topLevelCategory.sisterCategories.Empty()
                     ? topLevelCategory.sisterCategories.First()
                     : null;
@@ -408,7 +409,7 @@ public static class CategoryUtility
                 categoryScore -= 2 * ScoreKeyword(splitNames, black);
             }
             if (categoryScore >= 3) return;
-            foreach (var cat in flavorCategory.ThisAndChildCategoryDefs)
+            foreach (var cat in flavorCategory.ThisAndChildren)
             {
                 categoriesToSkip.AddDistinct(cat);
             }

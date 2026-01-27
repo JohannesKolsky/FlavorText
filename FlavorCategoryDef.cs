@@ -63,7 +63,7 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public IEnumerable<FlavorCategoryDef> ThisAndChildCategoryDefs
+    public IEnumerable<FlavorCategoryDef> ThisAndChildren
     {
         get
         {
@@ -71,7 +71,7 @@ public class FlavorCategoryDef : Def
             yield return childCategoryDef1;
             foreach (FlavorCategoryDef childCategory in childCategoryDef1.childCategories)
             {
-                foreach (FlavorCategoryDef childCategoryDef2 in childCategory.ThisAndChildCategoryDefs)
+                foreach (FlavorCategoryDef childCategoryDef2 in childCategory.ThisAndChildren)
                     yield return childCategoryDef2;
             }
         }
@@ -81,7 +81,7 @@ public class FlavorCategoryDef : Def
     {
         get
         {
-            foreach (FlavorCategoryDef childCategoryDef in ThisAndChildCategoryDefs)
+            foreach (FlavorCategoryDef childCategoryDef in ThisAndChildren)
             {
                 foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
                     yield return childThingDef;
@@ -98,7 +98,7 @@ public class FlavorCategoryDef : Def
     public override void ResolveReferences()
     {
         allChildThingDefsCached = [];
-        foreach (FlavorCategoryDef childCategoryDef in ThisAndChildCategoryDefs)
+        foreach (FlavorCategoryDef childCategoryDef in ThisAndChildren)
         {
             foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
                 allChildThingDefsCached.Add(childThingDef);

@@ -1,10 +1,11 @@
-﻿using System;
+﻿using RimWorld;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 using Verse;
 using static FlavorText.CategoryUtility;
-using UnityEngine;
-using RimWorld;
+using static PipeSystem.ProcessDef;
 
 //--TODO: recipe parent hierarchy
 //DONE: spreadsheet descriptions are misaligned
@@ -19,7 +20,7 @@ namespace FlavorText;
 /// 
 public class FlavorDef : Def
 {
-    private bool tag;  // debug tag
+    private static bool tag;  // debug tag
 
     internal List<int> formattingIndices = [];  // this tells you which ingredient slot matches with which placeholder index for formatting the flavor label and description; this is needed because the ingredient slots are reordered according to specificity during game load
 
@@ -78,7 +79,7 @@ public class FlavorDef : Def
     // if this means a FlavorDef has no mealKind, add FT_MealsNonSpecial to it, so it can be used by normal meals and survival pack meals
     private static void SetActiveMealKinds()
     {
-        List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndChildCategoryDefs.Where(cat => cat.DescendantThingDefs.Count() == 0)];
+        List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndChildren.Where(cat => cat.DescendantThingDefs.Count() == 0)];
         foreach (var flavorDef in ActiveFlavorDefs)
         {
             flavorDef.mealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
@@ -111,6 +112,15 @@ public class FlavorDef : Def
 
         foreach (FlavorDef flavorDef in ActiveFlavorDefs)
         {
+/*            tag = flavorDef.defName == "FlavorText_Corn_Pones";
+            if (tag)
+            {
+                Log.Message($"PlantFoodRaw parents: [{FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents.ToStringSafeEnumerable()}]");
+                Log.Message($"PlantFoodRaw children: [{FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories.ToStringSafeEnumerable()}]");
+                Log.Message($"{flavorDef.defName} had [{flavorDef.ingredients.Select(slot => $"[{slot.categories.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+                Log.Message($"{flavorDef.defName} had [{flavorDef.ingredients.Select(slot => $"[{slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents).ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+                Log.Message($"{flavorDef.defName} had [{flavorDef.ingredients.Select(slot => $"[{slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories).ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+            }*/
             if (flavorDef.mealKinds.NullOrEmpty())
             {
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
@@ -152,36 +162,26 @@ public class FlavorDef : Def
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
-
-            // calculate if the FlavorDef could be fulfilled by carnivore/vegan/vegetarian ingredients (can have multiple)
-            if (flavorDef.ingredients.All(slot => slot.categories.Intersect(FlavorCategoryDefOf.FT_MeatRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_MeatRaw.childCategories).Count() > 0))
-            {
-                flavorDef.allowedDietKinds.Add(FoodKind.Meat);
-            }
-            if (flavorDef.ingredients.All(slot => slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories).Count() > 0))
-            {
-                flavorDef.allowedDietKinds.Add(FoodKind.NonMeat);
-            }
-            bool vegetarian = false;
+            // calculate if the FlavorDef could match a meat/vegan/vegetarian meal (can have multiple)
+            if (flavorDef.ingredients.Empty()) continue;
+            List<(bool meat, bool animal, bool plant)> slotDiets = [];
             foreach (var slot in flavorDef.ingredients)
             {
-                if (slot.categories.Intersect(FlavorCategoryDefOf.FT_AnimalProductRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_AnimalProductRaw.childCategories).Count() > 0)
-                {
-                    vegetarian = true;
-                    continue;
-                }
-                else if (slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents).Count() > 0 || slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories).Count() > 0)
-                {
-                    continue;
-                }
-                else
-                {
-                    vegetarian = false;
-                    break;
-                }
+                slotDiets.Add((
+                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MeatRaw)), 
+                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)), 
+                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))
+                ));
             }
-            if (vegetarian) flavorDef.allowedDietKinds.Add(FoodKind.Any);
+            if (slotDiets.Any(diet => !diet.meat && !diet.animal && !diet.plant)) flavorDef.allowedDietKinds.AddRange([FoodKind.Meat, FoodKind.NonMeat, FoodKind.Any]);
+            else
+            {
+                if (slotDiets.Any(diet => diet.meat)) flavorDef.allowedDietKinds.Add(FoodKind.Meat);
+                if (slotDiets.All(diet => diet.plant)) flavorDef.allowedDietKinds.Add(FoodKind.NonMeat);
+                if (slotDiets.All(diet => diet.animal || diet.plant)) flavorDef.allowedDietKinds.Add(FoodKind.Any);
+            }
 
+            Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDietKinds.ToStringSafeEnumerable()}]");
         }
     }
 
