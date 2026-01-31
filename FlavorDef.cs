@@ -11,6 +11,8 @@ using static PipeSystem.ProcessDef;
 //DONE: spreadsheet descriptions are misaligned
 //xxTODO: blank ingredient option
 
+//TODO: candy has meat FoodKind allowed
+//TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals
 
 namespace FlavorText;
 /// <summary>
@@ -18,6 +20,31 @@ namespace FlavorText;
 ///     show what combination of ingredients/categories are needed for each particular flavor label
 /// </summary>
 /// 
+
+internal record struct DietTuple(bool Meat, bool Animal, bool Plant)
+{
+
+    public static implicit operator DietTuple((bool Meat, bool Animal, bool Plant) value)
+    {
+        return new DietTuple(value.Meat, value.Animal, value.Plant);
+    }
+}
+
+internal static class DietKind
+{
+    internal static readonly DietTuple hyperCarnivore = (true, false, false);
+    internal static readonly DietTuple carnivore = (true, true, false);
+    internal static readonly DietTuple omnivore = (true, true, true);
+    internal static readonly DietTuple vegetarian = (false, true, true);
+    internal static readonly DietTuple vegan = (false, false, true);
+
+    internal static IEnumerable<FlavorCategoryDef> GetFlavorCategoriesFromDiet(DietTuple dietTuple)
+    {
+        if (dietTuple.Meat) yield return FlavorCategoryDefOf.FT_MeatRaw;
+        if (dietTuple.Animal) yield return FlavorCategoryDefOf.FT_AnimalProductRaw;
+        if (dietTuple.Plant) yield return FlavorCategoryDefOf.FT_PlantFoodRaw;
+    }
+}
 public class FlavorDef : Def
 {
     private static bool tag;  // debug tag
@@ -28,7 +55,7 @@ public class FlavorDef : Def
 
     public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
-    internal List<FoodKind> allowedDietKinds = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
+    internal List<DietTuple> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
 
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
@@ -162,26 +189,29 @@ public class FlavorDef : Def
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
+            // [FT_Foods]
+
+
             // calculate if the FlavorDef could match a meat/vegan/vegetarian meal (can have multiple)
             if (flavorDef.ingredients.Empty()) continue;
             List<(bool meat, bool animal, bool plant)> slotDiets = [];
             foreach (var slot in flavorDef.ingredients)
             {
                 slotDiets.Add((
-                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MeatRaw)), 
-                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)), 
-                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))
+                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MeatRaw) || cat.ThisAndChildren.Contains(FlavorCategoryDefOf.FT_MeatRaw)), 
+                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || cat.ThisAndChildren.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)), 
+                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw) || cat.ThisAndChildren.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))
                 ));
             }
-            if (slotDiets.Any(diet => !diet.meat && !diet.animal && !diet.plant)) flavorDef.allowedDietKinds.AddRange([FoodKind.Meat, FoodKind.NonMeat, FoodKind.Any]);
-            else
-            {
-                if (slotDiets.Any(diet => diet.meat)) flavorDef.allowedDietKinds.Add(FoodKind.Meat);
-                if (slotDiets.All(diet => diet.plant)) flavorDef.allowedDietKinds.Add(FoodKind.NonMeat);
-                if (slotDiets.All(diet => diet.animal || diet.plant)) flavorDef.allowedDietKinds.Add(FoodKind.Any);
-            }
+            if (slotDiets.All(diet => diet.meat)) flavorDef.allowedDiets.Add(DietKind.hyperCarnivore);
+            if (slotDiets.All(diet => diet.plant)) flavorDef.allowedDiets.Add(DietKind.vegan);
 
-            Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDietKinds.ToStringSafeEnumerable()}]");
+            if (slotDiets.Count() > 1 && slotDiets.Any(diet => diet.meat) && slotDiets.Any(diet => diet.plant) && slotDiets.All(diet => diet.meat || diet.plant)) flavorDef.allowedDiets.Add(DietKind.omnivore);
+
+            if (slotDiets.Any(diet => diet.meat) && slotDiets.All(diet => diet.meat || diet.animal)) flavorDef.allowedDiets.Add(DietKind.carnivore);
+            if (slotDiets.Any(diet => diet.animal) && slotDiets.All(diet => diet.animal || diet.plant)) flavorDef.allowedDiets.Add(DietKind.vegetarian);
+
+            Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}]");
         }
     }
 
@@ -245,3 +275,4 @@ public class IngredientSlot : IExposable
         Scribe_Collections.Look(ref allowedThingDefs, "allowedThingDefs");
     }
 }
+

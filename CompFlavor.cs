@@ -126,6 +126,8 @@ using static PipeSystem.ProcessDef;
 //TODO: common sense spawned bread is becoming sourdough
 //TODO: TryGetFlavorText is running each time a meal is dropped on the ground
 //TODO: ensure that carnivore meals always generate with at least 1 meat ingredient
+//TODO: vegan meals are generating with any FlavorDefs
+//TODO: update from backup
 
 namespace FlavorText;
 
