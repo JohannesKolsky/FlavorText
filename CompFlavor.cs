@@ -1,8 +1,6 @@
-using HarmonyLib;
-using JetBrains.Annotations;
+﻿
 using RimWorld;
 using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -10,8 +8,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
 using Verse.Grammar;
-using static FlavorText.CompProperties_Flavor;
-using static PipeSystem.ProcessDef;
 
 //DONE: make flavor entries a class
 //DONE: eggs + eggs makes weird names like omlette w/eggs
@@ -129,8 +125,6 @@ using static PipeSystem.ProcessDef;
 //TODO: vegan meals are generating with any FlavorDefs
 //TODO: update from backup
 
-namespace FlavorText;
-
 /// <summary>
 ///  CompFlavor contains the primary code execution
 ///     one is attached to each meal that should get a new Flavor Text label
@@ -139,138 +133,122 @@ namespace FlavorText;
 ///     makes and stores new flavor descriptions
 /// </summary>
 
+namespace FlavorText;
+
 public class CompFlavor : ThingComp
 {
 
-    // ingredients in a pseudo-random order
-    public List<ThingDef> Ingredients
-    {
-        get
-        {
-            List<ThingDef> ingredients = parent.TryGetComp<CompIngredients>().ingredients;
-            List<ThingDef> ingredientsFoods = ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i));  // assemble a list of the ingredients that are actually food
-            List<ThingDef> ingredientsSorted = [.. ingredientsFoods.OrderBy(def => def.defName.GetHashCode())];  // sort in a pseudo-random order
+    private readonly bool tag;
 
-            return ingredientsSorted;
-        }
-    }
-
-    private bool tag; // debug tag
+    private bool generatedCoreFlavorDef = true;
 
     public bool TriedFlavorText;
 
     private List<string> FlavorLabels = [];
-    private string FinalFlavorLabel;  // final human-readable label for the meal
+
+    private string FinalFlavorLabel;
 
     private List<string> FlavorDescriptions = [];
-    private string FinalFlavorDescription;  // final human-readable description for the meal
 
-    private List<FlavorDef> FinalFlavorDefs = [];  // final chosen FinalFlavorDefs for the meal
+    private string FinalFlavorDescription;
 
-    public ThingDef CookingStation;  // which station this meal was cooked on
+    private List<FlavorDef> FinalFlavorDefs = [];
 
-    public int? HourOfDay = null;  // what hour of the day this meal was completed
+    public ThingDef CookingStation;
 
-    public int? TickCreated = null;  // what tick the meal was created on  //TODO: remove this: obsolete
+    public int? HourOfDay = null;
 
-    public int? CookID = null; // id of the cook
+    public int? TickCreated = null;
 
-    public float? IngredientsHitPointPercentage;  // average percentage of hit points of each ingredient type (ignoring quantity in each type)
+    public int? CookID = null;
+
+    public float? IngredientsHitPointPercentage;
 
     public List<string> MealTags = [];
 
-    internal List<FlavorCategoryDef> excludedCategories;
+    internal DietTuple mealDietKind;
 
-    internal List<FlavorCategoryDef> ingredientFoodKinds = [];
+    internal List<FlavorCategoryDef> excludedCategories;
 
     internal int? iteration = null;
 
-    public CompProperties_Flavor Props => (CompProperties_Flavor)props;
+    public List<ThingDef> Ingredients => [.. from def in base.parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
+                                          orderby def.defName.GetHashCode()
+                                          select def];
 
-    // transform the original label into a flavor label
+    public CompIngredients CompIngredients => parent.TryGetComp<CompIngredients>();
+
+    public CompProperties_Flavor Props => (CompProperties_Flavor)base.props;
+
     public override string TransformLabel(string label)
     {
         TryGetFlavorText();
-        if (parent.stackCount == 1 || FlavorTextSettings.flavorTextForStacks)
-        {
-            return !FinalFlavorLabel.NullOrEmpty() ? $"{FinalFlavorLabel} ({base.TransformLabel(label)})" : base.TransformLabel(label);
-        }
-        return base.TransformLabel(label);
+        return base.parent.stackCount == 1 || FlavorTextSettings.flavorTextForStacks
+            ? (!FinalFlavorLabel.NullOrEmpty()) ? (FinalFlavorLabel + " (" + base.TransformLabel(label) + ")") : base.TransformLabel(label)
+            : base.TransformLabel(label);
     }
 
-    // display the FlavorDef description
     public override string GetDescriptionPart()
     {
-        return !FinalFlavorDescription.NullOrEmpty() ? FinalFlavorDescription : base.GetDescriptionPart();
+        return (!FinalFlavorDescription.NullOrEmpty()) ? FinalFlavorDescription : base.GetDescriptionPart();
     }
 
-    // if you've successfully created a new flavor label, move the original name down
     public override string CompInspectStringExtra()
     {
         if (!FinalFlavorLabel.NullOrEmpty())
         {
             StringBuilder stringBuilder = new();
-            string typeLabel;
-            if (parent.stackCount == 1 || FlavorTextSettings.flavorTextForStacks) typeLabel = base.TransformLabel(parent.def.label);
-            else typeLabel = FinalFlavorLabel;
-            stringBuilder.AppendLine(typeLabel);
+            stringBuilder.AppendLine((parent.stackCount != 1 && !FlavorTextSettings.flavorTextForStacks) ? FinalFlavorLabel : base.TransformLabel(base.parent.def.label));
             return stringBuilder.ToString().TrimEndNewlines();
         }
         return base.CompInspectStringExtra();
     }
 
-    // include flavor variables in game save files
-    // on reload, check if flavorDefs are still valid and remake the flavor text from them; this helps with compatibility on mod updates
     public override void PostExposeData()
     {
         base.PostExposeData();
-
         Scribe_Defs.Look(ref CookingStation, "cookingStation");
         Scribe_Values.Look(ref HourOfDay, "hourOfDay");
         Scribe_Values.Look(ref TickCreated, "tickCreated");
-        //Scribe_Values.Look(ref IngredientsHitPointPercentage, "ingredientsHitPointPercentage");
         Scribe_Values.Look(ref iteration, "iteration");
-
-        Scribe_Collections.Look(ref MealTags, "tags");
+        Scribe_Collections.Look(ref MealTags, "tags", LookMode.Undefined);
         if (Scribe.mode == LoadSaveMode.PostLoadInit && MealTags == null)
         {
             MealTags = [];
         }
-
-        // load/save flavorDefs
         try
         {
-            Scribe_Collections.Look(ref FinalFlavorDefs, "flavorDefs");
-
-            // if FinalFlavorDefs has null values, make it an empty list
-            if (Scribe.mode is LoadSaveMode.PostLoadInit)
+            Scribe_Collections.Look(ref FinalFlavorDefs, "flavorDefs", LookMode.Undefined);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                if (FinalFlavorDefs is null) FinalFlavorDefs = [];
-                else if (FinalFlavorDefs.Any(def => def is null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) is null))
+                if (FinalFlavorDefs == null)
                 {
                     FinalFlavorDefs = [];
-                    if (Prefs.DevMode) Log.Warning($"Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
                 }
-
+                else if (FinalFlavorDefs.Any(def => def == null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) == null))
+                {
+                    FinalFlavorDefs = [];
+                    if (Prefs.DevMode)
+                    {
+                        Log.Warning("Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
+                    }
+                }
             }
-
         }
         catch (Exception ex)
         {
-            if (Prefs.DevMode) Log.Warning($"Found an invalid FlavorDef. Will attempt to get new Flavor Text. Error: {ex}");
+            if (Prefs.DevMode)
+            {
+                Log.Warning($"Found an invalid FlavorDef. Will attempt to get new Flavor Text. Error: {ex}");
+            }
         }
-
-        // check if current flavorDefs are still valid, otherwise try and get completely new flavor text
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
             TriedFlavorText = false;
             TryGetFlavorText(FinalFlavorDefs);
         }
-
     }
 
-
-    // split all stored flavor variables
     public override void PostSplitOff(Thing piece)
     {
         try
@@ -289,85 +267,97 @@ public class CompFlavor : ThingComp
                 otherCompFlavor.HourOfDay = HourOfDay;
                 otherCompFlavor.TickCreated = TickCreated;
                 otherCompFlavor.MealTags = MealTags;
-                //otherCompFlavor.IngredientsHitPointPercentage = IngredientsHitPointPercentage;
                 otherCompFlavor.iteration = iteration;
             }
         }
-        catch (Exception e)
+        catch (Exception arg)
         {
-            Log.Error($"Failed to split stacks properly, reason: {e}");
+            Log.Error($"Failed to split stacks properly, reason: {arg}");
         }
     }
 
-    // merge flavor variables: recalculate finalFlavorLabel and finalFlavorDescription
-
-    public override void PreAbsorbStack(Thing otherStack, int count)  // otherStack is the item being added to the stack
+    public override void PreAbsorbStack(Thing otherStack, int count)
     {
         try
         {
             base.PreAbsorbStack(otherStack, count);
-            if (!TriedFlavorText) TryGetFlavorText();
-            var otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
+            if (!TriedFlavorText)
+            {
+                TryGetFlavorText();
+            }
+            CompFlavor otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
             FlavorLabels = [];
             FinalFlavorLabel = null;
             FlavorDescriptions = [];
             FinalFlavorDescription = null;
             FinalFlavorDefs = [];
-
-            // choose variables randomly from either stack
-            TickCreated ??= GenTicks.TicksAbs;
-            Rand.PushState(Find.World.info.Seed + (int)iteration);
+            int valueOrDefault = TickCreated.GetValueOrDefault();
+            if (!TickCreated.HasValue)
+            {
+                TickCreated = GenTicks.TicksAbs;
+            }
+            Rand.PushState(Find.World.info.Seed + iteration.Value);
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
             TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
             iteration = Rand.Element(iteration, otherFlavorComp.iteration);
-
-
             try
             {
-                // merge flavor tags; if both meals have the tag, keep it, otherwise 10% chance for it to be deleted
-                List<string> mergedTags = [.. MealTags, .. otherFlavorComp.MealTags];
-                mergedTags.RemoveAll(mealTag => mergedTags.Count(t => t == mealTag) < 2 && Rand.Range(0, 10) == 0);
+                List<string> mealTags = MealTags;
+                List<string> mealTags2 = otherFlavorComp.MealTags;
+                List<string> list = [.. mealTags, .. mealTags2];
+                List<string> mergedTags = list;
+                mergedTags.RemoveAll((mealTag) => mergedTags.Count(t => t == mealTag) < 2 && Rand.Range(0, 10) == 0);
                 MealTags = [.. mergedTags.Distinct()];
-                foreach (var mealTag in otherFlavorComp.MealTags) { MealTags.AddDistinct(mealTag); }
-
+                using List<string>.Enumerator enumerator = otherFlavorComp.MealTags.GetEnumerator();
+                while (enumerator.MoveNext())
+                {
+                    GenCollection.AddDistinct(obj: enumerator.Current, list: MealTags);
+                }
             }
             catch (NullReferenceException)
             {
-                if (Prefs.DevMode) Log.Error("Error merging meals: the tag list of one of the meals was null");
-
+                if (Prefs.DevMode)
+                {
+                    Log.Error("Error merging meals: the tag list of one of the meals was null");
+                }
             }
             catch (Exception ex)
             {
-                if (Prefs.DevMode) Log.Error($"Error merging tag lists of meals, error: {ex}");
+                if (Prefs.DevMode)
+                {
+                    Log.Error($"Error merging tag lists of meals, error: {ex}");
+                }
             }
             finally
             {
                 Rand.PopState();
             }
-
-            // average ingredient hit points
-            //IngredientsHitPointPercentage = (IngredientsHitPointPercentage + otherFlavorComp.IngredientsHitPointPercentage) / 2;
-
             TriedFlavorText = false;
             TryGetFlavorText();
-            //Log.Warning($"Successfully got FlavorText for {parent.ThingID}");
-
         }
-        catch (Exception e) { if (Prefs.DevMode) Log.Error($"Failed to merge stacks properly, reason: {e}"); }
+        catch (Exception e)
+        {
+            if (Prefs.DevMode)
+            {
+                Log.Error($"Failed to merge stacks properly, reason: {e}");
+            }
+        }
     }
 
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-        if (TriedFlavorText) return;
-        if (iteration == null) 
+        if (TriedFlavorText)
         {
-            CompFlavorUtility.Iterate(); 
-            iteration = CompFlavorUtility.Iterations; 
+            return;
+        }
+        if (!iteration.HasValue)
+        {
+            CompFlavorUtility.Iterate();
+            iteration = CompFlavorUtility.Iterations;
             //Log.Message($"it = {CompFlavorUtility.Iterations}");
         }
         TriedFlavorText = true;
-
         Stopwatch stopwatch = new();
         stopwatch.Start();
         try
@@ -378,50 +368,47 @@ public class CompFlavor : ThingComp
             FlavorDescriptions = [];
             FinalFlavorDescription = null;
             FinalFlavorDefs = [];
-
-            if (Ingredients == null || (Ingredients.Empty() && FlavorTextSettings.numAllowedMissingIngredients == 0))
+            if (Ingredients != null && (!Ingredients.Empty() || FlavorTextSettings.numAllowedMissingIngredients != 0))
             {
-                return;
+                // fill in the extra parameters with pseudorandom data if they are null
+                int valueOrDefault = TickCreated.GetValueOrDefault();
+                if (!TickCreated.HasValue)
+                {
+                    TickCreated = GenTicks.TicksAbs;
+                }
+                Rand.PushState(Find.World.info.Seed + iteration.Value);
+                Random r = new();
+                valueOrDefault = HourOfDay.GetValueOrDefault();
+                if (!HourOfDay.HasValue)
+                {
+                    HourOfDay = r.Next(0, 24);
+                }
+                if (CookingStation == null)
+                {
+                    List<ThingDef> allCookingStations = [.. FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct()];
+                    CookingStation = allCookingStations[r.Next(allCookingStations.Count)];
+                }
+                //IngredientsHitPointPercentage ??= Rand.Range(0f, 1f);
+                Rand.PopState();
+                GetFlavorText(flavorDefsToSearch);
             }
-
-            // fill in the extra parameters with pseudorandom data if they are null
-            TickCreated ??= GenTicks.TicksAbs;
-            Rand.PushState(Find.World.info.Seed + (int)iteration);
-            Random r = new();
-            HourOfDay ??= r.Next(0, 24);
-            if (CookingStation is null)
-            {
-                var allCookingStations = FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct().ToList();
-                CookingStation = allCookingStations[r.Next(allCookingStations.Count)];
-            }
-            //IngredientsHitPointPercentage ??= Rand.Range(0f, 1f);
-            Rand.PopState();
-
-            GetFlavorText(flavorDefsToSearch);
         }
-
         catch (Exception ex)
         {
-            string flavorSummary = $"Unable to find a matching FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report.";
-            flavorSummary += $"\n{FlavorDef.ActiveFlavorDefs.Count()} FlavorDefs are loaded";
-            flavorSummary +=
-                $"\n{flavorDefsToSearch?.Count} FlavorDefs were passed into TryGetFlavorDef from a saved game to search within";
-            flavorSummary += $"\n{FlavorDef.ValidFlavorDefs(parent).ToList().Count} FlavorDefs match the meal type";
-
+            string flavorSummary = string.Concat(string.Concat($"Unable to find a matching FlavorDef for meal {parent.ThingID} at {parent.PositionHeld}. Please report." + $"\n{FlavorDef.ActiveFlavorDefs.Count()} FlavorDefs are loaded", $"\n{flavorDefsToSearch?.Count} FlavorDefs were passed into TryGetFlavorDef from a saved game to search within"), $"\n{FlavorDef.ValidFlavorDefs(parent).ToList().Count} FlavorDefs match the meal type");
             for (int i = 0; i < Ingredients.Count; i++)
             {
-                ThingDef ingredient = Ingredients[i];
-                flavorSummary += $"\ningredient {i} was {ingredient.defName}";
-                flavorSummary += $"\ningredient was in the following Flavor Categories";
-                foreach (var cat in CategoryUtility.ThingCategories[Ingredients[i]])
+                flavorSummary = string.Concat(flavorSummary + string.Format(arg1: Ingredients[i].defName, format: "\ningredient {0} was {1}", arg0: i), "\ningredient was in the following Flavor Categories");
+                foreach (FlavorCategoryDef item in CategoryUtility.ThingCategories[Ingredients[i]])
                 {
-                    flavorSummary += $"\n{cat.defName}";
+                    flavorSummary = flavorSummary + "\n" + item.defName;
                 }
             }
-
             ex.Data.Add("allIngredients", flavorSummary);
-            if (Prefs.DevMode) Log.Error($"Error: {ex}\n{ex.Data["flavorSummary"]}\n{ex.Data["flavorDef"]}\n{ex.Data["ingredients"]}");
-            return;
+            if (Prefs.DevMode)
+            {
+                Log.Error(string.Format("Error: {0}\n{1}\n{2}\n{3}", ex, ex.Data["flavorSummary"], ex.Data["flavorDef"], ex.Data["ingredients"]));
+            }
         }
         finally
         {
@@ -429,7 +416,7 @@ public class CompFlavor : ThingComp
             double elapsed = stopwatch.Elapsed.TotalMilliseconds;
             if (Prefs.DevMode)
             {
-                Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed.ToString() + " milliseconds");
+                Log.Message("[Flavor Text] TryGetFlavorText ran in " + elapsed + " milliseconds");
             }
         }
     }
@@ -437,49 +424,37 @@ public class CompFlavor : ThingComp
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     private void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
-
         // if ghost ingredients are being used, set restrictions based on the FoodKind of the meal (e.g. no ghost meat in veggie meals)
         if (FlavorTextSettings.numAllowedMissingIngredients > 0)
         {
             excludedCategories = [.. Props.defaultGhostExcludedCategories];
-
+            CompIngredients compIngredients = parent.TryGetComp<CompIngredients>();
             try
             {
-                if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)  // meals containing meat
+                if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
                 {
-                    bool animal = false, plant = false;
-                    foreach (var ing in Ingredients)
-                    {
-                        FoodKind ingKind = FoodUtility.GetFoodKind(ing);
-                        switch (ingKind)
-                        {
-                            case FoodKind.Meat:
-                                break;
-                            case FoodKind.Any:
-                                animal = true;
-                                break;
-                            case FoodKind.NonMeat:
-                                plant = true;
-                                break;
-                            default:
-                                throw new ArgumentException($"Error when getting food kind for ingredients. FoodKind: {FoodUtility.GetFoodKind(ing).ToStringSafe()}");
-                        }
-                    }
-                    if (!animal) excludedCategories.AddRange([FlavorCategoryDefOf.FT_AnimalProductRaw]);
-                    if (!plant) excludedCategories.AddRange([FlavorCategoryDefOf.FT_PlantFoodRaw]);
+                    mealDietKind = compIngredients.Props.noIngredientsFoodKind == FoodKind.Meat ? DietKind.carnivore : DietKind.omnivore;
                 }
-                else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)  // vegan meals
+                else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
                 {
-                    excludedCategories.AddRange([FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_MeatRaw]);
-                }
-                else if (FoodUtility.GetFoodKind(parent) == FoodKind.Any)  // vegetarian meals
-                {
-                    excludedCategories.AddRange([FlavorCategoryDefOf.FT_MeatRaw]);
+                    mealDietKind = DietKind.vegan;
                 }
                 else
                 {
-                    throw new ArgumentException($"Error when getting food kind for meal. FoodKind: {FoodUtility.GetFoodKind(parent).ToStringSafe()}");
+                    if (FoodUtility.GetFoodKind(parent) != FoodKind.Any)
+                    {
+                        throw new ArgumentException("Error when getting food kind for meal. FoodKind: " + FoodUtility.GetFoodKind(parent).ToStringSafe());
+                    }
+                    mealDietKind = DietKind.vegetarian;
                 }
+                using (IEnumerator<FlavorCategoryDef> enumerator = DietKind.GetFlavorCategoriesFromDiet(mealDietKind).GetEnumerator())
+                {
+                    while (enumerator.MoveNext())
+                    {
+                        GenCollection.AddDistinct(obj: enumerator.Current, list: excludedCategories);
+                    }
+                }
+                generatedCoreFlavorDef = Ingredients.Count() > 0;
             }
             catch (Exception)
             {
@@ -487,12 +462,17 @@ public class CompFlavor : ThingComp
             }
         }
 
-
         // divide the ingredients into groups of size n and get a flavorDef for each group
         // within each group, move all meat to the front and arrange it in an order that will be more grammatically pleasing
-        List<List<ThingDef>> ingredientChunks = [[]];
-        if (Ingredients.Count() > 0) ingredientChunks = [.. Chunk(Ingredients).Select(chunk => chunk.OrderByDescending(m => m, new MeatComparer()).ToList())];
-
+        List<List<ThingDef>> ingredientChunks =
+        [
+            []
+        ];
+        if (Ingredients.Count() > 0)
+        {
+            ingredientChunks = [.. from chunk in Chunk(Ingredients)
+                                select chunk.OrderByDescending(m => m, new MeatComparer()).ToList()];
+        }
         List<(FlavorDef def, List<int> index)> bestFlavors = [];
         // try searching in any saved FlavorDefs that you were given
         if (!flavorDefsToSearch.NullOrEmpty())
@@ -502,29 +482,32 @@ public class CompFlavor : ThingComp
                 flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, flavorDefsToSearch)];
                 if (!flavorDefsToSearch.Empty())
                 {
-                    if (ingredientChunks.Empty()) bestFlavors = [GetBestFlavorDef([], flavorDefsToSearch)];
-                    else bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch))];
+                    bestFlavors = (!ingredientChunks.Empty()) ? ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch)).ToList() : [GetBestFlavorDef([], flavorDefsToSearch)];
                 }
             }
-            catch (Exception ex) when (ex is NullReferenceException || ex is InvalidOperationException)
+            catch (Exception ex2) when (ex2 is NullReferenceException or InvalidOperationException)
             {
-                if (Prefs.DevMode) Log.Warning($"Saved Flavor Text no longer matches for a meal, it is probably from an older version of FlavorText. Will attempt to get new Flavor Text.");
+                if (Prefs.DevMode)
+                {
+                    Log.Warning("Saved Flavor Text no longer matches for a meal, it is probably from an older version of FlavorText. Will attempt to get new Flavor Text.");
+                }
                 bestFlavors = [];
             }
         }
         // if the above failed, try searching with all valid FlavorDefs
         if (bestFlavors.Empty())
         {
-            var validFlavorDefsForMealType = FlavorDef.ValidFlavorDefs(parent).ToList();
+            List<FlavorDef> validFlavorDefsForMealType = [.. FlavorDef.ValidFlavorDefs(parent)];
             if (validFlavorDefsForMealType.NullOrEmpty())
             {
-                throw new InvalidOperationException($"Attempted to get list of all valid Flavor Defs for meal type '{parent.def.defName}' in [{CategoryUtility.ThingCategories.TryGetValue(parent.def).ToStringSafeEnumerable()}] but there were none. Please report.");
+                throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName + "' in [" + CategoryUtility.ThingCategories.TryGetValue(parent.def).ToStringSafeEnumerable() + "] but there were none. Please report.");
             }
-            if (ingredientChunks.Empty()) bestFlavors = [GetBestFlavorDef([], validFlavorDefsForMealType)];
-            else bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, validFlavorDefsForMealType))];
-            if (bestFlavors.Empty()) throw new InvalidOperationException($"Could not find any best Flavor Defs for meal {parent.ThingID}");
+            bestFlavors = (!ingredientChunks.Empty()) ? ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, validFlavorDefsForMealType)).ToList() : [GetBestFlavorDef([], validFlavorDefsForMealType)];
+            if (bestFlavors.Empty())
+            {
+                throw new InvalidOperationException("Could not find any best Flavor Defs for meal " + parent.ThingID);
+            }
         }
-
         // assemble all the flavor labels chosen into one big label that looks nice
         for (int i = 0; i < bestFlavors.Count; i++)
         {
@@ -533,50 +516,57 @@ public class CompFlavor : ThingComp
                 FinalFlavorDefs.Add(bestFlavors[i].def);
                 (FlavorDef, List<int>) flavor = bestFlavors[i];
                 List<ThingDef> ingredientGroup = ingredientChunks[i];
-
-                string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.label);  // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient from the meal
+                string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.label); // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient from the meal
                 if (flavorLabel.NullOrEmpty())
                 {
-                    if (Prefs.DevMode) Log.Error($"FormatFlavorString failed to get a formatted flavor label for ingredient group {i} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
+                    if (Prefs.DevMode)
+                    {
+                        Log.Error($"FormatFlavorString failed to get a formatted flavor label for ingredient group {i} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
+                    }
                     throw new FormatException();
                 }
                 FlavorLabels.Add(flavorLabel);
-
                 string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.description);  // make flavor descriptions look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient from the meal
                 if (flavorDescription.NullOrEmpty())
                 {
-                    if (Prefs.DevMode) Log.Error($"FormatFlavorString failed to get a formatted flavor description for ingredient group {i} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
+                    if (Prefs.DevMode)
+                    {
+                        Log.Error($"FormatFlavorString failed to get a formatted flavor description for ingredient group {i} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
+                    }
                     throw new FormatException();
                 }
                 FlavorDescriptions.Add(flavorDescription);
-
+                continue;
             }
-            else
-            {
-                throw new NullReferenceException($"A chosen FlavorDef with index of {i} is null, cancelling the search. Please report.");
-            }
+            throw new NullReferenceException($"A chosen FlavorDef with index of {i} is null, cancelling the search. Please report.");
         }
-        if (FlavorLabels.Empty()) throw new InvalidOperationException($"The list of Flavor Labels for meal {parent.ThingID} was empty. Please report.");
-        if (FlavorDescriptions.Empty()) throw new InvalidOperationException($"The list of Flavor Descriptions for meal {parent.ThingID} was empty. Please report.");
+        if (FlavorLabels.Empty())
+        {
+            throw new InvalidOperationException("The list of Flavor Labels for meal " + base.parent.ThingID + " was empty. Please report.");
+        }
+        if (FlavorDescriptions.Empty())
+        {
+            throw new InvalidOperationException("The list of Flavor Descriptions for meal " + base.parent.ThingID + " was empty. Please report.");
+        }
         CompileFlavorLabels();
         CompileFlavorDescriptions();
-
         if (FinalFlavorLabel.NullOrEmpty())
         {
-            throw new NullReferenceException($"The final compiled and formatted flavor label was null or empty despite getting valid Flavor Defs [{FinalFlavorDefs.ToStringSafeEnumerable()}]. Please report.");
+            throw new NullReferenceException("The final compiled and formatted flavor label was null or empty despite getting valid Flavor Defs [" + FinalFlavorDefs.ToStringSafeEnumerable() + "]. Please report.");
         }
     }
-
 
     // split ingredients into chunks of size 3 (default)
     private static List<List<T>> Chunk<T>(List<T> source)
     {
-        return [.. source
-            .Select((x, i) => new { Index = i, Value = x })
-            .GroupBy(x => x.Index / MaxNumIngredientsFlavor)
-            .Select(x => x.Select(v => v.Value).ToList())];
+        return (from x in source.Select((T x, int i) => new
+        {
+            Index = i,
+            Value = x
+        })
+                group x by x.Index / 3 into x
+                select x.Select(v => v.Value).ToList()).ToList();
     }
-
 
     // see which FinalFlavorDefs match with the ingredients you have, and choose the most specific FlavorDef you find
     private (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> ingredients, List<FlavorDef> flavorDefsToSearch)
@@ -585,89 +575,96 @@ public class CompFlavor : ThingComp
         {
             if (ingredients == null || (ingredients.Empty() && FlavorTextSettings.numAllowedMissingIngredients == 0))
             {
-                throw new ArgumentNullException(nameof(ingredients), "List of ingredients to search for is null or empty");
+                throw new ArgumentNullException("ingredients", "List of ingredients to search for is null or empty");
             }
             if (flavorDefsToSearch.NullOrEmpty())
             {
-                throw new ArgumentNullException(nameof(flavorDefsToSearch), "List of Flavor Defs to search is null or empty");
+                throw new ArgumentNullException("flavorDefsToSearch", "List of Flavor Defs to search is null or empty");
             }
-
             //see which FinalFlavorDefs match with the ingredients in the meal
             List<(FlavorDef def, List<int> indices)> matchingFlavors = [];
-
             foreach (FlavorDef flavorDef in flavorDefsToSearch)
             {
-                var matchedIndices = GetMatchIndices(ingredients, flavorDef);
+                List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
                     matchingFlavors.Add((flavorDef, matchedIndices));
-                    Log.Message($"found matching FlavorDef {flavorDef.defName} with ingredients ({ingredients.ToStringSafeEnumerable()}) and indices ({matchedIndices.ToStringSafeEnumerable()})");
                 }
             }
-
             // pick the most specific matching FlavorDef
             // note that the slots may be reordered from the XML, however the flavor strings are not, hence the need for FlavorDef.slotIndices
             if (matchingFlavors.Count > 0)
             {
                 matchingFlavors = [.. matchingFlavors.OrderByDescending(entry => entry.def.specificity)];
                 //foreach (var (def, indices) in matchingFlavors) { Log.Message(def.defName + " = " + def.specificity); }
-
                 (FlavorDef def, List<int> indices) bestFlavor;
                 if (FlavorTextSettings.randomizedRecipeOuput)
                 {
-                    Rand.PushState(Find.World.info.Seed + (int)iteration);
-                    bestFlavor = matchingFlavors.RandomElementByWeight((matchingFlavor) => matchingFlavor.def.specificity);
+                    Rand.PushState(Find.World.info.Seed + iteration.Value);
+                    bestFlavor = matchingFlavors.RandomElementByWeight(((FlavorDef def, List<int> indices) matchingFlavor) => matchingFlavor.def.specificity);
                     Rand.PopState();
                 }
-                else bestFlavor = matchingFlavors.First();
-
+                else
+                {
+                    bestFlavor = matchingFlavors.First();
+                }
                 //Log.Warning($"best FlavorDef {bestFlavor.def.ToStringSafe()} matched ingredients [{ingredients.ToStringSafeEnumerable()}] using indices [{bestFlavor.indices.ToStringSafeEnumerable()}] to [{bestFlavor.def.ingredients.Select(slot => "[" + slot.categories.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]\nFlavorDet diet = [{bestFlavor.def.allowedDietKinds.ToStringSafeEnumerable()}]\nghostExcludedCategories = [{excludedCategories.ToStringSafeEnumerable()}]");
-
-                return bestFlavor.def is null || bestFlavor.indices is null
-                    ? throw new NullReferenceException($"Failed to find a matching Flavor Def. The best Flavor Def [{bestFlavor.def.ToStringSafe()}] or its list of indices [{bestFlavor.indices.ToStringSafeEnumerable()}] was null.")
-                    : bestFlavor;
+                return bestFlavor.def != null && bestFlavor.indices != null
+                    ? ((FlavorDef, List<int>))bestFlavor
+                    : throw new NullReferenceException("Failed to find a matching Flavor Def. The best Flavor Def [" + bestFlavor.def.ToStringSafe() + "] or its list of indices [" + bestFlavor.indices.ToStringSafeEnumerable() + "] was null.");
             }
-            else throw new InvalidOperationException($"Failed to find a matching Flavor Def. There were no matching Flavor Defs found.");
-
+            throw new InvalidOperationException("Failed to find a matching Flavor Def. There were no matching Flavor Defs found.");
         }
         catch (Exception ex)
         {
             string errorString = "\ningredients were:";
             for (int i = 0; i < ingredients.Count; i++)
             {
-                ThingDef ingredient = ingredients[i];
-                errorString += $"\n{i} {ingredient.defName}";
+                errorString += string.Format(arg1: ingredients[i].defName, format: "\n{0} {1}", arg0: i);
             }
             ex.Data.Add("ingredients", errorString);
             throw;
         }
-
-
-        List<int> GetMatchIndices(List<ThingDef> ingredients, FlavorDef flavorDef)  // check if the ingredients match the given FlavorDef
+        
+        // check if the ingredients match the given FlavorDef
+        List<int> GetMatchIndices(List<ThingDef> ingredients, FlavorDef flavorDef)
         {
             try
             {
-                tag = (flavorDef.defName == "FlavorText_SoylentGreen");
                 // if flavorDef is null, skip
                 if (flavorDef == null)
                 {
-                    if (Prefs.DevMode) Log.Warning($"Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
+                    if (Prefs.DevMode)
+                    {
+                        Log.Warning("Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
+                    }
                     return null;
                 }
-
                 // if flavorDef length doesn't match ingredient list length, skip
-                if (ingredients.Count > flavorDef.ingredients.Count || flavorDef.ingredients.Count > ingredients.Count + FlavorTextSettings.numAllowedMissingIngredients) return null;
-
+                if (ingredients.Count > flavorDef.ingredients.Count || flavorDef.ingredients.Count > ingredients.Count + FlavorTextSettings.numAllowedMissingIngredients)
+                {
+                    return null;
+                }
 
                 // {Potato, Dairy}
                 // <MeatRaw, AnimalProductRaw>
 
                 // if incorrect diet kind, skip
-                if (!flavorDef.allowedDietKinds.Contains(FoodUtility.GetFoodKind(parent))) { if (tag) Log.Message($"failed to match diet kind for {flavorDef.defName.ToStringSafe()}"); return null; }
+                if (flavorDef.allowedDiets.Empty())
+                {
+                    if (ingredients.Empty())
+                    {
+                        return null;
+                    }
+                }
+                else if (!flavorDef.allowedDiets.Contains(mealDietKind))
+                {
+                    return null;
+                }
 
-                List<int> matchedIndices = [.. Enumerable.Repeat(-1, flavorDef.ingredients.Count())]; // {Food, Vegetable, Rice} => {Rice, Vegetable, Food} {2, 1, 0} with [berries, mushrooms] => [0, -1, 1]
-                List<(ThingDef def, int index)> availableIngredients = [.. ingredients.Select((value, i) => (value, i))];
-
+                // {Food, Vegetable, Rice} => {Rice, Vegetable, Food} {2, 1, 0} with [berries, mushrooms] => [0, -1, 1]
+                List<int> matchedIndices = Enumerable.Repeat(-1, flavorDef.ingredients.Count()).ToList();
+                List<(ThingDef def, int index)> availableIngredients = [.. ingredients.Select((ThingDef value, int i) => (value: value, i: i))];
                 // try to match each slot with the first ingredient that fits it
                 // note that the slots may be reordered from the XML, however the flavor strings are not, hence the need for FlavorDef.formattingIndices
                 // output is the indices of how the slots match with the ingredients
@@ -675,7 +672,7 @@ public class CompFlavor : ThingComp
                 // when generating from 0 ingredients, ensure there's viable options for all slots
                 if (ingredients.Count() == 0)
                 {
-                    if (flavorDef.ingredients.Any(slot => slot.categories.All(cat => cat.ThisAndParents.Intersect(excludedCategories).Count() > 0)))
+                    if (flavorDef.ingredients.Any((IngredientSlot slot) => slot.categories.All((FlavorCategoryDef cat) => cat.ThisAndParents.Intersect(excludedCategories).Count() > 0)))
                     {
                         return null;
                     }
@@ -688,43 +685,39 @@ public class CompFlavor : ThingComp
                         IngredientSlot slot = flavorDef.ingredients[s];
                         try
                         {
-                            IEnumerable<(ThingDef def, int index)> bestIngredients = availableIngredients.Where(item => slot.AllowedThingDefs.Contains(item.def));
-
-                            if (bestIngredients.Count() == 0) continue;
-
-                            matchedIndices[s] = bestIngredients.First().index;
-                            availableIngredients.Remove(bestIngredients.First());
-
+                            IEnumerable<(ThingDef def, int index)> bestIngredients = availableIngredients.Where(((ThingDef def, int index) item) => slot.AllowedThingDefs.Contains(item.def));
+                            if (bestIngredients.Count() != 0)
+                            {
+                                matchedIndices[s] = bestIngredients.First().index;
+                                availableIngredients.Remove(bestIngredients.First());
+                            }
                         }
                         catch (Exception)
                         {
-                            Log.Error($"{slot?.ToStringSafe()} {s} with categories [{slot?.categories.ToStringSafeEnumerable()}] in {flavorDef?.ToStringSafe()} had an error when attempting to find a matching ingredient.\ningredients = [{ingredients.ToStringSafeEnumerable()}]\nmatchedIndices = [{matchedIndices.ToStringSafeEnumerable()}]\navailableIngredients = [{availableIngredients.Select(item => item.def).ToStringSafeEnumerable()}]");
+                            Log.Error($"{slot?.ToStringSafe()} {s} with categories [{slot?.categories.ToStringSafeEnumerable()}] in {flavorDef?.ToStringSafe()} had an error when attempting to find a matching ingredient.\ningredients = [{ingredients.ToStringSafeEnumerable()}]\nmatchedIndices = [{matchedIndices.ToStringSafeEnumerable()}]\navailableIngredients = [{availableIngredients.Select(((ThingDef def, int index) item) => item.def).ToStringSafeEnumerable()}]");
                             throw;
                         }
                     }
                 }
-
-
                 // # missing ingredients must be LESS than the number of ingredient slots, and less than the number of allowed missing ingredients
                 //Log.Warning($"FlavorDef {flavorDef.defName}.\nslots = [{flavorDef.ingredients.Select(slot => "[" + slot.categories.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]\ningredients = [{ingredients.ToStringSafeEnumerable()}]\nmatchedIndices = [{matchedIndices.ToStringSafeEnumerable()}]\ningredientsCopy = [{availableIngredients.ToStringSafeEnumerable()}]");
-                int missingIngredients = matchedIndices.Count(index => index == -1);
-                return availableIngredients.Empty() && missingIngredients <= FlavorTextSettings.numAllowedMissingIngredients ? matchedIndices : null;
+                int missingIngredients = matchedIndices.Count((int index) => index == -1);
+                return (availableIngredients.Empty() && missingIngredients <= FlavorTextSettings.numAllowedMissingIngredients) ? matchedIndices : null;
             }
-            catch (Exception ex)
+            catch (Exception ex3)
             {
-                ex.Data.Add("flavorDef", $"{flavorDef?.defName} was the FlavorDef that caused the error");
+                ex3.Data.Add("flavorDef", flavorDef?.defName + " was the FlavorDef that caused the error");
                 throw;
             }
         }
     }
 
-
-    private string FormatFlavorString((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, string flavorString)  // replace placeholders in flavor label/description with the correctly inflected ingredient label
+    // replace placeholders in flavor label/description with the correctly inflected ingredient label
+    private string FormatFlavorString((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, string flavorString)
     {
         try
         {
-            Rand.PushState(Find.World.info.Seed + (int)iteration);
-
+            Rand.PushState(Find.World.info.Seed + iteration.Value);
             // {Grain, Foods}
             // [-1, 0]
             // [milk]
@@ -733,7 +726,7 @@ public class CompFlavor : ThingComp
             int n = 0;
             List<NamedArgument> placeholderList = [];
             List<ThingDef> ghostIngredients = [];
-
+            Log.Warning("Found [" + ingredients.ToStringSafeEnumerable() + "] in meal with FlavorDef " + flavorTuple.def.defName.ToStringSafe() + "] and indices [" + flavorTuple.index.ToStringSafeEnumerable() + "]");
             for (int i = 0; i < flavorTuple.def.ingredients.Count; i++)
             {
                 IngredientSlot slot = flavorTuple.def.ingredients[i];
@@ -751,22 +744,31 @@ public class CompFlavor : ThingComp
                 // if you're at a missing ingredient, fill it with a random one from the available categories for a slot
                 if (ingIndex == -1)
                 {
-                    List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany(cat => cat.ThisAndChildren.Where(childCat => 
-                    !childCat.inflectionsOverride.NullOrEmpty() &&
-                        childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0))];
+                    List<FlavorCategoryDef> ghostCategories = slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => !childCat.inflectionsOverride.NullOrEmpty() && childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0)).ToList();
                     if (ghostCategories.NullOrEmpty())
                     {
                         Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {i} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
                         throw new NullReferenceException();
                     }
-
+                    if (!generatedCoreFlavorDef)
+                    {
+                        IEnumerable<FlavorCategoryDef> coreCats = DietKind.GetFlavorCategoriesFromDiet(mealDietKind);
+                        List<FlavorCategoryDef> coreGhostCategories = ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0).ToList();
+                        if (!coreGhostCategories.Empty())
+                        {
+                            generatedCoreFlavorDef = true;
+                            ghostCategories = coreGhostCategories;
+                        }
+                    }
                     if (slot.AllowedThingDefs.Count() == 0)
                     {
                         inflections = ghostCategories.RandomElement().inflectionsOverride;
                     }
                     else
                     {
-                        IEnumerable<ThingDef> eles = ghostCategories.Where(cat => cat.childThingDefs.Count > 0).SelectMany(cat => cat.childThingDefs).Where(thing => !ingredients.Contains(thing) && !ghostIngredients.Contains(thing));
+                        IEnumerable<ThingDef> eles = from thing in ghostCategories.Where((FlavorCategoryDef cat) => cat.childThingDefs.Count > 0).SelectMany((FlavorCategoryDef cat) => cat.childThingDefs)
+                                                     where !ingredients.Contains(thing) && !ghostIngredients.Contains(thing)
+                                                     select thing;
                         if (eles.Count() == 0)
                         {
                             inflections = ghostCategories.RandomElement().inflectionsOverride;
@@ -779,14 +781,19 @@ public class CompFlavor : ThingComp
                         }
                     }
                 }
-                else inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[ingIndex]];
-
-                if (inflections.Count != InflectionUtility.numInflections) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorTuple}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
-
+                else
+                {
+                    inflections = InflectionUtility.ThingInflectionsDictionary[ingredients[ingIndex]];
+                }
+                if (inflections.Count != 4)
+                {
+                    throw new ArgumentOutOfRangeException($"Error formatting string for {flavorTuple}. Should have {4} inflections, but found {inflections.Count} inflections");
+                }
                 //TODO: simplify this
                 while (true)
                 {
-                    var placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + formattingIndex + "_plur\\} *([^ .,;:]*)");  //capture the placeholder and the word before and after it
+                    //capture the placeholder and the word before and after it
+                    Match placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + formattingIndex + "_plur\\} *([^ .,;:]*)");
                     if (placeholderWithContext.Success)
                     {
                         string inflection = RemoveRepeatedWords(inflections[0], placeholderWithContext);
@@ -813,7 +820,6 @@ public class CompFlavor : ThingComp
                         n++;
                         continue;
                     }
-
                     placeholderWithContext = Regex.Match(flavorString, "([^ .,;:]*) *\\{" + formattingIndex + "_adj\\} *([^ .,;:]*)");
                     if (placeholderWithContext.Success)
                     {
@@ -827,98 +833,104 @@ public class CompFlavor : ThingComp
                 }
             }
             Rand.PopState();
-
             flavorString = flavorString.Formatted(placeholderList);
             return flavorString;
+        }
+        catch (Exception e)
+        {
+            throw new Exception($"Error when formatting flavor {flavorString.ToStringSafe()} for {flavorTuple.ToStringSafe()} with ingredients [{ingredients.ToStringSafeEnumerable()}]: reason: {e}");
+        }
 
-
-            // remove words repeated directly after each other
-            static string RemoveRepeatedWords(string inflection, Match placeholderWithContext)
+        // remove words repeated directly after each other
+        static string RemoveRepeatedWords(string inflection, Match placeholderWithContext)
+        {
+            // return if a blank inflection, currently only used for the adjectival form of "flour"
+            if (inflection == "")
             {
-                if (inflection == "") return inflection;  // return if a blank inflection, currently only used for the adjectival form of "flour"
-                List<string> inflectionSplit = [.. inflection.Split(' ')];
-                if (placeholderWithContext.Groups.Count != 3) throw new ArgumentOutOfRangeException($"The number of capture groups from Regex.Match for {inflection} was not 3.");
-
-                // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
-                if (Remove.RemoveDiacritics(placeholderWithContext.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
-                {
-                    inflectionSplit.RemoveAt(0);
-                }
-
-                // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
-                if (Remove.RemoveDiacritics(placeholderWithContext.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
-                {
-                    inflectionSplit.RemoveLast();
-                }
-
-
-                inflection = string.Join(" ", inflectionSplit);
                 return inflection;
             }
+            List<string> inflectionSplit = inflection.Split(' ').ToList();
+            if (placeholderWithContext.Groups.Count != 3)
+            {
+                throw new ArgumentOutOfRangeException("The number of capture groups from Regex.Match for " + inflection + " was not 3.");
+            }
+
+            // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
+            if (Remove.RemoveDiacritics(placeholderWithContext.Groups[1].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.First()).ToLower())
+            {
+                inflectionSplit.RemoveAt(0);
+            }
+
+            // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
+            if (Remove.RemoveDiacritics(placeholderWithContext.Groups[2].Value).ToLower() == Remove.RemoveDiacritics(inflectionSplit.Last()).ToLower())
+            {
+                inflectionSplit.RemoveLast();
+            }
+            inflection = string.Join(" ", inflectionSplit);
+            return inflection;
         }
-        catch (Exception e) { throw new Exception($"Error when formatting flavor {flavorString.ToStringSafe()} for {flavorTuple.ToStringSafe()} with ingredients [{ingredients.ToStringSafeEnumerable()}]: reason: {e}"); }
     }
 
+    // compile the flavor labels into one long displayed flavor label
     private void CompileFlavorLabels()
     {
-        // compile the flavor labels into one long displayed flavor label
         if (!FlavorLabels.NullOrEmpty())
         {
-            StringBuilder stringBuilder = new();
             // don't ask
+            StringBuilder stringBuilder = new();
             if (MealTags.Contains("hairy"))
             {
                 GrammarRequest request = default;
                 request.Includes.Add(RulePackDef.Named("FT_Tags"));
-                var hairy = GrammarResolver.Resolve("hairy", request);
-                stringBuilder.Append(hairy);
+                stringBuilder.Append(GrammarResolver.Resolve("hairy", request));
             }
-
             for (int j = 0; j < FlavorLabels.Count; j++)
             {
-                var conj = j == 0 ? "" : j == 1 ? "with " : "and ";
-                stringBuilder.AppendWithSeparator(conj + GenText.CapitalizeAsTitle(FlavorLabels[j]), " ");
+                stringBuilder.AppendWithSeparator(j switch
+                {
+                    1 => "with ",
+                    0 => "",
+                    _ => "and ",
+                } + GenText.CapitalizeAsTitle(FlavorLabels[j]), " ");
             }
             FinalFlavorLabel = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
     }
+
+    // compile the flavor labels into one long displayed flavor label
     private void CompileFlavorDescriptions()
     {
-        // compile the flavor labels into one long displayed flavor label
         try
         {
-            if (!FlavorDescriptions.NullOrEmpty())
+            if (FlavorDescriptions.NullOrEmpty())
             {
-                Rand.PushState(Find.World.info.Seed + (int)iteration);
-
-                RulePackDef sideDishClauses = RulePackDef.Named("FT_SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
-
-                StringBuilder stringBuilder = new();
-                for (int j = 0; j < FlavorDescriptions.Count; j++)
-                {
-                    if (j == 0)  // if it's the first description, just use the description
-                    {
-                        var flavorDescription = CleanUpDescription(FlavorDescriptions[j]);
-                        stringBuilder.Append(flavorDescription);
-                    }
-                    if (j > 0)  // if it's the 2nd+ description, in a new paragraph, use a side dish connector clause with the label, then the description
-                    {
-                        // connector clause with side dish label
-                        GrammarRequest request = default;
-                        request.Includes.Add(sideDishClauses);
-                        string sideDishText = GrammarResolver.Resolve("sidedish", request);  // get a random connector sentence
-                        sideDishText = string.Format(sideDishText, FlavorLabels[j], FlavorDescriptions[j]);  // place the current flavor label in its placeholder spot within the sentence
-                        sideDishText = CleanUpDescription(sideDishText);
-                        stringBuilder.AppendWithSeparator(sideDishText, "\n\n");
-                    }
-                }
-                FinalFlavorDescription = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
-
+                return;
             }
+            Rand.PushState(Find.World.info.Seed + iteration.Value);
+            RulePackDef sideDishClauses = RulePackDef.Named("FT_SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
+            StringBuilder stringBuilder = new();
+            for (int j = 0; j < FlavorDescriptions.Count; j++)
+            {
+                if (j == 0)  // if it's the first description, just use the description
+                {
+                    stringBuilder.Append(CleanUpDescription(FlavorDescriptions[j]));
+                }
+                if (j > 0)  // if it's the 2nd+ description, in a new paragraph, use a side dish connector clause with the label, then the description
+                {
+                    // connector clause with side dish label
+                    GrammarRequest request = default;  // get a random connector sentence
+                    request.Includes.Add(sideDishClauses);
+                    stringBuilder.AppendWithSeparator(CleanUpDescription(string.Format(GrammarResolver.Resolve("sidedish", request), FlavorLabels[j], FlavorDescriptions[j])), "\n\n");  // place the current flavor label in its placeholder spot within the sentence
+                }
+            }
+            FinalFlavorDescription = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
         catch (Exception e)
         {
-            if (Prefs.DevMode) Log.Error($"Error compiling the final flavor description, reason: {e}");
+            if (Prefs.DevMode)
+            {
+                Log.Error($"Error compiling the final flavor description, reason: {e}");
+            }
             throw;
         }
         finally
@@ -934,7 +946,6 @@ public class CompFlavor : ThingComp
             flavorDescription = flavorDescription.Trim(',', ' ');
             flavorDescription = GenText.CapitalizeSentences(flavorDescription);
         }
-
         return flavorDescription;
     }
 

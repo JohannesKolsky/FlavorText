@@ -70,10 +70,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CompFlavor.cs" />
     <Compile Include="CompFlavorUtility.cs" />
     <Compile Include="FlavorTextSettings.cs" />
     <Compile Include="DefInflectionsData.cs" />
-    <Compile Include="CompFlavor.cs" />
     <Compile Include="FlavorCategoryDef.cs" />
     <Compile Include="FlavorCategoryDefOf.cs" />
     <Compile Include="InflectionUtility.cs" />
