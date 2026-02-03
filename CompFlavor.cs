@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
 using Verse.Grammar;
+using static FlavorText.DietKind;
 
 //DONE: make flavor entries a class
 //DONE: eggs + eggs makes weird names like omlette w/eggs
@@ -166,7 +167,7 @@ public class CompFlavor : ThingComp
 
     public List<string> MealTags = [];
 
-    internal DietTuple mealDietKind;
+    internal DietKind.Diet mealDietKind;
 
     internal List<FlavorCategoryDef> excludedCategories;
 
@@ -427,17 +428,18 @@ public class CompFlavor : ThingComp
         // if ghost ingredients are being used, set restrictions based on the FoodKind of the meal (e.g. no ghost meat in veggie meals)
         if (FlavorTextSettings.numAllowedMissingIngredients > 0)
         {
+            generatedCoreFlavorDef = Ingredients.Count() > 0;
+
             excludedCategories = [.. Props.defaultGhostExcludedCategories];
-            CompIngredients compIngredients = parent.TryGetComp<CompIngredients>();
             try
             {
                 if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
                 {
-                    mealDietKind = compIngredients.Props.noIngredientsFoodKind == FoodKind.Meat ? DietKind.carnivore : DietKind.omnivore;
+                    mealDietKind = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat ? Diet.carnivore : Diet.omnivore;
                 }
                 else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
                 {
-                    mealDietKind = DietKind.vegan;
+                    mealDietKind = Diet.vegan;
                 }
                 else
                 {
@@ -445,16 +447,12 @@ public class CompFlavor : ThingComp
                     {
                         throw new ArgumentException("Error when getting food kind for meal. FoodKind: " + FoodUtility.GetFoodKind(parent).ToStringSafe());
                     }
-                    mealDietKind = DietKind.vegetarian;
+                    mealDietKind = Diet.vegetarian;
                 }
-                using (IEnumerator<FlavorCategoryDef> enumerator = DietKind.GetFlavorCategoriesFromDiet(mealDietKind).GetEnumerator())
+                foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDietKind))
                 {
-                    while (enumerator.MoveNext())
-                    {
-                        GenCollection.AddDistinct(obj: enumerator.Current, list: excludedCategories);
-                    }
+                    excludedCategories.AddDistinct(dietCat);
                 }
-                generatedCoreFlavorDef = Ingredients.Count() > 0;
             }
             catch (Exception)
             {
@@ -625,8 +623,11 @@ public class CompFlavor : ThingComp
             ex.Data.Add("ingredients", errorString);
             throw;
         }
-        
+
         // check if the ingredients match the given FlavorDef
+        // try to match each slot with the first ingredient that fits it
+        // note that the slots may be reordered from the XML, however the flavor strings are not, hence the need for FlavorDef.formattingIndices
+        // output is the indices of how the slots match with the ingredients
         List<int> GetMatchIndices(List<ThingDef> ingredients, FlavorDef flavorDef)
         {
             try
@@ -646,9 +647,6 @@ public class CompFlavor : ThingComp
                     return null;
                 }
 
-                // {Potato, Dairy}
-                // <MeatRaw, AnimalProductRaw>
-
                 // if incorrect diet kind, skip
                 if (flavorDef.allowedDiets.Empty())
                 {
@@ -662,12 +660,10 @@ public class CompFlavor : ThingComp
                     return null;
                 }
 
+                //Log.Warning($"flavorDef {flavorDef.defName} contained {mealDietKind.ToStringSafe()} in {flavorDef.allowedDiets.ToStringSafeEnumerable()}");
                 // {Food, Vegetable, Rice} => {Rice, Vegetable, Food} {2, 1, 0} with [berries, mushrooms] => [0, -1, 1]
-                List<int> matchedIndices = Enumerable.Repeat(-1, flavorDef.ingredients.Count()).ToList();
+                List<int> matchedIndices = [.. Enumerable.Repeat(-1, flavorDef.ingredients.Count())];
                 List<(ThingDef def, int index)> availableIngredients = [.. ingredients.Select((ThingDef value, int i) => (value: value, i: i))];
-                // try to match each slot with the first ingredient that fits it
-                // note that the slots may be reordered from the XML, however the flavor strings are not, hence the need for FlavorDef.formattingIndices
-                // output is the indices of how the slots match with the ingredients
 
                 // when generating from 0 ingredients, ensure there's viable options for all slots
                 if (ingredients.Count() == 0)
@@ -700,7 +696,6 @@ public class CompFlavor : ThingComp
                     }
                 }
                 // # missing ingredients must be LESS than the number of ingredient slots, and less than the number of allowed missing ingredients
-                //Log.Warning($"FlavorDef {flavorDef.defName}.\nslots = [{flavorDef.ingredients.Select(slot => "[" + slot.categories.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]\ningredients = [{ingredients.ToStringSafeEnumerable()}]\nmatchedIndices = [{matchedIndices.ToStringSafeEnumerable()}]\ningredientsCopy = [{availableIngredients.ToStringSafeEnumerable()}]");
                 int missingIngredients = matchedIndices.Count((int index) => index == -1);
                 return (availableIngredients.Empty() && missingIngredients <= FlavorTextSettings.numAllowedMissingIngredients) ? matchedIndices : null;
             }
@@ -718,15 +713,12 @@ public class CompFlavor : ThingComp
         try
         {
             Rand.PushState(Find.World.info.Seed + iteration.Value);
-            // {Grain, Foods}
-            // [-1, 0]
-            // [milk]
 
             // find placeholders and replace them with the appropriate inflection of the right ingredient
             int n = 0;
             List<NamedArgument> placeholderList = [];
             List<ThingDef> ghostIngredients = [];
-            Log.Warning("Found [" + ingredients.ToStringSafeEnumerable() + "] in meal with FlavorDef " + flavorTuple.def.defName.ToStringSafe() + "] and indices [" + flavorTuple.index.ToStringSafeEnumerable() + "]");
+            //Log.Warning("Found [" + ingredients.ToStringSafeEnumerable() + "] in meal with FlavorDef " + flavorTuple.def.defName.ToStringSafe() + "] and indices [" + flavorTuple.index.ToStringSafeEnumerable() + "]");
             for (int i = 0; i < flavorTuple.def.ingredients.Count; i++)
             {
                 IngredientSlot slot = flavorTuple.def.ingredients[i];
@@ -734,17 +726,10 @@ public class CompFlavor : ThingComp
                 int formattingIndex = flavorTuple.def.formattingIndices[i];
                 List<string> inflections = [];
 
-                //FT_Grain
-                //FT_Grain, FT_Rice, FT_Corn
-                //FT_Rice, FT_Corn
-                // [FT_AnimalProductRaw]
-                // ^[FT_MeatRaw]
-
-
                 // if you're at a missing ingredient, fill it with a random one from the available categories for a slot
                 if (ingIndex == -1)
                 {
-                    List<FlavorCategoryDef> ghostCategories = slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => !childCat.inflectionsOverride.NullOrEmpty() && childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0)).ToList();
+                    List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => !childCat.inflectionsOverride.NullOrEmpty() && childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0))];
                     if (ghostCategories.NullOrEmpty())
                     {
                         Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {i} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
@@ -753,13 +738,14 @@ public class CompFlavor : ThingComp
                     if (!generatedCoreFlavorDef)
                     {
                         IEnumerable<FlavorCategoryDef> coreCats = DietKind.GetFlavorCategoriesFromDiet(mealDietKind);
-                        List<FlavorCategoryDef> coreGhostCategories = ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0).ToList();
+                        List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0)];
                         if (!coreGhostCategories.Empty())
                         {
                             generatedCoreFlavorDef = true;
                             ghostCategories = coreGhostCategories;
                         }
                     }
+
                     if (slot.AllowedThingDefs.Count() == 0)
                     {
                         inflections = ghostCategories.RandomElement().inflectionsOverride;
@@ -960,14 +946,16 @@ public class CompFlavor : ThingComp
 
             List<int> ranking = [ing1 switch
             {
-                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
+                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Blood")) => 0,
+                not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 1,
                 not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
                 not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
                 not null when CategoryUtility.ThingCategories[ing1].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,
                 _ => 12
             }, ing2 switch
             {
-                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 0,
+                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Blood")) => 0,
+                not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Twisted")) => 1,
                 not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Human")) => 3,
                 not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_Meat_Insect")) => 6,
                 not null when CategoryUtility.ThingCategories[ing2].Contains(FlavorCategoryDef.Named("FT_MeatRaw")) => 9,

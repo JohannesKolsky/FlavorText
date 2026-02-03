@@ -1,50 +1,60 @@
-﻿using RimWorld;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
 using static FlavorText.CategoryUtility;
-using static PipeSystem.ProcessDef;
+using static FlavorText.DietKind;
 
 //--TODO: recipe parent hierarchy
 //DONE: spreadsheet descriptions are misaligned
-//xxTODO: blank ingredient option
+//--TODO: blank ingredient option
 
 //TODO: candy has meat FoodKind allowed
 //TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals
+//TODO: resolve question of how to deal with twisted/vegetarian/etc meals: they are separate categorizatons so they should be separate fields in each FlavorDef; but what about stuff like [FT_Meat_Twisted, FT_Fungus] vs [FT_Meat_Twisted/FT_Fungus]?
 
 namespace FlavorText;
+
+internal class DietKind
+{
+    internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan, fungus, cannibal, insect, twisted }
+
+    /*    internal static readonly List<FlavorCategoryDef> hyperCarnivore = [FlavorCategoryDefOf.FT_MeatRaw];
+        internal static readonly List<FlavorCategoryDef> carnivore = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw];
+        internal static readonly List<FlavorCategoryDef> omnivore = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw];
+        internal static readonly List<FlavorCategoryDef> vegetarian = [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw];
+        internal static readonly List<FlavorCategoryDef> vegan = [FlavorCategoryDefOf.FT_PlantFoodRaw];*/
+
+    internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories =
+    new()
+    {
+     {Diet.hyperCarnivore, [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
+     {Diet.carnivore, [FlavorCategoryDefOf.FT_PlantFoodRaw]},
+     {Diet.omnivore, []},
+     {Diet.vegetarian, [FlavorCategoryDefOf.FT_MeatRaw]},
+     {Diet.vegan, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]}
+    };
+
+    internal static readonly List<FlavorCategoryDef> allDietCategories = [FlavorCategoryDefOf.FT_Fungus, FlavorCategoryDefOf.FT_Meat_Human, FlavorCategoryDefOf.FT_Meat_Insect, FlavorCategoryDefOf.FT_Meat_Twisted, FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw, FlavorCategoryDefOf.FT_FoodRaw, FlavorCategoryDefOf.FT_Foods];
+
+    //internal static IEnumerable<FlavorCategoryDef> GetFlavorCategoriesFromDiet(List<FlavorCategoryDef> dietTuple)
+    //{
+    //    if (dietTuple.Meat) yield return FlavorCategoryDefOf.FT_MeatRaw;
+    //    if (dietTuple.Animal) yield return FlavorCategoryDefOf.FT_AnimalProductRaw;
+    //    if (dietTuple.Plant) yield return FlavorCategoryDefOf.FT_PlantFoodRaw;
+    //}
+    internal static IEnumerable<FlavorCategoryDef> GetExcludedFlavorCategoriesFromDiet(Diet dietTuple)
+    {
+        return dietExcludedCategories[dietTuple];
+    }
+}
+
 /// <summary>
 ///     Effectively recipes
 ///     show what combination of ingredients/categories are needed for each particular flavor label
 /// </summary>
 /// 
-
-internal record struct DietTuple(bool Meat, bool Animal, bool Plant)
-{
-
-    public static implicit operator DietTuple((bool Meat, bool Animal, bool Plant) value)
-    {
-        return new DietTuple(value.Meat, value.Animal, value.Plant);
-    }
-}
-
-internal static class DietKind
-{
-    internal static readonly DietTuple hyperCarnivore = (true, false, false);
-    internal static readonly DietTuple carnivore = (true, true, false);
-    internal static readonly DietTuple omnivore = (true, true, true);
-    internal static readonly DietTuple vegetarian = (false, true, true);
-    internal static readonly DietTuple vegan = (false, false, true);
-
-    internal static IEnumerable<FlavorCategoryDef> GetFlavorCategoriesFromDiet(DietTuple dietTuple)
-    {
-        if (dietTuple.Meat) yield return FlavorCategoryDefOf.FT_MeatRaw;
-        if (dietTuple.Animal) yield return FlavorCategoryDefOf.FT_AnimalProductRaw;
-        if (dietTuple.Plant) yield return FlavorCategoryDefOf.FT_PlantFoodRaw;
-    }
-}
 public class FlavorDef : Def
 {
     private static bool tag;  // debug tag
@@ -55,7 +65,7 @@ public class FlavorDef : Def
 
     public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
-    internal List<DietTuple> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
+    internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
 
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
@@ -69,16 +79,10 @@ public class FlavorDef : Def
 
     // all FlavorDefs that can be used with the current modlist
     private static IEnumerable<FlavorDef> activeFlavorDefs;
-    public static IEnumerable<FlavorDef> ActiveFlavorDefs
-    {
-        get
-        {
-            return activeFlavorDefs ??= DefDatabase<FlavorDef>.AllDefs
+    public static IEnumerable<FlavorDef> ActiveFlavorDefs => activeFlavorDefs ??= DefDatabase<FlavorDef>.AllDefs
                     .Where(flavorDef => flavorDef != null)
                         .Where(flavorDef => flavorDef.ingredients
                             .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
-        }
-    }
 
     private readonly string varietyTexture;
     public string VarietyTexture => varietyTexture;
@@ -139,15 +143,6 @@ public class FlavorDef : Def
 
         foreach (FlavorDef flavorDef in ActiveFlavorDefs)
         {
-/*            tag = flavorDef.defName == "FlavorText_Corn_Pones";
-            if (tag)
-            {
-                Log.Message($"PlantFoodRaw parents: [{FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents.ToStringSafeEnumerable()}]");
-                Log.Message($"PlantFoodRaw children: [{FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories.ToStringSafeEnumerable()}]");
-                Log.Message($"{flavorDef.defName} had [{flavorDef.ingredients.Select(slot => $"[{slot.categories.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
-                Log.Message($"{flavorDef.defName} had [{flavorDef.ingredients.Select(slot => $"[{slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.ThisAndParents).ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
-                Log.Message($"{flavorDef.defName} had [{flavorDef.ingredients.Select(slot => $"[{slot.categories.Intersect(FlavorCategoryDefOf.FT_PlantFoodRaw.childCategories).ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
-            }*/
             if (flavorDef.mealKinds.NullOrEmpty())
             {
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
@@ -157,19 +152,19 @@ public class FlavorDef : Def
             float restrictions = flavorDef.ingredients.Sum(ing => Mathf.Sqrt(ing.AllowedThingDefs.Count()));  //sqrt to reduce impact of high ingredient counts
 
             // more specific if it has a required meal type, weighted to half-impact
-            restrictions = (restrictions * (flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes + 1) / 2);
+            restrictions = restrictions * ((flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes) + 1) / 2;
 
             // more specific if it has a required cooking station, weighted to half-impact
             if (!flavorDef.cookingStations.NullOrEmpty())
             {
-                restrictions = ((restrictions * flavorDef.cookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations + 1) / 2);
+                restrictions = ((restrictions * flavorDef.cookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations) + 1) / 2;
             }
             // more specific if it has a required cooking time of day, weighted to half-impact
             if (flavorDef.hoursOfDay != new IntRange(0, 23))
             {
                 int timeLength = flavorDef.hoursOfDay.max - flavorDef.hoursOfDay.min;
-                timeLength = timeLength % 24 + 1;
-                restrictions *= ((float)timeLength / 24 + 1) / 2;
+                timeLength = (timeLength % 24) + 1;
+                restrictions *= (((float)timeLength / 24) + 1) / 2;
             }
 
             if (flavorDef.ingredientsHitPointPercentage != new FloatRange(0, 1))
@@ -189,29 +184,49 @@ public class FlavorDef : Def
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
-            // [FT_Foods]
+            // {Meat, Egg, Grain} => [Meat, Animal, Plant] => [omnivore]
+            // {Egg, Grain/Fungus} => [Animal, Fungus/Plant] => [fungus, vegetarian]
+            // {Egg, Fungus} => [Animal, Fungus] => [fungus]
+            // {Egg, Fungus/Twisted} => [Animal, Fungus/Twisted] => [fungus, twisted]
 
+            // (fungus, twisted meat) meal => [omnivore, twisted, fungus]
 
             // calculate if the FlavorDef could match a meat/vegan/vegetarian meal (can have multiple)
             if (flavorDef.ingredients.Empty()) continue;
-            List<(bool meat, bool animal, bool plant)> slotDiets = [];
-            foreach (var slot in flavorDef.ingredients)
+            List<List<FlavorCategoryDef>> slotDiets = [];
+            for (int i = 0; i < flavorDef.ingredients.Count; i++)
             {
-                slotDiets.Add((
-                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MeatRaw) || cat.ThisAndChildren.Contains(FlavorCategoryDefOf.FT_MeatRaw)), 
-                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || cat.ThisAndChildren.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)), 
-                slot.categories.Any(cat => cat.ThisAndParents.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw) || cat.ThisAndChildren.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))
-                ));
+                IngredientSlot slot = flavorDef.ingredients[i];
+                slotDiets.Add([]);
+                foreach (var cat in slot.categories)
+                {
+                    foreach (var dietCat in allDietCategories)
+                    {
+                        if (cat.ThisAndParents.Contains(dietCat))
+                        {
+                            slotDiets[i].Add(dietCat);
+                            break;
+                        }
+                    }
+                }
             }
-            if (slotDiets.All(diet => diet.meat)) flavorDef.allowedDiets.Add(DietKind.hyperCarnivore);
-            if (slotDiets.All(diet => diet.plant)) flavorDef.allowedDiets.Add(DietKind.vegan);
 
-            if (slotDiets.Count() > 1 && slotDiets.Any(diet => diet.meat) && slotDiets.Any(diet => diet.plant) && slotDiets.All(diet => diet.meat || diet.plant)) flavorDef.allowedDiets.Add(DietKind.omnivore);
+            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Fungus))) flavorDef.allowedDiets.Add(Diet.fungus);
+            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Meat_Human))) flavorDef.allowedDiets.Add(Diet.cannibal);
+            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Meat_Insect))) flavorDef.allowedDiets.Add(Diet.insect);
+            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Meat_Twisted))) flavorDef.allowedDiets.Add(Diet.twisted);
 
-            if (slotDiets.Any(diet => diet.meat) && slotDiets.All(diet => diet.meat || diet.animal)) flavorDef.allowedDiets.Add(DietKind.carnivore);
-            if (slotDiets.Any(diet => diet.animal) && slotDiets.All(diet => diet.animal || diet.plant)) flavorDef.allowedDiets.Add(DietKind.vegetarian);
 
-            Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}]");
+            if (slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
+            if (slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
+
+            if (slotDiets.Count() > 1 && slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);
+
+            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
+            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
+
+            tag = flavorDef.defName.Contains("Toad");
+            if (tag) Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}]");
         }
     }
 
@@ -247,8 +262,8 @@ public class FlavorDef : Def
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
             && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
                     compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
-            /*&& flavorDef.ingredientsHitPointPercentage.Includes(
-                (float)compFlavor.IngredientsHitPointPercentage!)*/);
+                    /*&& flavorDef.ingredientsHitPointPercentage.Includes(
+                        (float)compFlavor.IngredientsHitPointPercentage!)*/);
 
     }
 }
