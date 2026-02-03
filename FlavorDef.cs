@@ -13,6 +13,7 @@ using static FlavorText.DietKind;
 //TODO: candy has meat FoodKind allowed
 //TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals
 //TODO: resolve question of how to deal with twisted/vegetarian/etc meals: they are separate categorizatons so they should be separate fields in each FlavorDef; but what about stuff like [FT_Meat_Twisted, FT_Fungus] vs [FT_Meat_Twisted/FT_Fungus]?
+//TODO: remote branch is behind
 
 namespace FlavorText;
 
