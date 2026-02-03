@@ -169,6 +169,8 @@ public class CompFlavor : ThingComp
 
     internal DietKind.Diet mealDietKind;
 
+    internal List<FlavorCategoryDef> sketchyIngredients;
+
     internal List<FlavorCategoryDef> excludedCategories;
 
     internal int? iteration = null;
@@ -453,6 +455,15 @@ public class CompFlavor : ThingComp
                 {
                     excludedCategories.AddDistinct(dietCat);
                 }
+
+                // check for sketchy ingredients like insect meat and fungus
+                foreach (var ing in Ingredients)
+                {
+                    foreach (var sketchy in sketchyDietCategories)
+                    {
+                        if (sketchy.ContainedInThisOrDescendant(ing)) sketchyDietCategories.Add(sketchy);
+                    }
+                }
             }
             catch (Exception)
             {
@@ -660,6 +671,18 @@ public class CompFlavor : ThingComp
                     return null;
                 }
 
+                // (fungus, insect meat) xx [Egg, Fungus]
+                // (fungus, insect meat) <=> [Meat, Fungus]
+                // if sketchy ingredients (fungus, insect meat, etc) are in the ingredients, ensure 
+                if (!flavorDef.requiredSketchyIngredients.Empty())
+                {
+                    if (flavorDef.requiredSketchyIngredients.Intersect(sketchyIngredients).Count() != flavorDef.requiredSketchyIngredients.Count())
+                    {
+                        return null;
+                    }
+                }
+
+
                 //Log.Warning($"flavorDef {flavorDef.defName} contained {mealDietKind.ToStringSafe()} in {flavorDef.allowedDiets.ToStringSafeEnumerable()}");
                 // {Food, Vegetable, Rice} => {Rice, Vegetable, Food} {2, 1, 0} with [berries, mushrooms] => [0, -1, 1]
                 List<int> matchedIndices = [.. Enumerable.Repeat(-1, flavorDef.ingredients.Count())];
@@ -737,7 +760,7 @@ public class CompFlavor : ThingComp
                     }
                     if (!generatedCoreFlavorDef)
                     {
-                        IEnumerable<FlavorCategoryDef> coreCats = DietKind.GetFlavorCategoriesFromDiet(mealDietKind);
+                        IEnumerable<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDietKind];
                         List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0)];
                         if (!coreGhostCategories.Empty())
                         {

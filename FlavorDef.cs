@@ -1,4 +1,6 @@
-﻿using System;
+﻿using PipeSystem;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -27,24 +29,28 @@ internal class DietKind
         internal static readonly List<FlavorCategoryDef> vegetarian = [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw];
         internal static readonly List<FlavorCategoryDef> vegan = [FlavorCategoryDefOf.FT_PlantFoodRaw];*/
 
-    internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories =
-    new()
+    internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
     {
      {Diet.hyperCarnivore, [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
      {Diet.carnivore, [FlavorCategoryDefOf.FT_PlantFoodRaw]},
      {Diet.omnivore, []},
      {Diet.vegetarian, [FlavorCategoryDefOf.FT_MeatRaw]},
      {Diet.vegan, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]}
+    }; 
+    
+    internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietIncludedCategories = new()
+    {
+     {Diet.hyperCarnivore, [FlavorCategoryDefOf.FT_MeatRaw]},
+     {Diet.carnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]},
+     {Diet.vegetarian, [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
+     {Diet.vegan, [FlavorCategoryDefOf.FT_PlantFoodRaw]},
+     {Diet.omnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw]}
     };
 
     internal static readonly List<FlavorCategoryDef> allDietCategories = [FlavorCategoryDefOf.FT_Fungus, FlavorCategoryDefOf.FT_Meat_Human, FlavorCategoryDefOf.FT_Meat_Insect, FlavorCategoryDefOf.FT_Meat_Twisted, FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw, FlavorCategoryDefOf.FT_FoodRaw, FlavorCategoryDefOf.FT_Foods];
 
-    //internal static IEnumerable<FlavorCategoryDef> GetFlavorCategoriesFromDiet(List<FlavorCategoryDef> dietTuple)
-    //{
-    //    if (dietTuple.Meat) yield return FlavorCategoryDefOf.FT_MeatRaw;
-    //    if (dietTuple.Animal) yield return FlavorCategoryDefOf.FT_AnimalProductRaw;
-    //    if (dietTuple.Plant) yield return FlavorCategoryDefOf.FT_PlantFoodRaw;
-    //}
+    internal static readonly List<FlavorCategoryDef> sketchyDietCategories = [FlavorCategoryDefOf.FT_Fungus, FlavorCategoryDefOf.FT_Meat_Human, FlavorCategoryDefOf.FT_Meat_Insect, FlavorCategoryDefOf.FT_Meat_Twisted];
+
     internal static IEnumerable<FlavorCategoryDef> GetExcludedFlavorCategoriesFromDiet(Diet dietTuple)
     {
         return dietExcludedCategories[dietTuple];
@@ -67,6 +73,8 @@ public class FlavorDef : Def
     public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
     internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
+
+    internal List<FlavorCategoryDef> requiredSketchyIngredients = []; // whether the FlavorDef requires something like fungus or insect meat
 
     public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
@@ -185,10 +193,10 @@ public class FlavorDef : Def
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
 
-            // {Meat, Egg, Grain} => [Meat, Animal, Plant] => [omnivore]
-            // {Egg, Grain/Fungus} => [Animal, Fungus/Plant] => [fungus, vegetarian]
-            // {Egg, Fungus} => [Animal, Fungus] => [fungus]
-            // {Egg, Fungus/Twisted} => [Animal, Fungus/Twisted] => [fungus, twisted]
+            // {Meat, Egg, Grain} => [[Meat], [Animal], [Plant]] => [omnivore]
+            // {Egg, Grain/Fungus} => [[Animal], [Fungus, Plant]] => [fungus, vegetarian]
+            // {Egg, Fungus} => [[Animal], [Fungus]] => [fungus]
+            // {Egg, Fungus/Twisted} => [[Animal], [Fungus, Twisted]] => [fungus, twisted]
 
             // (fungus, twisted meat) meal => [omnivore, twisted, fungus]
 
@@ -206,16 +214,15 @@ public class FlavorDef : Def
                         if (cat.ThisAndParents.Contains(dietCat))
                         {
                             slotDiets[i].Add(dietCat);
-                            break;
                         }
                     }
                 }
             }
 
-            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Fungus))) flavorDef.allowedDiets.Add(Diet.fungus);
-            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Meat_Human))) flavorDef.allowedDiets.Add(Diet.cannibal);
-            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Meat_Insect))) flavorDef.allowedDiets.Add(Diet.insect);
-            if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_Meat_Twisted))) flavorDef.allowedDiets.Add(Diet.twisted);
+            foreach (var sketchy in sketchyDietCategories)
+            {
+                if (slotDiets.Any(diet => diet.Contains(sketchy))) flavorDef.requiredSketchyIngredients.Add(sketchy);
+            }
 
 
             if (slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);

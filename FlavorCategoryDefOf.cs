@@ -15,6 +15,7 @@ public static class FlavorCategoryDefOf
     public static FlavorCategoryDef FT_Meat_Human;
     public static FlavorCategoryDef FT_Meat_Twisted;
     public static FlavorCategoryDef FT_Meat_Insect;
+    public static FlavorCategoryDef FT_AnimalFoods;
     public static FlavorCategoryDef FT_CookingStations;  // all buildings marked as a meal source
     public static FlavorCategoryDef FT_MealsWithCompFlavor;  // all items that should get their label changed via Flavor Text
     public static FlavorCategoryDef FT_MealsKinds;  // all meals of all kinds, ignoring quality
