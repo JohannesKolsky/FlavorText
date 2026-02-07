@@ -95,26 +95,29 @@ using static FlavorText.DietKind;
 //DONE: name generation should be based on previous meal made in this save, to make it more consistent
 //DONE: VCE_Soup names are re-rolled after cooking
 //DONE: soylent green isn't generating
+//DONE: update from backup
+//DONE: ensure that carnivore meals always generate with at least 1 meat ingredient
+//DONE: vegan meals are generating with any FlavorDefs
 
-//RELEASED: check all with v1.6
-//RELEASED: update XML files
-//RELEASED: check remove from game
-//RELEASED: check add to game
-//RELEASED: check new game
-//RELEASED: check updating FlavorText on save
-//RELEASED: check save and reload game
-//RELEASED: check all meal types
-//RELEASED: check food modlist
-//RELEASED: check FTV
-//RELEASED: check your own saves
-//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASED: disable log messages
-//RELEASED: test C# meats
-//RELEASED: test medieval overhaul
+//RELEASE: check all with v1.6
+//RELEASE: update XML files
+//RELEASE: check remove from game
+//RELEASE: check add to game
+//RELEASE: check new game
+//RELEASE: check updating FlavorText on save
+//RELEASE: check save and reload game
+//RELEASE: check all meal types
+//RELEASE: check food modlist
+//RELEASE: check your own saves
+//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASE: test FTV
+//RELEASE: test C# meats
+//RELEASE: test medieval overhaul
+//RELEASE: disable log messages
 
 
 //TODO: variety matters warnings and errors?
-//TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese"
+//TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: WhatsThatMod loses color in its tag
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
 //TODO: test iterations carryover for merge/split/save
@@ -122,16 +125,16 @@ using static FlavorText.DietKind;
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
 //TODO: TryGetFlavorText is running each time a meal is dropped on the ground
-//TODO: ensure that carnivore meals always generate with at least 1 meat ingredient
-//TODO: vegan meals are generating with any FlavorDefs
-//TODO: update from backup
+//TODO: something is still sometimes generating with ^ // potatoes?
+//TODO: disallowed ingredients seems to be failing sometimes (farmer's salad)
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
-///     one is attached to each meal that should get a new Flavor Text label
+///     a FlavorComp is attached to each meal that should get a new Flavor Text label
 ///     stores FlavorDef data
 ///     makes and stores new flavor labels
 ///     makes and stores new flavor descriptions
+///     stores meal details like tick created and cooker
 /// </summary>
 
 namespace FlavorText;
@@ -167,21 +170,21 @@ public class CompFlavor : ThingComp
 
     public List<string> MealTags = [];
 
-    internal DietKind.Diet mealDietKind;
+    internal Diet mealDietKind;
 
-    internal List<FlavorCategoryDef> sketchyIngredients;
+    internal List<FlavorCategoryDef> sketchyIngredients = [];
 
     internal List<FlavorCategoryDef> excludedCategories;
 
     internal int? iteration = null;
 
-    public List<ThingDef> Ingredients => [.. from def in base.parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
+    public List<ThingDef> Ingredients => [.. from def in parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
                                           orderby def.defName.GetHashCode()
                                           select def];
 
     public CompIngredients CompIngredients => parent.TryGetComp<CompIngredients>();
 
-    public CompProperties_Flavor Props => (CompProperties_Flavor)base.props;
+    public CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
     public override string TransformLabel(string label)
     {
@@ -201,7 +204,7 @@ public class CompFlavor : ThingComp
         if (!FinalFlavorLabel.NullOrEmpty())
         {
             StringBuilder stringBuilder = new();
-            stringBuilder.AppendLine((parent.stackCount != 1 && !FlavorTextSettings.flavorTextForStacks) ? FinalFlavorLabel : base.TransformLabel(base.parent.def.label));
+            stringBuilder.AppendLine((parent.stackCount != 1 && !FlavorTextSettings.flavorTextForStacks) ? FinalFlavorLabel : base.TransformLabel(parent.def.label));
             return stringBuilder.ToString().TrimEndNewlines();
         }
         return base.CompInspectStringExtra();
@@ -427,49 +430,52 @@ public class CompFlavor : ThingComp
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     private void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
-        // if ghost ingredients are being used, set restrictions based on the FoodKind of the meal (e.g. no ghost meat in veggie meals)
-        if (FlavorTextSettings.numAllowedMissingIngredients > 0)
+        //set restrictions based on the FoodKind of the meal
+        generatedCoreFlavorDef = Ingredients.Count() > 0;
+
+        excludedCategories = [.. Props.defaultGhostExcludedCategories];
+        try
         {
-            generatedCoreFlavorDef = Ingredients.Count() > 0;
-
-            excludedCategories = [.. Props.defaultGhostExcludedCategories];
-            try
+            if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
             {
-                if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
+                mealDietKind = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat
+                    ? Diet.hyperCarnivore
+                    : Ingredients.Any(ing => FoodUtility.GetFoodKind(ing) == FoodKind.NonMeat) ? Diet.omnivore : Diet.carnivore;
+            }
+            else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
+            {
+                mealDietKind = Diet.vegan;
+            }
+            else
+            {
+                if (FoodUtility.GetFoodKind(parent) != FoodKind.Any)
                 {
-                    mealDietKind = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat ? Diet.carnivore : Diet.omnivore;
+                    throw new ArgumentException("Unrecognized FoodKind for meal. FoodKind: " + FoodUtility.GetFoodKind(parent).ToStringSafe());
                 }
-                else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
-                {
-                    mealDietKind = Diet.vegan;
-                }
-                else
-                {
-                    if (FoodUtility.GetFoodKind(parent) != FoodKind.Any)
-                    {
-                        throw new ArgumentException("Error when getting food kind for meal. FoodKind: " + FoodUtility.GetFoodKind(parent).ToStringSafe());
-                    }
-                    mealDietKind = Diet.vegetarian;
-                }
-                foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDietKind))
-                {
-                    excludedCategories.AddDistinct(dietCat);
-                }
+                mealDietKind = Diet.vegetarian;
+            }
+            foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDietKind))
+            {
+                excludedCategories.AddDistinct(dietCat);
+            }
 
-                // check for sketchy ingredients like insect meat and fungus
-                foreach (var ing in Ingredients)
+
+            // check for sketchy ingredients like insect meat and fungus
+            foreach (var ing in Ingredients)
+            {
+                foreach (var sketchy in sketchyDietCategories)
                 {
-                    foreach (var sketchy in sketchyDietCategories)
-                    {
-                        if (sketchy.ContainedInThisOrDescendant(ing)) sketchyDietCategories.Add(sketchy);
-                    }
+                    if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
                 }
             }
-            catch (Exception)
-            {
-                throw;
-            }
+            Log.Warning($"mealDietKind was {mealDietKind.ToStringSafe()}");
+            Log.Warning($"sketchyIngredients were [{sketchyIngredients.ToStringSafeEnumerable()}]");
         }
+        catch (Exception)
+        {
+            throw;
+        }
+        
 
         // divide the ingredients into groups of size n and get a flavorDef for each group
         // within each group, move all meat to the front and arrange it in an order that will be more grammatically pleasing
@@ -668,6 +674,7 @@ public class CompFlavor : ThingComp
                 }
                 else if (!flavorDef.allowedDiets.Contains(mealDietKind))
                 {
+                    //Log.Message($"{flavorDef.defName.ToStringSafe()} failed with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}]");
                     return null;
                 }
 
@@ -678,6 +685,7 @@ public class CompFlavor : ThingComp
                 {
                     if (flavorDef.requiredSketchyIngredients.Intersect(sketchyIngredients).Count() != flavorDef.requiredSketchyIngredients.Count())
                     {
+                        //Log.Message($"{flavorDef.defName.ToStringSafe()} failed with requiredSketchyIngredients [{flavorDef.requiredSketchyIngredients.ToStringSafeEnumerable()}]");
                         return null;
                     }
                 }
@@ -720,7 +728,15 @@ public class CompFlavor : ThingComp
                 }
                 // # missing ingredients must be LESS than the number of ingredient slots, and less than the number of allowed missing ingredients
                 int missingIngredients = matchedIndices.Count((int index) => index == -1);
-                return (availableIngredients.Empty() && missingIngredients <= FlavorTextSettings.numAllowedMissingIngredients) ? matchedIndices : null;
+                if ((availableIngredients.Empty() && missingIngredients <= FlavorTextSettings.numAllowedMissingIngredients))
+                {
+                    return matchedIndices;
+                }
+                else
+                {
+                    //Log.Message($"{flavorDef.defName.ToStringSafe()} failed with {missingIngredients} missing ingredients and matchIndices [{matchedIndices.ToStringSafeEnumerable()}]");
+                    return null;
+                }
             }
             catch (Exception ex3)
             {
