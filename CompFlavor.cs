@@ -98,6 +98,7 @@ using static FlavorText.DietKind;
 //DONE: update from backup
 //DONE: ensure that carnivore meals always generate with at least 1 meat ingredient
 //DONE: vegan meals are generating with any FlavorDefs
+//--TODO: TryGetFlavorText is running each time a meal is dropped on the ground  // it's running on cursor hover, which is normal
 
 //RELEASE: check all with v1.6
 //RELEASE: update XML files
@@ -124,9 +125,9 @@ using static FlavorText.DietKind;
 //TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
-//TODO: TryGetFlavorText is running each time a meal is dropped on the ground
 //TODO: something is still sometimes generating with ^ // potatoes?
 //TODO: disallowed ingredients seems to be failing sometimes (farmer's salad)
+//TODO: improve CompFlavorSpeed from 8 ms
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
