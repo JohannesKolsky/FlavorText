@@ -9,6 +9,15 @@ namespace FlavorText;
 /// also categorizes meals and meal source buildings
 /// </summary>
 /// 
+
+
+/// <notes>
+/// FT_Foods is the top category because you want to generally allow anything that could be used as an ingredient
+/// 
+/// </notes>
+
+
+
 // TODO: what does [Unsaved] actually do in here?
 
 

@@ -45,13 +45,11 @@ internal static class InflectionUtility
             {
                 if (cat.childThingDefs.Count == 0)
                 {
-                    foreach (var inflection in cat.inflectionsOverride)
-                    {
-                        inflection.Formatted("");
-                    }
+                    cat.inflectionsOverride = [.. cat.inflectionsOverride.Select(inflect => inflect.Formatted("").Trim())];
                 }
                 var inflections = GenerateInflections(cat, cat.inflectionsOverride);
                 CategoryInflectionsData.AddDistinct(cat, inflections);
+                Log.Message($"{cat.defName.ToStringSafe()} had inflections [{inflections.ToStringSafeEnumerable()}]");
             }
         }
 
@@ -122,7 +120,7 @@ internal static class InflectionUtility
                 if (inflections[i] == "_") generatedInflections.Add("");
                 else if (inflections[i] == "^") generatedInflections.Add(generatedInflections[i - 1]);
                 else if (inflections[i] == "*" || inflections[i].Contains("{0}")) { generatedInflections.Add(null); doGeneration = true; }
-                else if (inflections[i].NullOrEmpty()) throw new NullReferenceException($"Got predefined inflections for {ingredient}, but one of them was null or an empty string");
+                else if (inflections[i] == null) throw new NullReferenceException($"Got predefined inflections for {ingredient}, but one of them was null");
                 else generatedInflections.Add(inflections[i]);
             }
         }

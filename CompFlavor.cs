@@ -137,13 +137,14 @@ using static FlavorText.DietKind;
 ///     makes and stores new flavor descriptions
 ///     stores meal details like tick created and cooker
 /// </summary>
+/// 
 
 namespace FlavorText;
 
 public class CompFlavor : ThingComp
 {
 
-    private readonly bool tag;
+    private bool tag;
 
     private bool generatedCoreFlavorDef = true;
 
@@ -469,21 +470,16 @@ public class CompFlavor : ThingComp
                     if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
                 }
             }
-            Log.Warning($"mealDietKind was {mealDietKind.ToStringSafe()}");
-            Log.Warning($"sketchyIngredients were [{sketchyIngredients.ToStringSafeEnumerable()}]");
         }
         catch (Exception)
         {
             throw;
         }
-        
+
 
         // divide the ingredients into groups of size n and get a flavorDef for each group
         // within each group, move all meat to the front and arrange it in an order that will be more grammatically pleasing
-        List<List<ThingDef>> ingredientChunks =
-        [
-            []
-        ];
+        List<List<ThingDef>> ingredientChunks = [[]];
         if (Ingredients.Count() > 0)
         {
             ingredientChunks = [.. from chunk in Chunk(Ingredients)
@@ -524,52 +520,9 @@ public class CompFlavor : ThingComp
                 throw new InvalidOperationException("Could not find any best Flavor Defs for meal " + parent.ThingID);
             }
         }
-        // assemble all the flavor labels chosen into one big label that looks nice
-        for (int i = 0; i < bestFlavors.Count; i++)
-        {
-            if (bestFlavors?[i].def != null && bestFlavors[i].index != null)
-            {
-                FinalFlavorDefs.Add(bestFlavors[i].def);
-                (FlavorDef, List<int>) flavor = bestFlavors[i];
-                List<ThingDef> ingredientGroup = ingredientChunks[i];
-                string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.label); // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient from the meal
-                if (flavorLabel.NullOrEmpty())
-                {
-                    if (Prefs.DevMode)
-                    {
-                        Log.Error($"FormatFlavorString failed to get a formatted flavor label for ingredient group {i} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
-                    }
-                    throw new FormatException();
-                }
-                FlavorLabels.Add(flavorLabel);
-                string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.description);  // make flavor descriptions look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient from the meal
-                if (flavorDescription.NullOrEmpty())
-                {
-                    if (Prefs.DevMode)
-                    {
-                        Log.Error($"FormatFlavorString failed to get a formatted flavor description for ingredient group {i} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
-                    }
-                    throw new FormatException();
-                }
-                FlavorDescriptions.Add(flavorDescription);
-                continue;
-            }
-            throw new NullReferenceException($"A chosen FlavorDef with index of {i} is null, cancelling the search. Please report.");
-        }
-        if (FlavorLabels.Empty())
-        {
-            throw new InvalidOperationException("The list of Flavor Labels for meal " + base.parent.ThingID + " was empty. Please report.");
-        }
-        if (FlavorDescriptions.Empty())
-        {
-            throw new InvalidOperationException("The list of Flavor Descriptions for meal " + base.parent.ThingID + " was empty. Please report.");
-        }
-        CompileFlavorLabels();
-        CompileFlavorDescriptions();
-        if (FinalFlavorLabel.NullOrEmpty())
-        {
-            throw new NullReferenceException("The final compiled and formatted flavor label was null or empty despite getting valid Flavor Defs [" + FinalFlavorDefs.ToStringSafeEnumerable() + "]. Please report.");
-        }
+
+        // generate the labels and descriptions for the meal
+        GenerateFlavorText(ingredientChunks, bestFlavors);
     }
 
     // split ingredients into chunks of size 3 (default)
@@ -675,7 +628,6 @@ public class CompFlavor : ThingComp
                 }
                 else if (!flavorDef.allowedDiets.Contains(mealDietKind))
                 {
-                    //Log.Message($"{flavorDef.defName.ToStringSafe()} failed with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}]");
                     return null;
                 }
 
@@ -686,13 +638,11 @@ public class CompFlavor : ThingComp
                 {
                     if (flavorDef.requiredSketchyIngredients.Intersect(sketchyIngredients).Count() != flavorDef.requiredSketchyIngredients.Count())
                     {
-                        //Log.Message($"{flavorDef.defName.ToStringSafe()} failed with requiredSketchyIngredients [{flavorDef.requiredSketchyIngredients.ToStringSafeEnumerable()}]");
                         return null;
                     }
                 }
 
 
-                //Log.Warning($"flavorDef {flavorDef.defName} contained {mealDietKind.ToStringSafe()} in {flavorDef.allowedDiets.ToStringSafeEnumerable()}");
                 // {Food, Vegetable, Rice} => {Rice, Vegetable, Food} {2, 1, 0} with [berries, mushrooms] => [0, -1, 1]
                 List<int> matchedIndices = [.. Enumerable.Repeat(-1, flavorDef.ingredients.Count())];
                 List<(ThingDef def, int index)> availableIngredients = [.. ingredients.Select((ThingDef value, int i) => (value: value, i: i))];
@@ -735,7 +685,6 @@ public class CompFlavor : ThingComp
                 }
                 else
                 {
-                    //Log.Message($"{flavorDef.defName.ToStringSafe()} failed with {missingIngredients} missing ingredients and matchIndices [{matchedIndices.ToStringSafeEnumerable()}]");
                     return null;
                 }
             }
@@ -744,6 +693,54 @@ public class CompFlavor : ThingComp
                 ex3.Data.Add("flavorDef", flavorDef?.defName + " was the FlavorDef that caused the error");
                 throw;
             }
+        }
+    }
+
+    // generate the labels and descriptions for the meal
+    private void GenerateFlavorText(List<List<ThingDef>> ingredientChunks, List<(FlavorDef def, List<int> index)> bestFlavors)
+    {
+        for (int i = 0; i < bestFlavors.Count; i++)
+        {
+            if ((bestFlavors?[i].def) == null || bestFlavors[i].index == null) throw new NullReferenceException($"A chosen FlavorDef with index of {i.ToStringSafe()} is null, cancelling the search. Please report.");
+            
+            FinalFlavorDefs.Add(bestFlavors[i].def);
+            List<ThingDef> ingredientGroup = ingredientChunks[i];
+            string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.label); // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient from the meal
+            if (flavorLabel.NullOrEmpty())
+            {
+                if (Prefs.DevMode)
+                {
+                    Log.Error($"FormatFlavorString failed to get a formatted flavor label for ingredient group {i.ToStringSafe()} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
+                }
+                throw new FormatException();
+            }
+            FlavorLabels.Add(flavorLabel);
+            string flavorDescription = FormatFlavorString(bestFlavors[i], ingredientGroup, bestFlavors[i].def.description);  // make flavor descriptions look nicer for main description; replace placeholders in the flavor description with the corresponding ingredient from the meal
+            if (flavorDescription.NullOrEmpty())
+            {
+                if (Prefs.DevMode)
+                {
+                    Log.Error($"FormatFlavorString failed to get a formatted flavor description for ingredient group {i.ToStringSafe()} containing [{ingredientGroup.ToStringSafeEnumerable()}], cancelling the search. Please report.");
+                }
+                throw new FormatException();
+            }
+            FlavorDescriptions.Add(flavorDescription);
+            
+        }
+
+        if (FlavorLabels.Empty())
+        {
+            throw new InvalidOperationException("The list of Flavor Labels for meal " + base.parent.ThingID.ToStringSafe() + " was empty. Please report.");
+        }
+        if (FlavorDescriptions.Empty())
+        {
+            throw new InvalidOperationException("The list of Flavor Descriptions for meal " + base.parent.ThingID.ToStringSafe() + " was empty. Please report.");
+        }
+        CompileFlavorLabels();
+        CompileFlavorDescriptions();
+        if (FinalFlavorLabel.NullOrEmpty())
+        {
+            throw new NullReferenceException("The final compiled and formatted flavor label was null or empty despite getting valid Flavor Defs [" + FinalFlavorDefs.ToStringSafeEnumerable() + "]. Please report.");
         }
     }
 
@@ -769,43 +766,7 @@ public class CompFlavor : ThingComp
                 // if you're at a missing ingredient, fill it with a random one from the available categories for a slot
                 if (ingIndex == -1)
                 {
-                    List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => !childCat.inflectionsOverride.NullOrEmpty() && childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0))];
-                    if (ghostCategories.NullOrEmpty())
-                    {
-                        Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {i} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
-                        throw new NullReferenceException();
-                    }
-                    if (!generatedCoreFlavorDef)
-                    {
-                        IEnumerable<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDietKind];
-                        List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0)];
-                        if (!coreGhostCategories.Empty())
-                        {
-                            generatedCoreFlavorDef = true;
-                            ghostCategories = coreGhostCategories;
-                        }
-                    }
-
-                    if (slot.AllowedThingDefs.Count() == 0)
-                    {
-                        inflections = ghostCategories.RandomElement().inflectionsOverride;
-                    }
-                    else
-                    {
-                        IEnumerable<ThingDef> eles = from thing in ghostCategories.Where((FlavorCategoryDef cat) => cat.childThingDefs.Count > 0).SelectMany((FlavorCategoryDef cat) => cat.childThingDefs)
-                                                     where !ingredients.Contains(thing) && !ghostIngredients.Contains(thing)
-                                                     select thing;
-                        if (eles.Count() == 0)
-                        {
-                            inflections = ghostCategories.RandomElement().inflectionsOverride;
-                        }
-                        else
-                        {
-                            ThingDef ele = eles.RandomElement();
-                            ghostIngredients.Add(ele);
-                            inflections = InflectionUtility.ThingInflectionsDictionary[ele];
-                        }
-                    }
+                    inflections = GenerateMissingIngredient(flavorTuple, ingredients, ghostIngredients, i, slot);
                 }
                 else
                 {
@@ -895,6 +856,58 @@ public class CompFlavor : ThingComp
             inflection = string.Join(" ", inflectionSplit);
             return inflection;
         }
+    }
+
+    private ThingDef GenerateMissingIngredient((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, List<ThingDef> ghostIngredients, int i, IngredientSlot slot)
+    {
+        List<string> inflections;
+        List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && childCat.ThisAndParents.Intersect(slot.disallowedCategories).Count() == 0 && childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0))];
+        if (ghostCategories.NullOrEmpty())
+        {
+            Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {i} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
+            throw new NullReferenceException();
+        }
+        if (!generatedCoreFlavorDef)
+        {
+            IEnumerable<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDietKind];
+            List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0)];
+            if (!coreGhostCategories.Empty())
+            {
+                generatedCoreFlavorDef = true;
+                ghostCategories = coreGhostCategories;
+            }
+        }
+
+        // if no ingredients for that slot exist, use the category inflection
+        if (slot.AllowedThingDefs.Count() == 0)
+        {
+            var ghostCat = ghostCategories.RandomElement();
+            inflections = InflectionUtility.CategoryInflectionsData[ghostCat];
+            Log.Message($"Generated ghost category {ghostCat.defName} with inflections [{inflections.ToStringSafeEnumerable()}]");
+        }
+        // otherwise try to use a random ingredient that exists
+        else
+        {
+            IEnumerable<ThingDef> eles = from thing in ghostCategories.Where((FlavorCategoryDef cat) => cat.childThingDefs.Count > 0).SelectMany((FlavorCategoryDef cat) => cat.childThingDefs)
+                                         where !ingredients.Contains(thing) && !ghostIngredients.Contains(thing)
+                                         select thing;
+            if (eles.Count() > 0)
+            {
+                ThingDef ele = eles.RandomElement();
+                ghostIngredients.Add(ele);
+                inflections = InflectionUtility.ThingInflectionsDictionary[ele];
+                Log.Message($"Generated ghost ingredient {ele.defName} with inflections [{inflections.ToStringSafeEnumerable()}]");
+            }
+            // if no valid random ingredient, use the category inflection
+            else
+            {
+                var ghostCat = ghostCategories.RandomElement();
+                inflections = InflectionUtility.CategoryInflectionsData[ghostCat];
+                Log.Message($"Generated ghost category {ghostCat.defName} with inflections [{inflections.ToStringSafeEnumerable()}]");
+            }
+        }
+
+        return inflections;
     }
 
     // compile the flavor labels into one long displayed flavor label
