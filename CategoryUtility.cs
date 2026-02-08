@@ -38,7 +38,7 @@ using System.Diagnostics;
 //TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
 //TODO: hitting the blacklist isn't triggering the removal of the category and its descendants
 //TODO: create a function for searching child and parent categories
-//TODO: you can ignore all categories with 0 contained ThingDefs to boost GetFlavorText search speed
+//TODO: you can remove all categories with 0 contained ThingDefs to boost GetFlavorText search speed
 
 namespace FlavorText;
 

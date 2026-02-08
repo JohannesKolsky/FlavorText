@@ -129,10 +129,13 @@ public class FlavorDef : Def
     {
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
+            tag = flavorDef.defName == "FlavorText_FarmersSalad";
+            if (tag) Log.Warning(flavorDef.defName);
             foreach (var slot in flavorDef.ingredients)
             {
                 slot.AddAllowedThingDefsRecursive(slot.categories);
             }
+            if (tag) Log.Message($"[{flavorDef.ingredients.Select(slot => $"[{slot.AllowedThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
         }
     }
 
@@ -283,13 +286,16 @@ public class IngredientSlot : IExposable
     public List<FlavorCategoryDef> categories = [];
     public List<FlavorCategoryDef> disallowedCategories = [];
     private HashSet<ThingDef> allowedThingDefs = [];
+    private HashSet<FlavorCategoryDef> allowedCategories = [];  // all allowed categories
     public IEnumerable<ThingDef> AllowedThingDefs => allowedThingDefs;
+    public IEnumerable<FlavorCategoryDef> AllowedCategories => allowedCategories;
 
     internal void AddAllowedThingDefsRecursive(IEnumerable<FlavorCategoryDef> cats)
     {
         foreach (var cat in cats)
         {
             if (disallowedCategories.Contains(cat)) continue;
+            allowedCategories.Add(cat);
             allowedThingDefs.AddRange(cat.childThingDefs);
             AddAllowedThingDefsRecursive(cat.childCategories);
         }

@@ -49,7 +49,6 @@ internal static class InflectionUtility
                 }
                 var inflections = GenerateInflections(cat, cat.inflectionsOverride);
                 CategoryInflectionsData.AddDistinct(cat, inflections);
-                Log.Message($"{cat.defName.ToStringSafe()} had inflections [{inflections.ToStringSafeEnumerable()}]");
             }
         }
 
