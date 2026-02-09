@@ -129,13 +129,10 @@ public class FlavorDef : Def
     {
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
-            tag = flavorDef.defName == "FlavorText_FarmersSalad";
-            if (tag) Log.Warning(flavorDef.defName);
             foreach (var slot in flavorDef.ingredients)
             {
                 slot.AddAllowedThingDefsRecursive(slot.categories);
             }
-            if (tag) Log.Message($"[{flavorDef.ingredients.Select(slot => $"[{slot.AllowedThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
         }
     }
 

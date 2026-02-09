@@ -59,13 +59,14 @@ public static class CategoryUtility
         try
         {
             FlavorCategoryDef.FinalizeInit();
-            FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDef.Named("FT_Root"), 0);
+            FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
             InheritParentData(); // FT_Categories inherit some data from parents
 
             AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
 
             // can't do this until now, needs previous method and a built DefDatabase
             DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
+            PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
             DefDatabase<FlavorDef>.ResolveAllReferences();
 
             FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
@@ -132,10 +133,10 @@ public static class CategoryUtility
 
     // assign all ThingDefs and FlavorCategoryDefs in "Foods" to the best FT_ThingCategory
     // add CompFlavor to appropriate meals
-    public static void AssignToFlavorCategories()
+    private static void AssignToFlavorCategories()
     {
         // look in FlavorCategories and add any predefined ThingDefs and ThingCategoryDef contents to the FlavorCategory
-        AbsorbChildren();
+        AbsorbChildrenFromXML();
 
         // add everything in vanilla "Foods" to the item FlavorCategoryDef dictionary
         foreach (var food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
@@ -225,13 +226,29 @@ public static class CategoryUtility
                 throw;
             }
         }
-
-
-
     }
 
+
+    // remove references to FlavorCategoryDefs that don't have any descendant ThingDefs
+    private static void PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDef root)
+    {
+        if (root.DescendantThingDefs.Any())
+        {
+            foreach (var childCat in root.childCategories)
+            {
+                PruneInactiveFlavorCategoriesRecursive(childCat);
+            }
+        }
+        else
+        {
+            root.parent = null;
+            root.childCategories.Clear();
+        }
+    }
+
+
     // add to their parent FlavorCategoryDefs all ThingDefs and ThingCategoryDef children that were explicitly assigned in XML
-    private static void AbsorbChildren()
+    private static void AbsorbChildrenFromXML()
     {
         // make a thingDefs of which ThingDefs belong in which FlavorCategoryDefs
         var allFlavorCategoryDefs = FlavorCategoryDef.Named("FT_Root").ThisAndChildren;

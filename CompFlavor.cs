@@ -127,7 +127,7 @@ using static FlavorText.DietKind;
 //TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
-//TODO: improve CompFlavor speed from 12 ms
+//TODO: improve CompFlavor speed from 8 ms
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -898,7 +898,6 @@ public class CompFlavor : ThingComp
             if (eles.Count() > 0)
             {
                 ghost = eles.RandomElement();
-                Log.Message($"Generated ghost ingredient {ghost.defName}");
             }
             // if no valid random ingredient, allow repetitions
             else
@@ -908,7 +907,6 @@ public class CompFlavor : ThingComp
                 if (eles.Count() > 0)
                 {
                     ghost = eles.RandomElement();
-                    Log.Message($"Generated DUPLICATE ghost ingredient {ghost.defName}");
                 }
                 else
                 {
