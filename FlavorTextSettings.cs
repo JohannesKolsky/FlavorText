@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using Verse;
 
+//DONE: reload flavor text on settings change  // happens on reload of save
+
 namespace FlavorText
 {
     public class FlavorTextSettings : ModSettings

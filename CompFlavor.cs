@@ -127,7 +127,7 @@ using static FlavorText.DietKind;
 //TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
-//TODO: improve CompFlavor speed from 8 ms
+//TODO: improve CompFlavor speed from 8-40 ms
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -238,7 +238,7 @@ public class CompFlavor : ThingComp
                     FinalFlavorDefs = [];
                     if (Prefs.DevMode)
                     {
-                        Log.Warning("Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an older version of FlavorText. Will get new FlavorDefs");
+                        Log.Warning("Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an old version of FlavorText. Will get new FlavorDefs");
                     }
                 }
             }
@@ -432,6 +432,9 @@ public class CompFlavor : ThingComp
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     private void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
+
+        Stopwatch stopwatch = new();
+        stopwatch.Start();
         //set restrictions based on the FoodKind of the meal
         generatedCoreFlavorDef = Ingredients.Count() > 0;
 
@@ -476,6 +479,11 @@ public class CompFlavor : ThingComp
             throw;
         }
 
+        if (Prefs.DevMode)
+        {
+            Log.Message("[Flavor Text] lap setup " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
+        }
+
 
         // divide the ingredients into groups of size n and get a flavorDef for each group
         // within each group, move all meat to the front and arrange it in an order that will be more grammatically pleasing
@@ -501,11 +509,12 @@ public class CompFlavor : ThingComp
             {
                 if (Prefs.DevMode)
                 {
-                    Log.Warning("Saved Flavor Text no longer matches for a meal, it is probably from an older version of FlavorText. Will attempt to get new Flavor Text.");
+                    Log.Warning("Saved Flavor Text no longer matches for a meal, probably due to a settings change or an old version of FlavorText. Will attempt to get new Flavor Text.");
                 }
                 bestFlavors = [];
             }
         }
+
         // if the above failed, try searching with all valid FlavorDefs
         if (bestFlavors.Empty())
         {
@@ -520,9 +529,20 @@ public class CompFlavor : ThingComp
                 throw new InvalidOperationException("Could not find any best Flavor Defs for meal " + parent.ThingID);
             }
         }
+        if (Prefs.DevMode)
+        {
+            Log.Message("[Flavor Text] lap find flavor defs " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
+        }
 
         // generate the labels and descriptions for the meal
         GenerateFlavorText(ingredientChunks, bestFlavors);
+
+        stopwatch.Stop();
+        double elapsed = stopwatch.Elapsed.TotalMilliseconds;
+        if (Prefs.DevMode)
+        {
+            Log.Message("[Flavor Text] GetFlavorText ran in " + elapsed + " milliseconds");
+        }
     }
 
     // split ingredients into chunks of size 3 (default)
@@ -552,6 +572,10 @@ public class CompFlavor : ThingComp
             }
             //see which FinalFlavorDefs match with the ingredients in the meal
             List<(FlavorDef def, List<int> indices)> matchingFlavors = [];
+
+
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             foreach (FlavorDef flavorDef in flavorDefsToSearch)
             {
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
@@ -559,6 +583,13 @@ public class CompFlavor : ThingComp
                 {
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
+            }
+
+            stopwatch.Stop();
+            double elapsed = stopwatch.Elapsed.TotalMilliseconds;
+            if (Prefs.DevMode)
+            {
+                Log.Message("[Flavor Text] GetMatchIndices ran in " + elapsed + " milliseconds");
             }
             // pick the most specific matching FlavorDef
             // note that the slots may be reordered from the XML, however the flavor strings are not, hence the need for FlavorDef.slotIndices
@@ -650,10 +681,8 @@ public class CompFlavor : ThingComp
                 // when generating from 0 ingredients, ensure there's viable options for all slots
                 if (ingredients.Count() == 0)
                 {
-                    //TODO: optimize this
                     if (flavorDef.ingredients.Any((IngredientSlot slot) => slot.AllowedCategories.Where(cat => cat.childThingDefs.Any()).All(activeCat => activeCat.DescendantOf(excludedCategories))))
                     {
-                        Log.Error($"{flavorDef.defName} failed when generating from 0 ingredients");
                         return null;
                     }
                 }
@@ -692,6 +721,7 @@ public class CompFlavor : ThingComp
     }
 
     // generate the labels and descriptions for the meal
+    //TODO: this is taking up ~1/3 of the TryGetFlavorText runtime when ghost ingredients are enabled
     private void GenerateFlavorText(List<List<ThingDef>> ingredientChunks, List<(FlavorDef def, List<int> index)> bestFlavors)
     {
         for (int i = 0; i < bestFlavors.Count; i++)
