@@ -86,6 +86,7 @@ public class FlavorCategoryDef : Def
         }
     }
 
+
     public IEnumerable<ThingDef> DescendantThingDefs
     {
         get
@@ -102,6 +103,23 @@ public class FlavorCategoryDef : Def
     public bool ContainedInThisOrDescendant(ThingDef thingDef)
     {
         return allChildThingDefsCached.Contains(thingDef);
+    }
+
+    //FT_Foods -> FT_Fungus -> FT_Morrel
+
+    public bool ContainedInThisOrDescendant(FlavorCategoryDef child)
+    {
+        return child.ThisAndParents.Contains(this);
+    }
+
+    // is this in the list or a descendant of one of the list members?
+    public bool DescendantOf(List<FlavorCategoryDef> list)
+    {
+        foreach (var cat in ThisAndParents)
+        {
+            if (list.Contains(cat)) return true;
+        }
+        return false;
     }
 
     public override void ResolveReferences()

@@ -651,7 +651,7 @@ public class CompFlavor : ThingComp
                 if (ingredients.Count() == 0)
                 {
                     //TODO: optimize this
-                    if (flavorDef.ingredients.Any((IngredientSlot slot) => slot.AllowedCategories.Where(cat => cat.childThingDefs.Any()).All(activeCat => activeCat.ThisAndParents.Intersect(excludedCategories).Count() > 0)))
+                    if (flavorDef.ingredients.Any((IngredientSlot slot) => slot.AllowedCategories.Where(cat => cat.childThingDefs.Any()).All(activeCat => activeCat.DescendantOf(excludedCategories))))
                     {
                         Log.Error($"{flavorDef.defName} failed when generating from 0 ingredients");
                         return null;
@@ -868,7 +868,7 @@ public class CompFlavor : ThingComp
     private ThingDef GenerateGhostIngredient((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
     {
         ThingDef ghost = null;
-        List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && childCat.ThisAndParents.Intersect(slot.disallowedCategories).Count() == 0 && childCat.ThisAndParents.Intersect(excludedCategories).Count() == 0))];
+        List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.disallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
         if (ghostCategories.NullOrEmpty())
         {
             Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
@@ -876,8 +876,8 @@ public class CompFlavor : ThingComp
         }
         if (!generatedCoreFlavorDef)
         {
-            IEnumerable<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDietKind];
-            List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.ThisAndParents.Intersect(coreCats).Count() > 0)];
+            List<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDietKind];
+            List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.DescendantOf(coreCats))];
             if (!coreGhostCategories.Empty())
             {
                 generatedCoreFlavorDef = true;

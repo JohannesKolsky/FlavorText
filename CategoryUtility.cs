@@ -334,7 +334,7 @@ public static class CategoryUtility
             {
                 var bestCategory = bestFlavorCategories.MaxBy(element => element.Value);
                 {
-                    if (bestCategory.Key.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsWithCompFlavor))
+                    if (FlavorCategoryDefOf.FT_MealsWithCompFlavor.ContainedInThisOrDescendant(bestCategory.Key))
                     {
                         if (bestCategory.Value < minMealsWithCompFlavorScore || !FlavorTextSettings.dynamicMealIncorporation)
                         {
