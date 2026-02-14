@@ -17,6 +17,7 @@ internal static class InflectionUtility
     private static bool tag;
 
     public const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
+    public static readonly List<string> inflectionNames = ["plur", "coll", "sing", "adj"];
 
     // predefined inflections from XML for active mods
     internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];
