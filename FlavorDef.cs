@@ -20,6 +20,8 @@ namespace FlavorText;
 
 internal class DietKind
 {
+
+    //TODO: should fungus, cannibal, insect, twisted be here?
     internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan, fungus, cannibal, insect, twisted }
 
     internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
