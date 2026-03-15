@@ -17,7 +17,8 @@ internal static class InflectionUtility
     private static bool tag;
 
     public const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
-    public static readonly List<string> inflectionNames = ["plur", "coll", "sing", "adj"];
+    public static readonly List<string> grammaticalInflections = ["plur", "coll", "sing", "adj"];
+    public static readonly List<string> grammaticalCollections = ["AND", "OR", "OTHER"];
 
     // predefined inflections from XML for active mods
     internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];
@@ -65,7 +66,7 @@ internal static class InflectionUtility
                     {
                         ThingInflectionsDictionary.Add(ingredient, []);
                         if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
-                        var thisAndParents = CategoryUtility.ThingCategories[ingredient].First().ThisAndParents;
+                        var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndParents;
                         foreach (var cat in thisAndParents)
                         {
                             if (cat.alwaysUseOverride == true) inflections = cat.inflectionsOverride;
@@ -270,7 +271,7 @@ internal static class InflectionUtility
                 bool? singularCollective = null;
                 if (ingredient.GetType() == typeof(ThingDef))
                 {
-                    FlavorCategoryDef parentCategory = CategoryUtility.ThingCategories[(ThingDef)ingredient].First();
+                    FlavorCategoryDef parentCategory = CategoryUtility.ThingParentCategories[(ThingDef)ingredient].First();
                     singularCollective = parentCategory.singularCollective;
                 }
                 else if (ingredient.GetType() == typeof(FlavorCategoryDef))

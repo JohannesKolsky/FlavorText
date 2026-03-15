@@ -50,7 +50,7 @@ public static class CategoryUtility
 {
     private static bool tag;  // DEBUG
 
-    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingCategories = [];
+    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingParentCategories = [];
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
     static CategoryUtility()
     {
@@ -141,15 +141,15 @@ public static class CategoryUtility
         // add everything in vanilla "Foods" to the item FlavorCategoryDef dictionary
         foreach (var food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
         {
-            ThingCategories.AddDistinct(food, []);
+            ThingParentCategories.AddDistinct(food, []);
         }
 
-        foreach (ThingDef food in ThingCategories.Keys)
+        foreach (ThingDef food in ThingParentCategories.Keys)
         {
             try
             {
                 //tag = food.defName.ToLower().Contains("stew");
-                var categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
+                var categories = ThingParentCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> newParentsSorted = null;
                 if (categories.Empty())
@@ -163,11 +163,11 @@ public static class CategoryUtility
                     {
                         if (tag) Log.Message(newParents.ToStringSafeEnumerable());
                         var newParent = newParentsSorted.First();
-                        ThingCategories[food].AddDistinct(newParent);
+                        ThingParentCategories[food].AddDistinct(newParent);
                         newParent.childThingDefs.Add(food);
                     }
                 }
-                categories = ThingCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null after searching all FlavorCategories.");
+                categories = ThingParentCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null after searching all FlavorCategories.");
                 if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty after searching all FlavorCategories.");
 
                 if (tag) Log.Warning($"testing {food} with categories [{categories.ToStringSafeEnumerable()}]");
@@ -183,11 +183,11 @@ public static class CategoryUtility
                     {
                         if (MealsQualities.ContainsKey(food)) MealsQualities[food].Add(qualityCat);
                         else MealsQualities.Add(food, [qualityCat]);
-                        ThingCategories[food].Remove(qualityCat);
+                        ThingParentCategories[food].Remove(qualityCat);
                     }
-                    if (ThingCategories[food].Empty())
+                    if (ThingParentCategories[food].Empty())
                     {
-                        ThingCategories[food].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+                        ThingParentCategories[food].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
                         FlavorCategoryDefOf.FT_MealsNonSpecial.childThingDefs.Add(food);
                     }
                 }
@@ -205,8 +205,8 @@ public static class CategoryUtility
         {
             try
             {
-                if (!ThingCategories.ContainsKey(building)) ThingCategories.Add(building, []);
-                var categories = ThingCategories.TryGetValue(building) ?? throw new NullReferenceException($"list of FlavorCategories for {building} in the ThingCategories dictionary was null.");
+                if (!ThingParentCategories.ContainsKey(building)) ThingParentCategories.Add(building, []);
+                var categories = ThingParentCategories.TryGetValue(building) ?? throw new NullReferenceException($"list of FlavorCategories for {building} in the ThingCategories dictionary was null.");
                 if (categories.Empty())
                 {
                     //Log.Warning($"{building?.ToStringSafe()} from mod {building?.modContentPack?.PackageId.ToStringSafe()}");
@@ -215,7 +215,7 @@ public static class CategoryUtility
                     if (newParents.Count > 0)
                     {
                         var newParent = newParents.MaxBy(element => element.Value).Key;
-                        ThingCategories[building].AddDistinct(newParent);
+                        ThingParentCategories[building].AddDistinct(newParent);
                         newParent.childThingDefs.Add(building);
                     }
                 }
@@ -257,8 +257,8 @@ public static class CategoryUtility
         {
             foreach (var child in flavorCategory.thingDefsToAbsorb)
             {
-                if (ThingCategories.ContainsKey(child)) ThingCategories[child].AddDistinct(flavorCategory);
-                else ThingCategories.Add(child, [flavorCategory]);
+                if (ThingParentCategories.ContainsKey(child)) ThingParentCategories[child].AddDistinct(flavorCategory);
+                else ThingParentCategories.Add(child, [flavorCategory]);
                 flavorCategory.childThingDefs.Add(child);
                 //Log.Message($"absorbing direct ThingDef {child} into {ThingCategories[child].ToStringSafeEnumerable()}...");
             }
@@ -267,12 +267,12 @@ public static class CategoryUtility
                 //Log.Warning($"absorbing ThingCategoryDef {thingCategory} into {flavorCategory}...");
                 foreach (var descendant in thingCategory.DescendantThingDefs)
                 {
-                    if (ThingCategories.ContainsKey(descendant))
+                    if (ThingParentCategories.ContainsKey(descendant))
                     {
-                        var parents = ThingCategories[descendant];
-                        if (!parents.Any(parent => flavorCategory.ThisAndChildren.Contains(parent))) ThingCategories[descendant].Add(flavorCategory);
+                        var parents = ThingParentCategories[descendant];
+                        if (!parents.Any(parent => flavorCategory.ThisAndChildren.Contains(parent))) ThingParentCategories[descendant].Add(flavorCategory);
                     }
-                    else ThingCategories.Add(descendant, [flavorCategory]);
+                    else ThingParentCategories.Add(descendant, [flavorCategory]);
                     flavorCategory.childThingDefs.AddDistinct(descendant);
                     //Log.Message($"absorbed descendant ThingDef {descendant} into {ThingCategories[descendant].ToStringSafeEnumerable()}...");
                 }

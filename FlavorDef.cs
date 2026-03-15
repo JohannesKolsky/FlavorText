@@ -284,15 +284,22 @@ public class FlavorDef : Def
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
         List<FlavorCategoryDef> mealThingParentCategories = [];
-        foreach (var cat in ThingCategories[meal.def])
+        foreach (var cat in ThingParentCategories[meal.def])
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) mealThingParentCategories.Add(temp);
         }
+        // meal = MealSimple
+        // ThingParentCategories = [FT_MealsNormal]
+        // mealThingParentCategories = [FT_MealsNonSpecial]
+        // flavorDef.mealKinds = [FT_MealsNonSpecial, FT_MealsSandwich]
+
+        bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial);
+
         flavorDefsToSearch ??= ActiveFlavorDefs;
         return flavorDefsToSearch
         .Where(flavorDef =>
-            (flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind)) || (FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            (mealCanBeAnyKind || (!FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(parent => flavorDef.mealKinds.Contains(parent))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
