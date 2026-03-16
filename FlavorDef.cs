@@ -299,7 +299,7 @@ public class FlavorDef : Def
         flavorDefsToSearch ??= ActiveFlavorDefs;
         return flavorDefsToSearch
         .Where(flavorDef =>
-            (mealCanBeAnyKind || (!FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(parent => flavorDef.mealKinds.Contains(parent))))
+            (mealCanBeAnyKind || (!FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))

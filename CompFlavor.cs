@@ -513,7 +513,7 @@ public class CompFlavor : ThingComp
         //TODO: this takes up 80% of runtime
         if (bestFlavors.Empty())
         {
-            List<FlavorDef> validFlavorDefsForMealType = [.. FlavorDef.ValidFlavorDefs(parent)];  //TODO: 50% of runtime: 2 ms
+            List<FlavorDef> validFlavorDefsForMealType = [.. FlavorDef.ValidFlavorDefs(parent)];  //TODO: 50% of runtime: 1 ms
             if (validFlavorDefsForMealType.NullOrEmpty())
             {
                 throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories.TryGetValue(parent.def).ToStringSafeEnumerable() + "] but there were none. Please report.");
@@ -525,7 +525,7 @@ public class CompFlavor : ThingComp
                 stopwatch.Restart();
             }
 
-            bestFlavors = (!ingredientChunks.Empty()) ? ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, validFlavorDefsForMealType)).ToList() : [GetBestFlavorDef([], validFlavorDefsForMealType)];  //50% of runtime: 2 ms
+            bestFlavors = (!ingredientChunks.Empty()) ? ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, validFlavorDefsForMealType)).ToList() : [GetBestFlavorDef([], validFlavorDefsForMealType)];  //50% of runtime: 1 ms
             if (bestFlavors.Empty())
             {
                 throw new InvalidOperationException("Could not find any best Flavor Defs for meal " + parent.ThingID);
