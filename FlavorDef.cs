@@ -21,8 +21,10 @@ namespace FlavorText;
 internal class DietKind
 {
 
-    //TODO: should fungus, cannibal, insect, twisted be here?
-    internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan, fungus, cannibal, insect, twisted }
+    // basic diet types based on possible ingredients
+    // this is exclusive: omnivore requires a plant ingredient, vegetarian requires an animal ingredient
+    // this order is strict, because a subrange of this can be used in searches
+    internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan }
 
     internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
     {
@@ -65,6 +67,7 @@ public class FlavorDef : Def
 
     public float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
+    //TODO: largely redundant with allowedDiets, but is an abstraction of them
     public FlavorCategoryDef lowestCommonRecipeCategory;  // lowest category that contains all the ingredients in the FlavorDef; used to optimize searches; defaults to flavorRoot
 
     internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
@@ -95,12 +98,16 @@ public class FlavorDef : Def
 
     public List<IngredientSlot> ingredients = [];
 
+    internal static Dictionary<Diet, List<FlavorDef>> DietIndex = [];
+
     public static void SetStaticData()
     {
         try
         {
             SetAllowedIngredients();
             SetActiveMealKinds();
+            SetDietKinds();
+            MakeDietIndex();
             SetSpecificities();
             SortSlots();
         }
@@ -110,6 +117,21 @@ public class FlavorDef : Def
         }
     }
 
+
+    private static void MakeDietIndex()
+    {
+        foreach (Diet diet in Enum.GetValues(typeof(Diet)))
+        {
+            DietIndex.Add(diet, []);
+        }
+        foreach (var flavorDef in ActiveFlavorDefs)
+        {
+            foreach (var diet in flavorDef.allowedDiets)
+            {
+                DietIndex[diet].Add(flavorDef);
+            }
+        }
+    }
     // remove mealKind categories that aren't being used (e.g. FT_MealsSoup if no mods add soup meals)
     // if this means a FlavorDef has no mealKind, add FT_MealsNonSpecial to it, so it can be used by normal meals and survival pack meals
     private static void SetActiveMealKinds()
@@ -187,6 +209,14 @@ public class FlavorDef : Def
                     .Distinct()];
 
             flavorDef.lowestCommonRecipeCategory = FindLowestCommonCategory(allCategoriesInDef);
+
+        }
+    }
+
+    private static void SetDietKinds()
+    {
+        foreach (var flavorDef in ActiveFlavorDefs)
+        {
 
             // {Meat, Egg, Grain} => [[Meat], [Animal], [Plant]] => [omnivore]
             // {Egg, Grain/Fungus} => [[Animal], [Fungus, Plant]] => [fungus, vegetarian]
@@ -280,23 +310,24 @@ public class FlavorDef : Def
 
     // all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
     // can be restricted to a given list of flavorDefsToSearch, which is used when loading a saved meal that already has flavor text to reduce search time
-    public static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, IEnumerable<FlavorDef> flavorDefsToSearch = null)
+    internal static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, Diet ingredientChunkDiet, IEnumerable<FlavorDef> flavorDefsToSearch = null)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
+
+        // check if meal search can be expanded because of laxRecipeMatching
+        // meal = MealSimple
+        // ThingParentCategories = [FT_MealsNormal]
+        // mealThingParentCategories = [FT_MealsNonSpecial]
+        // flavorDef.mealKinds = [FT_MealsNonSpecial, FT_MealsSandwich]
         List<FlavorCategoryDef> mealThingParentCategories = [];
         foreach (var cat in ThingParentCategories[meal.def])
         {
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) mealThingParentCategories.Add(temp);
         }
-        // meal = MealSimple
-        // ThingParentCategories = [FT_MealsNormal]
-        // mealThingParentCategories = [FT_MealsNonSpecial]
-        // flavorDef.mealKinds = [FT_MealsNonSpecial, FT_MealsSandwich]
-
         bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial);
 
-        flavorDefsToSearch ??= ActiveFlavorDefs;
+        flavorDefsToSearch ??= DietIndex[ingredientChunkDiet];
         return flavorDefsToSearch
         .Where(flavorDef =>
             (mealCanBeAnyKind || (!FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
