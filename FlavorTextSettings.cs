@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using RimWorld;
 using Verse;
 
 //DONE: reload flavor text on settings change  // happens on reload of save
@@ -18,7 +19,7 @@ namespace FlavorText
 
         public static bool flavorTextForStacks = true; // true: add flavor text to stacks of meals
 
-        public static void DoWindowContents(Rect inRect)
+        public void DoWindowContents(Rect inRect)
         {
             Listing_Standard listing_Standard = new();
             listing_Standard.Begin(inRect);
@@ -48,9 +49,10 @@ namespace FlavorText
 
     internal class FlavorTextMod : Mod
     {
+        internal static FlavorTextSettings flavorTextSettings;
         public FlavorTextMod(ModContentPack content) : base(content)
         {
-            GetSettings<FlavorTextSettings>();
+            flavorTextSettings = GetSettings<FlavorTextSettings>();
         }
 
         public override string SettingsCategory()
@@ -60,12 +62,12 @@ namespace FlavorText
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
-            FlavorTextSettings.DoWindowContents(inRect);
+            flavorTextSettings.DoWindowContents(inRect);
         }
-        /*        public override void WriteSettings()
-                {
-                    base.WriteSettings();
-                    if (FlavorTextSettings.) Scribe_Values.Read
-                }*/
+        public override void WriteSettings()
+        {
+            base.WriteSettings();
+            CategoryUtility.Reinitialize();
+        }
     }
 }

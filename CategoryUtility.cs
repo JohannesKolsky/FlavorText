@@ -2,12 +2,13 @@
 using RimWorld;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml;
 using UnityEngine;
 using Verse;
 using static FlavorText.CategoryUtility;
-using System.Diagnostics;
 
 // Verse.ThingCategoryNodeDatabase.FinalizeInit() is what adds core stuff to FlavorCategoryDef.childCategories
 
@@ -46,7 +47,7 @@ namespace FlavorText;
 /// various methods used to calculate stuff for FlavorText-related FlavorCategoryDefs
 /// </summary>
 [StaticConstructorOnStartup]
-public static class CategoryUtility
+internal static class CategoryUtility
 {
     private static bool tag;  // DEBUG
 
@@ -58,20 +59,7 @@ public static class CategoryUtility
         stopwatch.Start();
         try
         {
-            FlavorCategoryDef.FinalizeInit();
-            FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
-            InheritParentData(); // FT_Categories inherit some data from parents
-
-            AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
-
-            // can't do this until now, needs previous method and a built DefDatabase
-            DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
-            PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
-            DefDatabase<FlavorDef>.ResolveAllReferences();
-
-            FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
-            InflectionUtility.AssignIngredientInflections();
-            Debug();
+            Initialize();
 
         }
         catch (Exception ex)
@@ -88,30 +76,68 @@ public static class CategoryUtility
 
     }
 
+    internal static void Initialize()
+    {
+        FlavorCategoryDef.FinalizeInit();
+        FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
+        InheritParentData(); // FT_Categories inherit some data from parents
+
+        AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
+
+        // can't do this until now, needs previous method and a built DefDatabase
+        DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
+        PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
+        DefDatabase<FlavorDef>.ResolveAllReferences();
+
+        FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
+        InflectionUtility.AssignIngredientInflections();
+        Debug();
+    }
+
+    internal static void Reinitialize()
+    {
+        XmlInheritance.Clear();
+        Log.Warning($"reinitializing");
+        DefDatabase<FlavorCategoryDef>.Clear();
+        DefDatabase<FlavorDef>.Clear();
+        Log.Warning($"reloading XML from flavor text");
+        List<LoadableXmlAsset> flavorTextXML = [.. FlavorTextMod.flavorTextSettings.Mod.Content.LoadDefs(hotReload: true)];
+        Dictionary<XmlNode, LoadableXmlAsset> assetlookup = [];
+        XmlDocument xmlDocument = LoadedModManager.CombineIntoUnifiedXML(flavorTextXML, assetlookup);
+        TKeySystem.Clear();
+        TKeySystem.Parse(xmlDocument);
+        //LoadedModManager.ParseAndProcessXML(xmlDocument, assetlookup, hotReload: true);
+        XmlInheritance.Clear();
+        Log.Warning($"initializing CategoryUtility");
+        Initialize();  //TODO: gets stuck in a loop or something here, unable to exit options screen
+        Log.Warning("finished initializing CategoryUtility");
+        
+    }
+
     private static void Debug()
     {
-        /*        int count = DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)).Count();
-                Log.Warning($"found {count} food items");*/
-        /*        foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
-                {
-                    Log.Warning($">{thing.defName} is in categories:");
-                    foreach (FlavorCategoryDef category in ThingCategories[thing])
-                    {
-                        Log.Message($"{category.defName}");
-                    }
-                }*/
-        /*
-                Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
-                Log.Message($"[{ThingCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");*/
+        int count = DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)).Count();
+        Log.Warning($"found {count} food items");
+        foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
+        {
+            Log.Warning($">{thing.defName} is in categories:");
+            foreach (FlavorCategoryDef category in ThingParentCategories[thing])
+            {
+                Log.Message($"{category.defName}");
+            }
+        }
 
-        /*foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
+        Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
+        Log.Message($"[{ThingParentCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");
+
+        foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
         {
             Log.Warning(cat.defName);
             foreach (ThingDef thingDef in cat.DescendantThingDefs)
             {
                 Log.Message($"{thingDef.defName}");
             }
-        }*/
+        }
     }
 
     // for FT_Categories, inherit mod extension variables from parent where appropriate
@@ -185,7 +211,7 @@ public static class CategoryUtility
                         else MealsQualities.Add(food, [qualityCat]);
                         ThingParentCategories[food].Remove(qualityCat);
                     }
-                    if (ThingParentCategories[food].Empty())
+                    if (ThingParentCategories[food].Empty() || (FlavorTextSettings.laxRecipeMatching && ThingParentCategories[food].Contains(FlavorCategoryDefOf.FT_MealsCooked)))
                     {
                         ThingParentCategories[food].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
                         FlavorCategoryDefOf.FT_MealsNonSpecial.childThingDefs.Add(food);

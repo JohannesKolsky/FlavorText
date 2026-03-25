@@ -159,6 +159,6 @@ public class FlavorCategoryDef : Def
         {
             allDef.parent?.childCategories.Add(allDef);
         }
-        SetNestLevelRecursive(Named("FT_Root"), 0);
+        SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
     }
 }

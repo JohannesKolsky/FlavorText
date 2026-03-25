@@ -101,6 +101,8 @@ using static FlavorText.DietKind;
 //--TODO: TryGetFlavorText is running each time a meal is dropped on the ground  // it's running on cursor hover, which is normal
 //DONE: FarmersSalad fails b/c only fungus is viable for slot 0
 //DONE: something is still sometimes generating with ^
+//DONE: improve CompFlavor speed from 8-40 ms
+//--TODO: ensure that the full meal diet is factored in correctly when looking at a single group of ingredients // no, for performance
 
 //RELEASE: check all with v1.6
 //RELEASE: update XML files
@@ -127,16 +129,13 @@ using static FlavorText.DietKind;
 //TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
-//TODO: improve CompFlavor speed from 8-40 ms
 //TODO: take care of issues with deleting RemoveRepeatedWords()
-//TODO: FormatFlavorString is taking up 1/2 of the GetFlavorText runtime
 //TODO: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
 //TODO: fat (and maybe meat) is allowed in vegetarian FlavorDefs
 //TODO: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
-//TODO: ensure that the full meal diet is factored in correctly when looking at a single group of ingredients
 //TODO: paste FlavorDefs are appearing on normal meals
-//TODO: there are 2 CalculateDietKind() functions in here
+//TODO: possible error when removing VCE stews mid-processing
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -454,7 +453,7 @@ public class CompFlavor : ThingComp
 
         try
         {
-            CalculateDietKind();
+            CalculateMealDiet();
 
             //Log.Warning($"meal dietKind was {mealDietKind.ToStringSafe()}");
         }
@@ -531,7 +530,7 @@ public class CompFlavor : ThingComp
         //}
     }
 
-    private void CalculateDietKind()
+    private void CalculateMealDiet()
     {
         excludedCategories = [.. Props.defaultGhostExcludedCategories];
         if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
@@ -568,6 +567,18 @@ public class CompFlavor : ThingComp
         }
     }
 
+
+    // determine what FlavorDefs the given ingredient list matches, factoring in the mealKind of the parent
+    private Diet CalculateIngredientDiet(List<ThingDef> ingredients)
+    {
+        if (ingredients.All(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant)) return Diet.hyperCarnivore;
+        if (ingredients.All(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.vegan;
+        if (ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing))) return Diet.carnivore;
+        if (ingredients.Count() > 1 && ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.Any(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.omnivore;
+        if (ingredients.Any(FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing))) return Diet.vegetarian;
+        return Diet.omnivore;
+    }
+
     // split ingredients into chunks of size 3 (default)
     private static List<List<T>> Chunk<T>(List<T> source)
     {
@@ -599,47 +610,12 @@ public class CompFlavor : ThingComp
             {
                 //see which FinalFlavorDefs match with the ingredients in the meal
 
-                // 100 FD: 0-99
-                // rand = 11
-                // 11, 12, 13, 14, 16....99, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-
-                // search flavorDefs until you find 5 ones that could match
-                // start at a random spot to randomize what you get
-                // TODO: finding only first 5 improves search time with empty meals to 2-9 ms
-
-                // 0, < 100
-                // startIndex = 11;
-                // 11, 12, 13.....99
-
-                // if missing ingredients are allowed, calculate all possible diets that could work for the given ingredient set (i.e. ingredientDiet and mealDietKind and every diet in-between them)
-                //List<Diet> chosenDiets = [];
-                //Diet ingredientDiet = CalculateDietKind(ingredients);
-                //if (FlavorTextSettings.numAllowedMissingIngredients > 0 && ingredients.Count < CompProperties_Flavor.MaxNumIngredientsFlavor)
-                //{
-                //    List<Diet> dietPossibilities = [ingredientDiet, mealDietKind];
-                //    dietPossibilities.Sort();
-                //    var allDiets = Enum.GetValues(typeof(Diet));
-                //    for (int i = (int)dietPossibilities[0]; i <= (int)dietPossibilities[1]; i++)
-                //    {
-                //        chosenDiets.Add((Diet)allDiets.GetValue(i));
-                //    }
-                //}
-                //else chosenDiets = [ingredientDiet];
-                //Log.Warning($"chosenDiets were [{chosenDiets.ToStringSafeEnumerable()}]");
-
-                ingredientDiet = CalculateDietKind(ingredients);
+                ingredientDiet = CalculateIngredientDiet(ingredients);
                 flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, ingredientDiet, flavorDefsToSearch)];
                 if (flavorDefsToSearch.NullOrEmpty())
                 {
                     throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories.TryGetValue(parent.def).ToStringSafeEnumerable() + "] but there were none. Please report.");
                 }
-
-                //if (Prefs.DevMode)
-                //{
-                //    stopwatch.Stop();
-                //    Log.Message(">>[Flavor Text] GetFlavorText.GetBestFlavorDef.ValidFlavorDefs " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-                //    stopwatch.Restart();
-                //}
             }
 
 
@@ -653,7 +629,7 @@ public class CompFlavor : ThingComp
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
-                    //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}]");
+                    Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]]");
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
                 if (matchingFlavors.Count >= 5) break;
@@ -812,16 +788,6 @@ public class CompFlavor : ThingComp
         }
     }
 
-    // determine what FlavorDefs the given ingredient list matches, factoring in the mealKind of the parent
-    private Diet CalculateDietKind(List<ThingDef> ingredients)
-    {
-        if (ingredients.All(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant)) return Diet.hyperCarnivore;
-        if (ingredients.All(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.vegan;
-        if (ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing))) return Diet.carnivore;
-        if (ingredients.Count() > 1 && ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.Any(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.omnivore;
-        if (ingredients.Any(FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing))) return Diet.vegetarian;
-        return Diet.omnivore;
-    }
 
     // hypercarnivore => hypercarnivore
     // carnivore => hypercarnivore, carnivore
