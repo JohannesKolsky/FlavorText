@@ -4,6 +4,8 @@ using Verse;
 
 //DONE: reload flavor text on settings change  // happens on reload of save
 
+//TODO: reinitialize Defs when settings change so you don't require a restart (laxRecipeMatching, dynamicMealIncorporation)
+
 namespace FlavorText
 {
     public class FlavorTextSettings : ModSettings
@@ -13,7 +15,7 @@ namespace FlavorText
 
         public static bool randomizedRecipeOuput = true; // true: randomizes the recipe when multiple recipes match // false: always chooses the most specific recipe'
 
-        public static bool laxRecipeMatching = true;  // true: if modded soups are present, soup-type labels will still appear for normal meals
+        public static bool laxRecipeMatching = true;  // true: if modded soups are present, soup-type labels will still appear for normal meals; requires restart
 
         public static bool dynamicMealIncorporation = true; // true: add flavor text to meals outside of the explicitly defined ones; requires restart
 
@@ -67,7 +69,7 @@ namespace FlavorText
         public override void WriteSettings()
         {
             base.WriteSettings();
-            CategoryUtility.Reinitialize();
+            //CategoryUtility.Reinitialize();
         }
     }
 }

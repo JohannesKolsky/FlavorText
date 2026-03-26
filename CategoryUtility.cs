@@ -83,7 +83,6 @@ internal static class CategoryUtility
         InheritParentData(); // FT_Categories inherit some data from parents
 
         AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
-
         // can't do this until now, needs previous method and a built DefDatabase
         DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
         PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
@@ -91,28 +90,25 @@ internal static class CategoryUtility
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
-        Debug();
+        //Debug();
     }
 
-    internal static void Reinitialize()
+/*    internal static void Reinitialize()
     {
         XmlInheritance.Clear();
-        Log.Warning($"reinitializing");
         DefDatabase<FlavorCategoryDef>.Clear();
         DefDatabase<FlavorDef>.Clear();
-        Log.Warning($"reloading XML from flavor text");
+        FlavorTextMod.flavorTextSettings.Mod.Content.ClearDefs();
         List<LoadableXmlAsset> flavorTextXML = [.. FlavorTextMod.flavorTextSettings.Mod.Content.LoadDefs(hotReload: true)];
         Dictionary<XmlNode, LoadableXmlAsset> assetlookup = [];
         XmlDocument xmlDocument = LoadedModManager.CombineIntoUnifiedXML(flavorTextXML, assetlookup);
-        TKeySystem.Clear();
-        TKeySystem.Parse(xmlDocument);
-        //LoadedModManager.ParseAndProcessXML(xmlDocument, assetlookup, hotReload: true);
+        LoadedModManager.ParseAndProcessXML(xmlDocument, assetlookup, hotReload: true);
         XmlInheritance.Clear();
         Log.Warning($"initializing CategoryUtility");
-        Initialize();  //TODO: gets stuck in a loop or something here, unable to exit options screen
+        Initialize();  //TODO: parents are still null where parents were removed before
         Log.Warning("finished initializing CategoryUtility");
         
-    }
+    }*/
 
     private static void Debug()
     {
@@ -145,12 +141,11 @@ internal static class CategoryUtility
     {
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildren)
         {
-            if (cat.singularCollective == null)
-            {
-                cat.singularCollective = cat.parent.singularCollective;
-            }
+            if (cat.parent == null) { Log.Error($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data"); continue; }
+            //Log.Message($"{cat.ToStringSafe()}");
+            cat.singularCollective ??= cat.parent.singularCollective;
 
-            //cat.singularCollective ??= cat.parent.singularCollective;  // inherit singularCollective field value from parent if it is null in child
+            //Log.Message($"parent = {cat?.parent.ToStringSafe()}");
             cat.blacklist.AddRange(cat.parent.blacklist);  // inherit blacklist of parent
             cat.alwaysUseOverride ??= cat.parent.alwaysUseOverride; // inherit alwaysUseOverride if null in child
             if (cat.inflectionsOverride.Empty()) cat.inflectionsOverride = cat.parent.inflectionsOverride;  // inherit inflectionsOverride if empty in child
@@ -162,7 +157,7 @@ internal static class CategoryUtility
     private static void AssignToFlavorCategories()
     {
         // look in FlavorCategories and add any predefined ThingDefs and ThingCategoryDef contents to the FlavorCategory
-        AbsorbChildrenFromXML();
+        AbsorbChildrenFromXML(); //TODO: FT_Root is null on Reinitialize
 
         // add everything in vanilla "Foods" to the item FlavorCategoryDef dictionary
         foreach (var food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
@@ -211,6 +206,8 @@ internal static class CategoryUtility
                         else MealsQualities.Add(food, [qualityCat]);
                         ThingParentCategories[food].Remove(qualityCat);
                     }
+
+                    //TODO: is this redundant with flavorDef.mealKinds?
                     if (ThingParentCategories[food].Empty() || (FlavorTextSettings.laxRecipeMatching && ThingParentCategories[food].Contains(FlavorCategoryDefOf.FT_MealsCooked)))
                     {
                         ThingParentCategories[food].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);

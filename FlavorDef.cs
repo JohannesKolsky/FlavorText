@@ -1,4 +1,5 @@
 ﻿using PipeSystem;
+using RimWorld;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -138,6 +139,11 @@ public class FlavorDef : Def
             if (flavorDef.mealKinds.Empty())
             {
                 flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+            }
+            else if ((FlavorTextSettings.laxRecipeMatching && !flavorDef.mealKinds.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial) && flavorDef.mealKinds.Any(mealKind => mealKind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            {
+                flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+                Log.Message($"{flavorDef.ToStringSafe()} is now part of nonspecial meals with mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
             }
         }
     }
