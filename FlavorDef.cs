@@ -16,6 +16,7 @@ using static FlavorText.DietKind;
 //DONE: candy has meat FoodKind allowed
 
 //TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals
+//TODO: single condiments fail in bakes; is this b/c of a diet issue or a mealKind issue?
 
 namespace FlavorText;
 
@@ -104,7 +105,7 @@ public class FlavorDef : Def
         {
             SetAllowedIngredients();
             SetActiveMealKinds();
-            SetDietKinds();
+            SetDiets();
             MakeDietIndex();
             SetSpecificities();
             SortSlots();
@@ -132,24 +133,22 @@ public class FlavorDef : Def
     private static void SetActiveMealKinds()
     {
         List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndChildren.Where(cat => cat.DescendantThingDefs.Count() == 0)];
+        Log.Warning($"Found {emptyMealKinds.Count} emptyMealKinds: [{emptyMealKinds.ToStringSafeEnumerable()}]");
         foreach (var flavorDef in ActiveFlavorDefs)
         {
             flavorDef.mealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
-            if (flavorDef.mealKinds.Empty())
+            if (flavorDef.mealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && !flavorDef.mealKinds.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial) && flavorDef.mealKinds.Any(mealKind => mealKind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             {
                 flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
             }
-            else if ((FlavorTextSettings.laxRecipeMatching && !flavorDef.mealKinds.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial) && flavorDef.mealKinds.Any(mealKind => mealKind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
-            {
-                flavorDef.mealKinds.Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
-                Log.Message($"{flavorDef.ToStringSafe()} is now part of nonspecial meals with mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
-            }
+            
+            
         }
     }
 
 
-    private static void SetDietKinds()
+    private static void SetDiets()
     {
         foreach (var flavorDef in ActiveFlavorDefs)
         {
@@ -220,7 +219,7 @@ public class FlavorDef : Def
                 if (slotDietsSketchy.Any(diet => diet.Contains(sketchy))) flavorDef.requiredSketchyIngredients.Add(sketchy);
             }
 
-            tag = flavorDef.defName == "FlavorText_TEST";
+            //tag = flavorDef.mealKinds.Contains(FlavorCategoryDef.Named("FT_MealsBaby"));
 
             if (slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
             if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
@@ -229,6 +228,9 @@ public class FlavorDef : Def
             if (slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
 
             if (tag) Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotDiets.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+
+
+            //TODO: how are condiments and diet handled? this seems like it won't assign a diet to a condiment-only FlavorDef
         }
     }
     // create an dictionary that groups meals according to diet for quick access
@@ -334,7 +336,7 @@ public class FlavorDef : Def
         flavorDefsToSearch ??= DietIndex[ingredientChunkDiet];
         return flavorDefsToSearch
         .Where(flavorDef =>
-            ((mealCanBeAnyKind && flavorDef.mealKinds.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial)) || (!FlavorTextSettings.laxRecipeMatching && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
+            ((mealCanBeAnyKind && flavorDef.mealKinds.Contains(FlavorCategoryDefOf.FT_MealsNonSpecial)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))

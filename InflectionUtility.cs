@@ -10,6 +10,9 @@ namespace FlavorText;
 /// <summary>
 /// various methods used to calculate stuff for ingredient name variations (e.g. singular vs plural)
 /// </summary>
+/// 
+
+//TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active
 
 [StaticConstructorOnStartup]
 internal static class InflectionUtility
@@ -20,21 +23,9 @@ internal static class InflectionUtility
     public static readonly List<string> grammaticalInflections = ["plur", "coll", "sing", "adj"];
     public static readonly List<string> grammaticalCollections = ["AND", "OR", "OTHER"];
 
-    // predefined inflections from XML for active mods
-    internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];
-    internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsData = [];
-    static InflectionUtility()
-    {
-        var thingInflectionsList = DefDatabase<ThingInflectionsData>.AllDefs
-       .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
-       .SelectMany(dict => dict.dictionary);
-        foreach (var kvp in thingInflectionsList)
-        {
-            var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
-            ThingInflectionsDictionary.AddDistinct(key, kvp.Value);
-        }
-    }
-
+    
+    internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];  // inflections for specific ThingDefs
+    internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsDictionary = [];  // inflections for FlavorCategoryDefs
 
 
     // get various grammatical forms of each ingredient
@@ -50,50 +41,63 @@ internal static class InflectionUtility
                     cat.inflectionsOverride = [.. cat.inflectionsOverride.Select(inflect => inflect.Formatted("").Trim())];
                 }
                 var inflections = GenerateInflections(cat, cat.inflectionsOverride);
-                CategoryInflectionsData.AddDistinct(cat, inflections);
+                CategoryInflectionsDictionary.AddDistinct(cat, inflections);
             }
         }
 
+        GetPredefinedThingInflections();
         foreach (ThingDef ingredient in FlavorCategoryDefOf.FT_Foods.DescendantThingDefs.Distinct().ToList())
         {
             try
-            {
+            {                
+                // tag = ingredient.defName.ToLower().Contains("flour");
+                // try and get inflections defined in the XML
+                List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
+                if (inflections is null)
                 {
-                    //tag = ingredient.defName.ToLower().Contains("flour");
-                    // try and get inflections defined in the XML
-                    List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
+                    ThingInflectionsDictionary.Add(ingredient, []);
+                    if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
+                    var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndParents;
+                    foreach (var cat in thisAndParents)
+                    {
+                        if (cat.alwaysUseOverride == true) inflections = cat.inflectionsOverride;
+                        if (inflections is not null) break;
+                    }
                     if (inflections is null)
                     {
-                        ThingInflectionsDictionary.Add(ingredient, []);
-                        if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
-                        var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndParents;
-                        foreach (var cat in thisAndParents)
-                        {
-                            if (cat.alwaysUseOverride == true) inflections = cat.inflectionsOverride;
-                            if (inflections is not null) break;
-                        }
-                        if (inflections is null)
-                        {
-                            if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined category inflections, will generate inflections instead.");
-                            inflections = [];
-                        }
+                        if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined category inflections, will generate inflections instead.");
+                        inflections = [];
                     }
-
-                    // generate inflections
-                    inflections = GenerateInflections(ingredient, inflections);
-                    if (inflections.Any(inflect => inflect is null))
-                    {
-                        string errorString = $"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}";
-                        throw new NullReferenceException($"Generated inflections for {ingredient} but some or all of them were null" + errorString);
-                    }
-                    ThingInflectionsDictionary[ingredient] = inflections;
-                    if (tag) Log.Message($"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}");
                 }
+
+                // generate inflections
+                inflections = GenerateInflections(ingredient, inflections);
+                if (inflections.Any(inflect => inflect is null))
+                {
+                    string errorString = $"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}";
+                    throw new NullReferenceException($"Generated inflections for {ingredient} but some or all of them were null" + errorString);
+                }
+                ThingInflectionsDictionary[ingredient] = inflections;
+                if (tag) Log.Message($"\nplur = {inflections[0]}\ncoll = {inflections[1]}\nsing = {inflections[2]}\nadj = {inflections[3]}");
 
             }
             catch (Exception ex)
             {
                 Log.Error($"Error when getting inflections for {ingredient}. {ex}");
+            }
+        }
+
+
+
+        static void GetPredefinedThingInflections()
+        {
+            var thingInflectionsList = DefDatabase<ThingInflectionsData>.AllDefs
+           .Where(dict => dict.packageID is null || ModLister.GetActiveModWithIdentifier(dict.packageID) is not null)
+           .SelectMany(dict => dict.dictionary);
+            foreach (var kvp in thingInflectionsList)
+            {
+                var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
+                ThingInflectionsDictionary.AddDistinct(key, kvp.Value);
             }
         }
     }
