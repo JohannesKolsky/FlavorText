@@ -560,7 +560,7 @@ public class CompFlavor : ThingComp
         // check for sketchy ingredients like insect meat and fungus
         foreach (var ing in Ingredients)
         {
-            foreach (var sketchy in sketchyDietCategories)
+            foreach (var sketchy in SketchyDietCategories)
             {
                 if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
             }

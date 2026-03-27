@@ -86,6 +86,19 @@ public class FlavorCategoryDef : Def
         }
     }
 
+    public IEnumerable<FlavorCategoryDef> LowestChildCategories
+    {
+        get
+        {
+            FlavorCategoryDef childCategoryDef1 = this;
+            if (childCategoryDef1.childCategories.Count == 0) yield return childCategoryDef1;
+            foreach (FlavorCategoryDef childCategory in childCategoryDef1.childCategories)
+            {
+                foreach (FlavorCategoryDef childCategoryDef2 in childCategory.LowestChildCategories) yield return childCategoryDef2;
+            }
+
+        }
+    }
 
     public IEnumerable<ThingDef> DescendantThingDefs
     {
