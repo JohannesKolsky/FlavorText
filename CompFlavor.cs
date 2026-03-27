@@ -103,6 +103,7 @@ using static FlavorText.DietKind;
 //DONE: something is still sometimes generating with ^
 //DONE: improve CompFlavor speed from 8-40 ms
 //--TODO: ensure that the full meal diet is factored in correctly when looking at a single group of ingredients // no, for performance
+//DONE: paste FlavorDefs are appearing on normal meals
 
 //RELEASE: check all with v1.6
 //RELEASE: update XML files
@@ -134,7 +135,6 @@ using static FlavorText.DietKind;
 //TODO: fat (and maybe meat) is allowed in vegetarian FlavorDefs
 //TODO: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
-//TODO: paste FlavorDefs are appearing on normal meals
 //TODO: possible error when removing VCE stews mid-processing
 
 /// <summary>

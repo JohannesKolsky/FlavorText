@@ -14,9 +14,11 @@ using static FlavorText.DietKind;
 //--TODO: blank ingredient option
 //DONE: resolve question of how to deal with twisted/vegetarian/etc meals: they are separate categorizatons so they should be separate fields in each FlavorDef; but what about stuff like [FT_Meat_Twisted, FT_Fungus] vs [FT_Meat_Twisted/FT_Fungus]?
 //DONE: candy has meat FoodKind allowed
+//DONE: single condiments fail in bakes; is this b/c of a diet issue or a mealKind issue?
 
 //TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals
-//TODO: single condiments fail in bakes; is this b/c of a diet issue or a mealKind issue?
+//TODO: DankPyon_CaveCobraEggFertilized becomes "c cobra"
+//TODO: more general categories like MealsCooked for mealKinds, so you don't have to list all of them for stuff like Mud Cookies or condiment creations
 
 namespace FlavorText;
 
