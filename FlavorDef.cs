@@ -16,11 +16,10 @@ using static FlavorText.DietKind;
 //DONE: resolve question of how to deal with twisted/vegetarian/etc meals: they are separate categorizatons so they should be separate fields in each FlavorDef; but what about stuff like [FT_Meat_Twisted, FT_Fungus] vs [FT_Meat_Twisted/FT_Fungus]?
 //DONE: candy has meat FoodKind allowed
 //DONE: single condiments fail in bakes; is this b/c of a diet issue or a mealKind issue?
-
-//DONE: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals
+//DONE: more general categories like MealsCooked for mealKinds, so you don't have to list all of them for stuff like Mud Cookies or condiment creations
+//--TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals; -- picks up Insect Jelly
 
 //TODO: DankPyon_CaveCobraEggFertilized becomes "c cobra"
-//TODO: more general categories like MealsCooked for mealKinds, so you don't have to list all of them for stuff like Mud Cookies or condiment creations
 
 namespace FlavorText;
 
@@ -241,6 +240,7 @@ public class FlavorDef : Def
             if (slotDiets.Count() > 1 && slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);
             if (slotDiets.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
             if (slotDiets.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
+            //else { flavorDef.allowedDiets.Add(Diet.omnivore); }
 
             if (tag) Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotDiets.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
 
