@@ -136,6 +136,7 @@ using static FlavorText.DietKind;
 //TODO: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //TODO: possible error when removing VCE stews mid-processing
+//TODO: remove if (Prefs.DevMode) requirement for errors?
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -180,7 +181,7 @@ public class CompFlavor : ThingComp
 
     public List<string> MealTags = [];
 
-    internal Diet mealDietKind;
+    internal Diet mealDiet;
 
     internal List<FlavorCategoryDef> sketchyIngredients = [];
 
@@ -428,10 +429,7 @@ public class CompFlavor : ThingComp
                 }
             }
             ex.Data.Add("allIngredients", flavorSummary);
-            if (Prefs.DevMode)
-            {
-                Log.Error(string.Format("Error: {0}\n{1}\n{2}\n{3}", ex, ex.Data["flavorSummary"], ex.Data["flavorDef"], ex.Data["ingredients"]));
-            }
+            Log.Error(string.Format("Error: {0}\n{1}\n{2}\n{3}\n{4}\n{5}", ex, ex.Data["flavorSummary"], ex.Data["flavorDef"], ex.Data["ingredients"], ex.Data["diets"], ex.Data["meal"]));
         }
         finally
         {
@@ -496,12 +494,6 @@ public class CompFlavor : ThingComp
                 bestFlavors = [];
             }
         }
-        //if (Prefs.DevMode)
-        //{
-        //    stopwatch.Stop();
-        //    Log.Message(">[Flavor Text] GetFlavorText saved FlavorDefs " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-        //    stopwatch.Restart();
-        //}
 
         // if the above failed, try searching with all valid FlavorDefs
         //TODO: this may be able to be merged with the saved FlavorDefs search
@@ -523,25 +515,21 @@ public class CompFlavor : ThingComp
         // generate the labels and descriptions for the meal
         GenerateFlavorText(ingredientChunks, bestFlavors);
 
-        //if (Prefs.DevMode)
-        //{
-        //    stopwatch.Stop();
-        //    Log.Message(">[Flavor Text] GetFlavorText GenerateFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-        //}
     }
 
+    //TODO: this can mismatch; in VV, some foods are categorized in FT_FoodRaw, which can create omnivore ingredient diet with a vegan meal diet
     private void CalculateMealDiet()
     {
         excludedCategories = [.. Props.defaultGhostExcludedCategories];
         if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
         {
-            mealDietKind = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat
+            mealDiet = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat
                 ? Diet.hyperCarnivore
                 : Ingredients.Any(ing => FoodUtility.GetFoodKind(ing) == FoodKind.NonMeat) ? Diet.omnivore : Diet.carnivore;
         }
         else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
         {
-            mealDietKind = Diet.vegan;
+            mealDiet = Diet.vegan;
         }
         else
         {
@@ -549,9 +537,9 @@ public class CompFlavor : ThingComp
             {
                 throw new ArgumentException("Unrecognized FoodKind for meal. FoodKind: " + FoodUtility.GetFoodKind(parent).ToStringSafe());
             }
-            mealDietKind = Diet.vegetarian;
+            mealDiet = Diet.vegetarian;
         }
-        foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDietKind))
+        foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
         {
             excludedCategories.AddDistinct(dietCat);
         }
@@ -596,6 +584,7 @@ public class CompFlavor : ThingComp
     {
         Stopwatch stopwatch = new();
         stopwatch.Start();
+        string ingredientsDietString = "";
         try
         {
             //Log.Warning($"GetBestFlavorDef with ingredients [{ingredients.ToStringSafeEnumerable()}]");
@@ -603,15 +592,16 @@ public class CompFlavor : ThingComp
             {
                 throw new ArgumentNullException("ingredients", "List of ingredients to search for is null or empty");
             }
-            Diet ingredientDiet;
             List<(FlavorDef def, List<int> indices)> matchingFlavors = [];
 
             if (flavorDefsToSearch.NullOrEmpty())
             {
                 //see which FinalFlavorDefs match with the ingredients in the meal
 
-                ingredientDiet = CalculateIngredientDiet(ingredients);
-                flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, ingredientDiet, flavorDefsToSearch)];
+                Diet ingredientsDiet;
+                ingredientsDiet = CalculateIngredientDiet(ingredients);
+                ingredientsDietString = ingredientsDiet.ToStringSafe();
+                flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, ingredientsDiet, flavorDefsToSearch)];
                 if (flavorDefsToSearch.NullOrEmpty())
                 {
                     throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories.TryGetValue(parent.def).ToStringSafeEnumerable() + "] but there were none. Please report.");
@@ -635,13 +625,6 @@ public class CompFlavor : ThingComp
                 if (matchingFlavors.Count >= 5) break;
             }
             Rand.PopState();
-
-            //if (Prefs.DevMode)
-            //{
-            //    stopwatch.Stop();
-            //    Log.Message(">>[Flavor Text] GetMatchIndices ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-            //    stopwatch.Restart();
-            //}
 
             // pick the most specific matching FlavorDef
             // note that the slots may be reordered from the XML, however the flavor strings are not, hence the need for FlavorDef.slotIndices
@@ -675,17 +658,14 @@ public class CompFlavor : ThingComp
                 errorString += string.Format(arg1: ingredients[i].defName, format: "\n{0} {1}", arg0: i);
             }
             ex.Data.Add("ingredients", errorString);
+            string errorString2 = "\ndiets were:";
+            errorString2 += $"\nmealDietKind = {mealDiet}\ningredientDietKind = {ingredientsDietString}";
+            ex.Data.Add("diets", errorString2);
+            string errorString3 = "\ndiets were:";
+            errorString3 += $"\nmeal was type {parent.def.defName.ToStringSafe()}\nmeal is at location ({parent.PositionHeld.ToStringSafe()})";
+            ex.Data.Add("meal", errorString3);
             throw;
         }
-        //finally
-        //{
-        //    if (Prefs.DevMode)
-        //    {
-        //        stopwatch.Stop();
-        //        Log.Message(">>[Flavor Text] GetBestFlavorDef end ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-        //        // negligible runtime
-        //    }
-        //}
 
         // check if the ingredients match the given FlavorDef
         // try to match each slot with the first ingredient that fits it
@@ -978,12 +958,12 @@ public class CompFlavor : ThingComp
         List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.disallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
         if (ghostCategories.NullOrEmpty())
         {
-            Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
+            if (Prefs.DevMode) Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");
             throw new NullReferenceException();
         }
         if (!generatedCoreFlavorDef)
         {
-            List<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDietKind];
+            List<FlavorCategoryDef> coreCats = DietKind.dietIncludedCategories[mealDiet];
             List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.DescendantOf(coreCats))];
             if (!coreGhostCategories.Empty())
             {

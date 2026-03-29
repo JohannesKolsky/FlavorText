@@ -90,7 +90,7 @@ internal static class CategoryUtility
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
-        //Debug();
+        Debug();
     }
 
 /*    internal static void Reinitialize()
@@ -112,7 +112,7 @@ internal static class CategoryUtility
 
     private static void Debug()
     {
-        int count = DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)).Count();
+        int count = DefDatabase<ThingDef>.AllDefs.Count(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing));
         Log.Warning($"found {count} food items");
         foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
         {
@@ -123,17 +123,17 @@ internal static class CategoryUtility
             }
         }
 
-        Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
-        Log.Message($"[{ThingParentCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");
+        //Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
+        //Log.Message($"[{ThingParentCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");
 
-        foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
-        {
-            Log.Warning(cat.defName);
-            foreach (ThingDef thingDef in cat.DescendantThingDefs)
-            {
-                Log.Message($"{thingDef.defName}");
-            }
-        }
+        //foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
+        //{
+        //    Log.Warning(cat.defName);
+        //    foreach (ThingDef thingDef in cat.DescendantThingDefs)
+        //    {
+        //        Log.Message($"{thingDef.defName}");
+        //    }
+        //}
     }
 
     // for FT_Categories, inherit mod extension variables from parent where appropriate
