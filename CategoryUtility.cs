@@ -141,14 +141,24 @@ internal static class CategoryUtility
     {
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildren)
         {
-            if (cat.parent == null) { Log.Error($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data"); continue; }
+            if (cat.parents == null) { Log.Error($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data"); continue; }
             //Log.Message($"{cat.ToStringSafe()}");
-            cat.singularCollective ??= cat.parent.singularCollective;
+            if (cat.singularCollective == null)
+            {
+                foreach (var parent in cat.parents)
+                {
+                    if (parent.singularCollective != null)
+                    {
+
+                    }
+                }
+            }
+            cat.singularCollective ??= cat.parents.singularCollective;
 
             //Log.Message($"parent = {cat?.parent.ToStringSafe()}");
-            cat.blacklist.AddRange(cat.parent.blacklist);  // inherit blacklist of parent
-            cat.alwaysUseOverride ??= cat.parent.alwaysUseOverride; // inherit alwaysUseOverride if null in child
-            if (cat.inflectionsOverride.Empty()) cat.inflectionsOverride = cat.parent.inflectionsOverride;  // inherit inflectionsOverride if empty in child
+            cat.blacklist.AddRange(cat.parents.blacklist);  // inherit blacklist of parent
+            cat.alwaysUseOverride ??= cat.parents.alwaysUseOverride; // inherit alwaysUseOverride if null in child
+            if (cat.inflectionsOverride.Empty()) cat.inflectionsOverride = cat.parents.inflectionsOverride;  // inherit inflectionsOverride if empty in child
         }
     }
 
@@ -264,7 +274,7 @@ internal static class CategoryUtility
         }
         else
         {
-            root.parent = null;
+            root.parents = null;
             root.childCategories.Clear();
         }
     }

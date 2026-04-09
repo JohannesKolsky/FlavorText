@@ -41,7 +41,7 @@ public class FlavorCategoryDef : Def
 
     internal int nestDepth;
 
-    public FlavorCategoryDef parent;
+    public List<FlavorCategoryDef> parents;
 
     public List<string> inflectionsOverride = []; // default name for an ingredient when this category is empty (only used if numAllowedMissingIngredients) > 0
 
@@ -64,10 +64,13 @@ public class FlavorCategoryDef : Def
         get
         {
             yield return this;
-            if (parent != null)
+            if (!parents.NullOrEmpty())
             {
-                foreach (FlavorCategoryDef thisAndParent in parent.ThisAndParents)
-                    yield return thisAndParent;
+                foreach (FlavorCategoryDef parent in parents)
+                {
+                    foreach (FlavorCategoryDef ancestors in parent.ThisAndParents)
+                        yield return ancestors;
+                }
             }
         }
     }
@@ -170,7 +173,7 @@ public class FlavorCategoryDef : Def
     {
         foreach (FlavorCategoryDef allDef in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
-            allDef.parent?.childCategories.Add(allDef);
+            allDef.parents?.ForEach(parent => parent.childCategories.Add(allDef));
         }
         SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
     }
