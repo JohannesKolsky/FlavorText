@@ -190,9 +190,16 @@ public class CompFlavor : ThingComp
 
     internal int? iteration = null;
 
-    public List<ThingDef> Ingredients => [.. from def in parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
+    public List<ThingDef> Ingredients
+    {
+        get
+        {
+            List<ThingDef> result = [.. from def in parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
                                           orderby def.defName.GetHashCode()
                                           select def];
+            return result;
+        }
+    }
 
     public CompIngredients CompIngredients => parent.TryGetComp<CompIngredients>();
 
@@ -956,7 +963,7 @@ public class CompFlavor : ThingComp
     private ThingDef GenerateGhostIngredient((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
     {
         ThingDef ghost = null;
-        List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndChildren.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.disallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
+        List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.disallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
         if (ghostCategories.NullOrEmpty())
         {
             if (Prefs.DevMode) Log.Error($"Error when generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.categories.ToStringSafeEnumerable()}]. The restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated.");

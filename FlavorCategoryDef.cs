@@ -52,12 +52,10 @@ public class FlavorCategoryDef : Def
     [Unsaved]
     public List<ThingDef> childThingDefs = [];
     [Unsaved]
-    private HashSet<ThingDef> allChildThingDefsCached;
-    [Unsaved]
-    private List<ThingDef> sortedChildThingDefsCached;
+    private HashSet<ThingDef> descendantThingDefsCached;
 
 
-    public List<ThingDef> SortedChildThingDefs => sortedChildThingDefsCached;
+    public HashSet<ThingDef> DescendantThingDefs => descendantThingDefsCached;
 
     public IEnumerable<FlavorCategoryDef> ThisAndParents
     {
@@ -75,7 +73,7 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public IEnumerable<FlavorCategoryDef> ThisAndChildren
+    public IEnumerable<FlavorCategoryDef> ThisAndDescendants
     {
         get
         {
@@ -83,7 +81,7 @@ public class FlavorCategoryDef : Def
             yield return childCategoryDef1;
             foreach (FlavorCategoryDef childCategory in childCategoryDef1.childCategories)
             {
-                foreach (FlavorCategoryDef childCategoryDef2 in childCategory.ThisAndChildren)
+                foreach (FlavorCategoryDef childCategoryDef2 in childCategory.ThisAndDescendants)
                     yield return childCategoryDef2;
             }
         }
@@ -107,7 +105,7 @@ public class FlavorCategoryDef : Def
     {
         get
         {
-            foreach (FlavorCategoryDef childCategoryDef in ThisAndChildren)
+            foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
             {
                 foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
                     yield return childThingDef;
@@ -118,7 +116,7 @@ public class FlavorCategoryDef : Def
 
     public bool ContainedInThisOrDescendant(ThingDef thingDef)
     {
-        return allChildThingDefsCached.Contains(thingDef);
+        return descendantThingDefsCached.Contains(thingDef);
     }
 
     //FT_Foods -> FT_Fungus -> FT_Morrel
@@ -140,13 +138,13 @@ public class FlavorCategoryDef : Def
 
     public override void ResolveReferences()
     {
-        allChildThingDefsCached = [];
-        foreach (FlavorCategoryDef childCategoryDef in ThisAndChildren)
+        HashSet<ThingDef> allChildThingDefsCached = [];
+        foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
         {
             foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
                 allChildThingDefsCached.Add(childThingDef);
         }
-        sortedChildThingDefsCached = [.. childThingDefs.OrderBy(n => n.label)];
+        descendantThingDefsCached = [.. allChildThingDefsCached.Distinct().OrderBy(n => n.label)];
     }
 
     public static FlavorCategoryDef Named(string defName)
@@ -173,6 +171,7 @@ public class FlavorCategoryDef : Def
     {
         foreach (FlavorCategoryDef allDef in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
+            if (allDef.parents.NullOrEmpty()) Log.Error($"{allDef.ToStringSafe()} parents field was null or empty. Had value: [{allDef.parents.ToStringSafeEnumerable()}]");
             allDef.parents?.ForEach(parent => parent.childCategories.Add(allDef));
         }
         SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);

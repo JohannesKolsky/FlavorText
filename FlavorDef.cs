@@ -138,7 +138,7 @@ public class FlavorDef : Def
     // if this means a FlavorDef has no mealKind, add FT_MealsNonSpecial to it, so it can be used by normal meals and survival pack meals
     private static void SetActiveMealKinds()
     {
-        List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndChildren.Where(cat => cat.DescendantThingDefs.Count() == 0)];
+        List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndDescendants.Where(cat => cat.DescendantThingDefs.Count() == 0)];
         Log.Warning($"Found {emptyMealKinds.Count} emptyMealKinds: [{emptyMealKinds.ToStringSafeEnumerable()}]");
         foreach (var flavorDef in ActiveFlavorDefs)
         {
@@ -146,7 +146,7 @@ public class FlavorDef : Def
             List<FlavorCategoryDef> defActiveMealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.Clear();
 
-            if (defActiveMealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && defActiveMealKinds.Intersect(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndChildren).Count() == 0 && defActiveMealKinds.Any(mealKind => mealKind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            if (defActiveMealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && defActiveMealKinds.Intersect(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants).Count() == 0 && defActiveMealKinds.Any(mealKind => mealKind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             {
                 flavorDef.mealKinds.AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories);
             }
@@ -237,7 +237,7 @@ public class FlavorDef : Def
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.requiredSketchyIngredients.Add(sketchy);
             }
 
-            tag = slotAllowedCategories.Any(slot => slot.Empty());
+            //tag = slotAllowedCategories.Any(slot => slot.Empty());
 
             if (slotAllowedCategories.All(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
             if (slotAllowedCategories.Any(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
@@ -347,13 +347,13 @@ public class FlavorDef : Def
             if (temp is not null) mealThingParentCategories.Add(temp);
         }
         Log.Message($"mealThingParentCategories were [{mealThingParentCategories.ToStringSafeEnumerable()}]");
-        bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndChildren.Contains);
+        bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains);
         Log.Message($"mealCanBeAnyKind = {mealCanBeAnyKind.ToStringSafe()}");
 
         flavorDefsToSearch ??= DietIndex[ingredientChunkDiet];
         return flavorDefsToSearch
         .Where(flavorDef =>
-            ((mealCanBeAnyKind && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndChildren.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
+            ((mealCanBeAnyKind && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))

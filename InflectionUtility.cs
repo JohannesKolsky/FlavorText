@@ -277,18 +277,21 @@ internal static class InflectionUtility
                 {
                     FlavorCategoryDef parentCategory = CategoryUtility.ThingParentCategories[(ThingDef)ingredient].First();
                     singularCollective = parentCategory.singularCollective;
+                    if (singularCollective == null)
+                    {
+                        throw new NullReferenceException($"failed to get singular collective bool from {ingredient.ToStringSafe()} with parent categories [{CategoryUtility.ThingParentCategories[(ThingDef)ingredient].ToStringSafeEnumerable()}]");
+                    }
                 }
                 else if (ingredient.GetType() == typeof(FlavorCategoryDef))
                 {
                     FlavorCategoryDef category = (FlavorCategoryDef)ingredient;
                     singularCollective = category.singularCollective;
+                    if (singularCollective == null)
+                    {
+                        throw new NullReferenceException($"failed to get singular collective bool from {ingredient.ToStringSafe()} with parent categories [{category.parents.ToStringSafeEnumerable()}]");
+                    }
                 }
 
-                if (singularCollective == null)
-                {
-                    Log.Error($"failed to get singular collective bool from {ingredient.ToStringSafe()}");
-                    throw new NullReferenceException();
-                }
                 coll = singularCollective == true ? sing : plur;
             }
         }
