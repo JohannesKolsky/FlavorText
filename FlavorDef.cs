@@ -22,6 +22,7 @@ using static FlavorText.DietKind;
 
 //TODO: DankPyon_CaveCobraEggFertilized becomes "c cobra"
 //TODO: with full modded list, paste FlavorDefs are appearing for simple meals
+//TODO: stuff like FT_SugarCandy has allowedDietKind hypercarnivore and carnivore
 
 namespace FlavorText;
 
@@ -129,7 +130,7 @@ public class FlavorDef : Def
         {
             foreach (var slot in flavorDef.ingredients)
             {
-                slot.AddAllowedThingDefsRecursive(slot.categories);
+                slot.AddAllowedCategoriesAndThingsRecursive(slot.categories);
             }
         }
     }
@@ -373,14 +374,14 @@ public class IngredientSlot : IExposable
     public IEnumerable<ThingDef> AllowedThingDefs => allowedThingDefs;
     public IEnumerable<FlavorCategoryDef> AllowedCategories => allowedCategories;
 
-    internal void AddAllowedThingDefsRecursive(IEnumerable<FlavorCategoryDef> cats)
+    internal void AddAllowedCategoriesAndThingsRecursive(IEnumerable<FlavorCategoryDef> cats)
     {
         foreach (var cat in cats)
         {
             if (disallowedCategories.Contains(cat)) continue;
             allowedCategories.Add(cat);
             allowedThingDefs.AddRange(cat.childThingDefs);
-            AddAllowedThingDefsRecursive(cat.childCategories);
+            AddAllowedCategoriesAndThingsRecursive(cat.childCategories);
         }
     }
 

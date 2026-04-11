@@ -142,23 +142,27 @@ internal static class CategoryUtility
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Foods.ThisAndChildren)
         {
             if (cat.parents == null) { Log.Error($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data"); continue; }
-            //Log.Message($"{cat.ToStringSafe()}");
             if (cat.singularCollective == null)
             {
-                foreach (var parent in cat.parents)
+                if (cat.parents.All(parent => parent.singularCollective == cat.parents[0].singularCollective))
                 {
-                    if (parent.singularCollective != null)
-                    {
-
-                    }
+                    cat.singularCollective = cat.parents[0].singularCollective;
                 }
+                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching singularCollective field values. The values were [{cat.parents.Select(parent => parent.singularCollective.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
-            cat.singularCollective ??= cat.parents.singularCollective;
 
-            //Log.Message($"parent = {cat?.parent.ToStringSafe()}");
-            cat.blacklist.AddRange(cat.parents.blacklist);  // inherit blacklist of parent
-            cat.alwaysUseOverride ??= cat.parents.alwaysUseOverride; // inherit alwaysUseOverride if null in child
-            if (cat.inflectionsOverride.Empty()) cat.inflectionsOverride = cat.parents.inflectionsOverride;  // inherit inflectionsOverride if empty in child
+            // inherit alwaysUseOverride if null in child
+            if (cat.alwaysUseOverride == null)
+            {
+                if (cat.parents.All(parent => parent.alwaysUseOverride == cat.parents[0].alwaysUseOverride))
+                {
+                    cat.alwaysUseOverride = cat.parents[0].alwaysUseOverride;
+                }
+                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching alwaysUseOverride field values. The values were [{cat.parents.Select(parent => parent.alwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
+            }
+
+            cat.parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
+            if (cat.inflectionsOverride.Empty()) Log.Warning($"inflectionsOverride was empty for {cat.ToStringSafe()}");  // inherit inflectionsOverride if empty in child
         }
     }
 
@@ -193,7 +197,7 @@ internal static class CategoryUtility
                     if (!newParentsSorted.Empty())
                     {
                         if (tag) Log.Message(newParents.ToStringSafeEnumerable());
-                        var newParent = newParentsSorted.First();
+                        var newParent = newParentsSorted.First();  //TODO: this will only add a single parent category to each food
                         ThingParentCategories[food].AddDistinct(newParent);
                         newParent.childThingDefs.Add(food);
                     }
@@ -355,7 +359,7 @@ internal static class CategoryUtility
             for (var i = 0; i < categoriesToSearch.Count; i++)
             {
                 var flavorCategory = categoriesToSearch[i];
-                if (!categoriesToSkip.Contains(flavorCategory))
+                if (!categoriesToSkip.Contains(flavorCategory) && !bestFlavorCategories.ContainsKey(flavorCategory))
                 {
                     GetKeywordScores(flavorCategory);
                     if (categoryScore > 0) bestFlavorCategories.Add(flavorCategory, categoryScore);
