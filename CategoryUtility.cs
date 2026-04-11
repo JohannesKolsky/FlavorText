@@ -53,6 +53,7 @@ internal static class CategoryUtility
 
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingParentCategories = [];
     internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
+    internal const int goodScoreForCategorization = 5;
     static CategoryUtility()
     {
         Stopwatch stopwatch = new();
@@ -183,29 +184,33 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("stew");
+                tag = food.defName.ToLower().Contains("hornet") || food.defName.ToLower().Contains("honey");
                 var categories = ThingParentCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
                 Dictionary<FlavorCategoryDef, int> newParents = null;
-                List<FlavorCategoryDef> newParentsSorted = null;
+                List<FlavorCategoryDef> bestParentsList = null;
                 if (categories.Empty())
                 {
                     if (tag) Log.Warning($"figuring out best FlavorCategory for {food} from mod {food?.modContentPack?.PackageId?.ToStringSafe()}");
-                    List<string> splitNames = ExtractNames(food);
-                    newParents = GetBestFlavorCategory(splitNames, food, FlavorCategoryDefOf.FT_Root);
-                    newParentsSorted = [.. newParents.OrderByDescending(element => element.Value).Select(element => element.Key)];
-
-                    if (!newParentsSorted.Empty())
+                    newParents = GetBestFlavorCategory(ExtractNames(food), food, FlavorCategoryDefOf.FT_Root);
+                    int bestScore = newParents.Max(element => element.Value);
+                    if (tag) Log.Error($"bestScore was {bestScore.ToStringSafe()}");
+                    if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
                     {
-                        if (tag) Log.Message(newParents.ToStringSafeEnumerable());
-                        var newParent = newParentsSorted.First();  //TODO: this will only add a single parent category to each food
-                        ThingParentCategories[food].AddDistinct(newParent);
-                        newParent.childThingDefs.Add(food);
+                        bestParentsList = [.. newParents.Where(element => element.Value >= 2 * goodScoreForCategorization).Select(element => element.Key)];
+                    }
+                    else bestParentsList = [.. newParents.Where(element => element.Value == bestScore).Select(element => element.Key)];  // else accept the highest scored parent category
+
+                    if (!bestParentsList.NullOrEmpty())
+                    {
+                        foreach (FlavorCategoryDef newParent in bestParentsList)
+                        {
+                            ThingParentCategories[food].AddDistinct(newParent);
+                            if (tag) Log.Message($"ThingParentCategories was [{ThingParentCategories[food].ToStringSafeEnumerable()}]");
+                        }
                     }
                 }
                 categories = ThingParentCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null after searching all FlavorCategories.");
                 if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty after searching all FlavorCategories.");
-
-                if (tag) Log.Warning($"testing {food} with categories [{categories.ToStringSafeEnumerable()}]");
 
                 // if ThingDef should have CompFlavor, postpend a new one
                 // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
@@ -340,7 +345,7 @@ internal static class CategoryUtility
         return splitNames;
     }
 
-    private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = 5)
+    private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
         //tag = searchedDef.defName.ToLower().Contains("stew");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
