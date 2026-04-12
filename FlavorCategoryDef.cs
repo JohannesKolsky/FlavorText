@@ -54,9 +54,6 @@ public class FlavorCategoryDef : Def
     [Unsaved]
     private HashSet<ThingDef> descendantThingDefsCached;
 
-
-    public HashSet<ThingDef> DescendantThingDefs => descendantThingDefsCached;
-
     public IEnumerable<FlavorCategoryDef> ThisAndParents
     {
         get
@@ -101,22 +98,26 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public IEnumerable<ThingDef> DescendantThingDefs
+    public HashSet<ThingDef> DescendantThingDefs
     {
         get
         {
-            foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
+            if (descendantThingDefsCached == null)
             {
-                foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
-                    yield return childThingDef;
+                foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
+                {
+                    foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
+                        descendantThingDefsCached.Add(childThingDef);
+                }
             }
+            return descendantThingDefsCached;
         }
     }
 
 
     public bool ContainedInThisOrDescendant(ThingDef thingDef)
     {
-        return descendantThingDefsCached.Contains(thingDef);
+        return DescendantThingDefs.Contains(thingDef);
     }
 
     //FT_Foods -> FT_Fungus -> FT_Morrel
@@ -171,7 +172,6 @@ public class FlavorCategoryDef : Def
     {
         foreach (FlavorCategoryDef allDef in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
-            if (allDef.parents.NullOrEmpty()) Log.Error($"{allDef.ToStringSafe()} parents field was null or empty. Had value: [{allDef.parents.ToStringSafeEnumerable()}]");
             allDef.parents?.ForEach(parent => parent.childCategories.Add(allDef));
         }
         SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);

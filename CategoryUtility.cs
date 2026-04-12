@@ -91,7 +91,7 @@ internal static class CategoryUtility
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
-        //Debug();
+        Debug();
     }
 
 /*    internal static void Reinitialize()
@@ -117,10 +117,10 @@ internal static class CategoryUtility
         Log.Warning($"found {count} food items");
         foreach (var thing in DefDatabase<ThingDef>.AllDefs.Where(thing => DefDatabase<FlavorCategoryDef>.GetNamed("FT_Foods").ContainedInThisOrDescendant(thing)))
         {
-            tag = thing.defName.ToLower().Contains("honey");
+            tag = ThingParentCategories[thing].Contains(FlavorCategoryDefOf.FT_Foods);
             if (tag)
             {
-                Log.Message($">{thing.defName} with parent categories {ThingParentCategories[thing].Select(parent => $"\n{parent.ToStringSafe()} had child ThingDefs [{parent.DescendantThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}");
+                Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"\n{parent.ToStringSafe()}] had child ThingDefs [{parent.DescendantThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}");
             }
             tag = false;
         }

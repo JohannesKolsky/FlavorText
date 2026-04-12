@@ -350,17 +350,35 @@ public class FlavorDef : Def
         bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains);
         Log.Message($"mealCanBeAnyKind = {mealCanBeAnyKind.ToStringSafe()}");
 
-        flavorDefsToSearch ??= DietIndex[ingredientChunkDiet];
+        if (flavorDefsToSearch != null)
+        {
+            Log.Message($"flavorDefsToSearch was [{flavorDefsToSearch.ToStringSafeEnumerable()}]");
+            flavorDefsToSearch = flavorDefsToSearch.Intersect(DietIndex[ingredientChunkDiet])
+            .Where(flavorDef =>
+                ((mealCanBeAnyKind && flavorDef.mealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
+                && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
+                && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
+                    cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
+                && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
+                        compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
+                                            /*&& flavorDef.ingredientsHitPointPercentage.Includes(
+                                                (float)compFlavor.IngredientsHitPointPercentage!)*/);
+            if (flavorDefsToSearch.Count() > 0) return flavorDefsToSearch;
+        }
+        
+        Log.Message($"flavorDefsToSearch was null or empty");
+        flavorDefsToSearch = DietIndex[ingredientChunkDiet];
         return flavorDefsToSearch
         .Where(flavorDef =>
-            ((mealCanBeAnyKind && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
+            ((mealCanBeAnyKind && flavorDef.mealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
             && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
             && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
             && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
                     compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
-                    /*&& flavorDef.ingredientsHitPointPercentage.Includes(
-                        (float)compFlavor.IngredientsHitPointPercentage!)*/);
+                                    /*&& flavorDef.ingredientsHitPointPercentage.Includes(
+                                        (float)compFlavor.IngredientsHitPointPercentage!)*/);
+        
 
     }
 }
