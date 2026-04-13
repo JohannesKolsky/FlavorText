@@ -91,7 +91,7 @@ internal static class CategoryUtility
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
-        Debug();
+        //Debug();
     }
 
 /*    internal static void Reinitialize()
@@ -170,6 +170,7 @@ internal static class CategoryUtility
             }
 
             cat.parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
+            cat.parents.ForEach(parent => cat.blacklistedMods.AddRangeUnique(parent.blacklistedMods));  // inherit blacklisted mods of parents
             //if (cat.inflectionsOverride.Empty()) Log.Warning($"inflectionsOverride was empty for {cat.ToStringSafe()}");
         }
     }
@@ -178,8 +179,9 @@ internal static class CategoryUtility
     // add CompFlavor to appropriate meals
     private static void AssignToFlavorCategories()
     {
+        // TODO: FT_Root is null on Reinitialize
         // look in FlavorCategories and add any predefined ThingDefs and ThingCategoryDef contents to the FlavorCategory
-        AbsorbChildrenFromXML(); //TODO: FT_Root is null on Reinitialize
+        AbsorbChildrenFromXML();
 
         // add everything in vanilla "Foods" to the item FlavorCategoryDef dictionary
         foreach (var food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
@@ -198,7 +200,7 @@ internal static class CategoryUtility
                 if (categories.Empty())
                 {
                     if (tag) Log.Warning($"figuring out best FlavorCategory for {food} from mod {food?.modContentPack?.PackageId?.ToStringSafe()}");
-                    newParents = GetBestFlavorCategory(ExtractNames(food), food, FlavorCategoryDefOf.FT_Foods);
+                    newParents = GetBestFlavorCategory(food, FlavorCategoryDefOf.FT_Foods);
                     int bestScore = newParents.Max(element => element.Value);
                     if (tag) Log.Error($"bestScore was {bestScore.ToStringSafe()}");
                     if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
@@ -260,8 +262,7 @@ internal static class CategoryUtility
                 if (categories.Empty())
                 {
                     //Log.Warning($"{building?.ToStringSafe()} from mod {building?.modContentPack?.PackageId.ToStringSafe()}");
-                    List<string> splitNames = ExtractNames(building);
-                    var newParents = GetBestFlavorCategory(splitNames, building, FlavorCategoryDefOf.FT_CookingStations);
+                    var newParents = GetBestFlavorCategory(building, FlavorCategoryDefOf.FT_CookingStations);
                     if (newParents.Count > 0)
                     {
                         var newParent = newParents.MaxBy(element => element.Value).Key;
@@ -353,16 +354,18 @@ internal static class CategoryUtility
         return splitNames;
     }
 
-    private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(List<string> splitNames, ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
+    private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
         //tag = searchedDef.defName.ToLower().Contains("stew");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
+        List<string> splitNames = ExtractNames(searchedDef);
         int categoryScore = 0;
         Dictionary<FlavorCategoryDef, int> bestFlavorCategories = [];
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndDescendants.ToList();
-        List<FlavorCategoryDef> categoriesToSkip = [];
+        List<FlavorCategoryDef> categoriesToSkip = [.. FlavorCategoryDefOf.FT_Root.ThisAndDescendants.Where(cat => !cat.blacklistedMods.Contains(searchedDef.modContentPack.PackageId))];
+        Log.Warning($"{searchedDef.ToStringSafe()} will skip categories [{categoriesToSkip.ToStringSafeEnumerable()}] due to being from a blacklisted mod");
 
         try
         {
@@ -394,9 +397,10 @@ internal static class CategoryUtility
                     }
                 }
             }
+
+            //TODO: can you allow getting a CompFlavor via this method, maybe if the match is strong enough combined with the defName/label?
             // if you couldn't find any categories, try using the Def's original parent categories as the search keywords
             // this strategy forbids allowing the item to get a CompFlavor, to avoid overriding specialized modded meals
-            //TODO: can you allow getting a CompFlavor via this method, maybe if the match is strong enough combined with the defName/label?
             if (bestFlavorCategories.Count == 0)
             {
                 categoriesToSearch.RemoveAll(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndDescendants.Contains(cat));
@@ -410,7 +414,7 @@ internal static class CategoryUtility
                     if (defParents.NullOrEmpty()) break;
                     if (tag) Log.Warning($"{searchedDef.defName} had parent categories [{defParents.ToStringSafeEnumerable()}]");
 
-                    foreach (ThingCategoryDef defParent in defParents!)
+                    foreach (ThingCategoryDef defParent in defParents)
                     {
                         splitNames = ExtractNames(defParent);
 

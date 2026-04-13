@@ -39,6 +39,8 @@ public class FlavorCategoryDef : Def
 
     internal List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
 
+    internal List<string> blacklistedMods = [];  // mods whose ThingDefs should not be added to this category by the auto-categorizer; thingDefsToAbsorb and thingCategoryDefsToAbsorb will bypass this
+
     internal int nestDepth;
 
     public List<FlavorCategoryDef> parents;
@@ -46,6 +48,7 @@ public class FlavorCategoryDef : Def
     public List<string> inflectionsOverride = []; // default name for an ingredient when this category is empty (only used if numAllowedMissingIngredients) > 0
 
     public bool? alwaysUseOverride = null;  // always use the inflection override; used for weird names, like eggs and Brussels sprouts
+
 
     [Unsaved]
     public List<FlavorCategoryDef> childCategories = [];

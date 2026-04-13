@@ -46,6 +46,7 @@ using static FlavorText.DietKind;
 //DONE: pawn spawned with meals, those meals don't get flavor text until save and reload
 //DONE: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
 //DONE: no compFlavor for nutrient paste meals for now
+//DONE: this can mismatch; in VV, some foods are categorized in FT_FoodRaw, which can create omnivore ingredient diet with a vegan meal diet
 
 //RELEASED: side dish clauses isn't working
 //RELEASED: check for that null bug again
@@ -105,6 +106,7 @@ using static FlavorText.DietKind;
 //--TODO: ensure that the full meal diet is factored in correctly when looking at a single group of ingredients // no, for performance
 //DONE: paste FlavorDefs are appearing on normal meals
 //DONE: Pyon hornet jelly and smokey honey aren't being considered ingredients for Flavor Text
+//DONE: VCE chili peppers may be invalid
 
 //RELEASE: check all with v1.6
 //RELEASE: update XML files
@@ -138,7 +140,6 @@ using static FlavorText.DietKind;
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //TODO: possible error when removing VCE stews mid-processing
 //TODO: remove if (Prefs.DevMode) requirement for errors?
-//TODO: VCE chili peppers may be invalid
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -255,19 +256,13 @@ public class CompFlavor : ThingComp
                 else if (FinalFlavorDefs.Any(def => def == null || DefDatabase<FlavorDef>.GetNamedSilentFail(def.defName.ToString()) == null))
                 {
                     FinalFlavorDefs = [];
-                    if (Prefs.DevMode)
-                    {
-                        Log.Warning("Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an old version of FlavorText. Will get new FlavorDefs");
-                    }
+                    if (Prefs.DevMode) Log.Warning("Found a null or unknown FlavorDef in list of saved FlavorDefs, probably deprecated from an old version of FlavorText. Will get new FlavorDefs");
                 }
             }
         }
         catch (Exception ex)
         {
-            if (Prefs.DevMode)
-            {
-                Log.Warning($"Found an invalid FlavorDef. Will attempt to get new Flavor Text. Error: {ex}");
-            }
+            if (Prefs.DevMode) Log.Warning($"Found an invalid FlavorDef. Will attempt to get new Flavor Text. Error: {ex}");
         }
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
@@ -483,10 +478,7 @@ public class CompFlavor : ThingComp
             }
             catch (Exception ex2) when (ex2 is NullReferenceException or InvalidOperationException)
             {
-                if (Prefs.DevMode)
-                {
-                    Log.Warning("Saved Flavor Text no longer matches for a meal, probably due to a settings change or an old version of FlavorText. Will attempt to get new Flavor Text.");
-                }
+                if (Prefs.DevMode) Log.Warning("Saved Flavor Text no longer matches for a meal, probably due to a settings change or an old version of FlavorText. Will attempt to get new Flavor Text.");
                 bestFlavors = [];
             }
         }
@@ -513,7 +505,6 @@ public class CompFlavor : ThingComp
 
     }
 
-    //TODO: this can mismatch; in VV, some foods are categorized in FT_FoodRaw, which can create omnivore ingredient diet with a vegan meal diet
     private void CalculateMealDiet()
     {
         excludedCategories = [.. Props.defaultGhostExcludedCategories];
@@ -583,7 +574,6 @@ public class CompFlavor : ThingComp
         string ingredientsDietString = "";
         try
         {
-            Log.Warning($"GetBestFlavorDef with ingredients [{ingredients.ToStringSafeEnumerable()}] and flavorDefsToSearch [{flavorDefsToSearch.ToStringSafeEnumerable()}]");
             if (ingredients == null || (ingredients.Empty() && FlavorTextSettings.numAllowedMissingIngredients == 0))
             {
                 throw new ArgumentNullException("ingredients", "List of ingredients to search for is null or empty");
@@ -674,10 +664,7 @@ public class CompFlavor : ThingComp
                 // if flavorDef is null, skip
                 if (flavorDef == null)
                 {
-                    if (Prefs.DevMode)
-                    {
-                        Log.Warning("Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
-                    }
+                    if (Prefs.DevMode) Log.Warning("Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
                     return null;
                 }
                 // if flavorDef length doesn't match ingredient list length, skip
@@ -954,27 +941,23 @@ public class CompFlavor : ThingComp
         List<FlavorCategoryDef> ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.disallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
         if (ghostCategories.Empty())  // if you'd fail to generate, make a warning, then recalculate diet from ingredients instead of meal
         {
-            if (Prefs.DevMode) Log.Error($"Error on meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.categories.ToStringSafeEnumerable()}], the restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated. For now, the ghost ingredients will be generated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
+            Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.categories.ToStringSafeEnumerable()}], the restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
             excludedCategories = [.. Props.defaultGhostExcludedCategories];
             foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(CalculateIngredientDiet(ingredients)))
             {
                 excludedCategories.AddDistinct(dietCat);
             }
-            Log.Message($"excludedCategories has been reset to default, is now [{excludedCategories.ToStringSafeEnumerable()}]");
             ghostCategories = [.. slot.categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.childThingDefs.Count > 0 && !childCat.inflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.disallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
-            Log.Message($"ghostCategories has been set to ingredient diet, is now [{ghostCategories.ToStringSafeEnumerable()}]");
 
         }
         if (!generatedCoreFlavorDef)
         {
-            Log.Warning("generating core ingredient");
             List<FlavorCategoryDef> coreCats = dietIncludedCategories[mealDiet];
             List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.DescendantOf(coreCats))];
             if (!coreGhostCategories.Empty())
             {
                 generatedCoreFlavorDef = true;
                 ghostCategories = coreGhostCategories;
-                Log.Message($"ghostCategories got core ghost categories and is now [{ghostCategories.ToStringSafeEnumerable()}]");
             }
         }
 

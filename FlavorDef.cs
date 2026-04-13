@@ -139,7 +139,6 @@ public class FlavorDef : Def
     private static void SetActiveMealKinds()
     {
         List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndDescendants.Where(cat => cat.DescendantThingDefs.Count() == 0)];
-        Log.Warning($"Found {emptyMealKinds.Count} emptyMealKinds: [{emptyMealKinds.ToStringSafeEnumerable()}]");
         foreach (var flavorDef in ActiveFlavorDefs)
         {
             // get lowest child categories of all active mealKinds in the def
@@ -343,17 +342,13 @@ public class FlavorDef : Def
         List<FlavorCategoryDef> mealThingParentCategories = [];
         foreach (var cat in ThingParentCategories[meal.def])
         {
-            Log.Message($"parent category was {cat.ToStringSafe()}");
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) mealThingParentCategories.Add(temp);
         }
-        Log.Message($"mealThingParentCategories were [{mealThingParentCategories.ToStringSafeEnumerable()}]");
         bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains);
-        Log.Message($"mealCanBeAnyKind = {mealCanBeAnyKind.ToStringSafe()}");
 
         if (flavorDefsToSearch != null)
         {
-            Log.Message($"flavorDefsToSearch was [{flavorDefsToSearch.ToStringSafeEnumerable()}]");
             flavorDefsToSearch = flavorDefsToSearch.Intersect(DietIndex[ingredientChunkDiet])
             .Where(flavorDef =>
                 ((mealCanBeAnyKind && flavorDef.mealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
@@ -367,7 +362,6 @@ public class FlavorDef : Def
             if (flavorDefsToSearch.Count() > 0) return flavorDefsToSearch;
         }
         
-        Log.Message($"flavorDefsToSearch was null or empty");
         flavorDefsToSearch = DietIndex[ingredientChunkDiet];
         return flavorDefsToSearch
         .Where(flavorDef =>

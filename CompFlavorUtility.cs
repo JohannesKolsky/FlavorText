@@ -38,7 +38,6 @@ namespace FlavorText
             get
             {
                 activeProcesses ??= [];
-                Log.Message($"activeProcesses: {activeProcesses.ToStringSafeEnumerable()}");
                 return activeProcesses;
             }
         }
