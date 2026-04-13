@@ -237,8 +237,8 @@ internal static class CategoryUtility
                     //TODO: is this redundant with flavorDef.mealKinds?
                     if (ThingParentCategories[food].Empty() || (FlavorTextSettings.laxRecipeMatching && ThingParentCategories[food].Contains(FlavorCategoryDefOf.FT_MealsCooked)))
                     {
-                        ThingParentCategories[food].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
-                        FlavorCategoryDefOf.FT_MealsNonSpecial.childThingDefs.Add(food);
+                        ThingParentCategories[food].Add(FlavorCategoryDefOf.FT_MealsNormal);
+                        FlavorCategoryDefOf.FT_MealsNormal.childThingDefs.Add(food);
                     }
                 }
             }

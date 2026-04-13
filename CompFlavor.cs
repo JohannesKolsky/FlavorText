@@ -583,7 +583,7 @@ public class CompFlavor : ThingComp
         string ingredientsDietString = "";
         try
         {
-            //Log.Warning($"GetBestFlavorDef with ingredients [{ingredients.ToStringSafeEnumerable()}]");
+            Log.Warning($"GetBestFlavorDef with ingredients [{ingredients.ToStringSafeEnumerable()}] and flavorDefsToSearch [{flavorDefsToSearch.ToStringSafeEnumerable()}]");
             if (ingredients == null || (ingredients.Empty() && FlavorTextSettings.numAllowedMissingIngredients == 0))
             {
                 throw new ArgumentNullException("ingredients", "List of ingredients to search for is null or empty");
@@ -596,10 +596,11 @@ public class CompFlavor : ThingComp
                 Diet ingredientsDiet;
                 ingredientsDiet = CalculateIngredientDiet(ingredients);
                 ingredientsDietString = ingredientsDiet.ToStringSafe();
+                Log.Message($"ingredientsDiet was {ingredientsDiet.ToStringSafe()}");
                 flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, ingredientsDiet, flavorDefsToSearch)];
                 if (flavorDefsToSearch.NullOrEmpty())
                 {
-                    throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories.TryGetValue(parent.def).ToStringSafeEnumerable() + "] but there were none. Please report.");
+                    throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories[parent.def].ToStringSafeEnumerable() + "] but there were none. Please report.");
                 }
             }
 

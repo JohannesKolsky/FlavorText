@@ -21,7 +21,8 @@ public static class FlavorCategoryDefOf
     public static FlavorCategoryDef FT_MealsWithCompFlavor;  // all items that should get their label changed via Flavor Text
     public static FlavorCategoryDef FT_MealsKinds;  // all meals of all kinds, ignoring quality
     public static FlavorCategoryDef FT_MealsQualities; // all qualities of meals
-    public static FlavorCategoryDef FT_MealsNonSpecial; // non-specialty meals; this is the default if meal kind is unknown
+    public static FlavorCategoryDef FT_MealsNonSpecial; // non-specialty meals: basic and survival pack
+    public static FlavorCategoryDef FT_MealsNormal; // basic vanilla meals; this is the default if meal kind is unknown
     public static FlavorCategoryDef FT_MealsCooked; // all meals that are "cooked"; for vanilla this is all except paste and baby food
     public static FlavorCategoryDef FT_MealsPaste;
 }

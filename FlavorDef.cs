@@ -343,6 +343,7 @@ public class FlavorDef : Def
         List<FlavorCategoryDef> mealThingParentCategories = [];
         foreach (var cat in ThingParentCategories[meal.def])
         {
+            Log.Message($"parent category was {cat.ToStringSafe()}");
             var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) mealThingParentCategories.Add(temp);
         }
