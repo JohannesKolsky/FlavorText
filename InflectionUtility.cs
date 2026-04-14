@@ -57,7 +57,7 @@ internal static class InflectionUtility
                 {
                     ThingInflectionsDictionary.Add(ingredient, []);
                     if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
-                    var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndParents;
+                    var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndAncestors;
                     foreach (var cat in thisAndParents)
                     {
                         if (cat.alwaysUseOverride == true) inflections = cat.inflectionsOverride;

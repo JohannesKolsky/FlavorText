@@ -586,7 +586,7 @@ public class CompFlavor : ThingComp
                 Diet ingredientsDiet;
                 ingredientsDiet = CalculateIngredientDiet(ingredients);
                 ingredientsDietString = ingredientsDiet.ToStringSafe();
-                Log.Message($"ingredientsDiet was {ingredientsDiet.ToStringSafe()}");
+                //Log.Message($"ingredientsDiet was {ingredientsDiet.ToStringSafe()}");
                 flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, ingredientsDiet, flavorDefsToSearch)];
                 if (flavorDefsToSearch.NullOrEmpty())
                 {
@@ -605,7 +605,7 @@ public class CompFlavor : ThingComp
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
-                    Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
+                    //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
                 if (matchingFlavors.Count >= 5) break;

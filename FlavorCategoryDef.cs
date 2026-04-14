@@ -57,7 +57,7 @@ public class FlavorCategoryDef : Def
     [Unsaved]
     private HashSet<ThingDef> descendantThingDefsCached;
 
-    public IEnumerable<FlavorCategoryDef> ThisAndParents
+    public IEnumerable<FlavorCategoryDef> ThisAndAncestors
     {
         get
         {
@@ -66,7 +66,22 @@ public class FlavorCategoryDef : Def
             {
                 foreach (FlavorCategoryDef parent in parents)
                 {
-                    foreach (FlavorCategoryDef ancestors in parent.ThisAndParents)
+                    foreach (FlavorCategoryDef ancestors in parent.ThisAndAncestors)
+                        yield return ancestors;
+                }
+            }
+        }
+    }
+
+    public IEnumerable<FlavorCategoryDef> AncestorCategories
+    {
+        get
+        {
+            if (!parents.NullOrEmpty())
+            {
+                foreach (FlavorCategoryDef parent in parents)
+                {
+                    foreach (FlavorCategoryDef ancestors in parent.ThisAndAncestors)
                         yield return ancestors;
                 }
             }
@@ -77,12 +92,23 @@ public class FlavorCategoryDef : Def
     {
         get
         {
-            FlavorCategoryDef childCategoryDef1 = this;
-            yield return childCategoryDef1;
-            foreach (FlavorCategoryDef childCategory in childCategoryDef1.childCategories)
+            FlavorCategoryDef origin = this;
+            yield return origin;
+            foreach (FlavorCategoryDef childCategory1 in origin.childCategories)
             {
-                foreach (FlavorCategoryDef childCategoryDef2 in childCategory.ThisAndDescendants)
-                    yield return childCategoryDef2;
+                foreach (FlavorCategoryDef childCategory2 in childCategory1.ThisAndDescendants)
+                    yield return childCategory2;
+            }
+        }
+    }
+    public IEnumerable<FlavorCategoryDef> DescendantCategories
+    {
+        get
+        {
+            foreach (FlavorCategoryDef childCategory1 in childCategories)
+            {
+                foreach (FlavorCategoryDef childCategory2 in childCategory1.ThisAndDescendants)
+                    yield return childCategory2;
             }
         }
     }
@@ -107,6 +133,7 @@ public class FlavorCategoryDef : Def
         {
             if (descendantThingDefsCached == null)
             {
+                descendantThingDefsCached = [];
                 foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
                 {
                     foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
@@ -127,28 +154,17 @@ public class FlavorCategoryDef : Def
 
     public bool ContainedInThisOrDescendant(FlavorCategoryDef child)
     {
-        return child.ThisAndParents.Contains(this);
+        return child.ThisAndAncestors.Contains(this);
     }
 
     // is this in the list or a descendant of one of the list members?
     public bool DescendantOf(List<FlavorCategoryDef> list)
     {
-        foreach (var cat in ThisAndParents)
+        foreach (var cat in ThisAndAncestors)
         {
             if (list.Contains(cat)) return true;
         }
         return false;
-    }
-
-    public override void ResolveReferences()
-    {
-        HashSet<ThingDef> allChildThingDefsCached = [];
-        foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
-        {
-            foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
-                allChildThingDefsCached.Add(childThingDef);
-        }
-        descendantThingDefsCached = [.. allChildThingDefsCached.Distinct().OrderBy(n => n.label)];
     }
 
     public static FlavorCategoryDef Named(string defName)

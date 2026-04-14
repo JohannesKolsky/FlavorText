@@ -145,7 +145,7 @@ public class FlavorDef : Def
             List<FlavorCategoryDef> defActiveMealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
             flavorDef.mealKinds.Clear();
 
-            if (defActiveMealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && defActiveMealKinds.Intersect(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants).Count() == 0 && defActiveMealKinds.Any(mealKind => mealKind.ThisAndParents.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+            if (defActiveMealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && defActiveMealKinds.Intersect(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants).Count() == 0 && defActiveMealKinds.Any(mealKind => mealKind.ThisAndAncestors.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             {
                 flavorDef.mealKinds.AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories);
             }
@@ -342,7 +342,7 @@ public class FlavorDef : Def
         List<FlavorCategoryDef> mealThingParentCategories = [];
         foreach (var cat in ThingParentCategories[meal.def])
         {
-            var temp = cat.ThisAndParents.FirstOrDefault(activeMealKinds.Contains);
+            var temp = cat.ThisAndAncestors.FirstOrDefault(activeMealKinds.Contains);
             if (temp is not null) mealThingParentCategories.Add(temp);
         }
         bool mealCanBeAnyKind = FlavorTextSettings.laxRecipeMatching && mealThingParentCategories.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains);
