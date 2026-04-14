@@ -177,42 +177,38 @@ internal static class CategoryUtility
         // look in FlavorCategories and add any predefined ThingDefs and ThingCategoryDef contents to the FlavorCategory
         AbsorbChildrenFromXML();
 
-        // add everything in vanilla "Foods" to the item FlavorCategoryDef dictionary
-        foreach (var food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
-        {
-            ThingParentCategories.AddDistinct(food, []);
-        }
-
-        foreach (ThingDef food in ThingParentCategories.Keys)
+        // add everything else in vanilla "Foods" to the item FlavorCategoryDef dictionary
+        foreach (ThingDef food in ThingCategoryDef.Named("Foods").DescendantThingDefs.Distinct())
         {
             try
             {
-                if (!ThingParentCategories[food].Empty()) continue;
-                var categories = ThingParentCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null.");
+                Log.Warning($"testing {food.ToStringSafe()}");
+                if (ThingParentCategories.ContainsKey(food)) continue;
+                ThingParentCategories.Add(food, []);
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> bestParentsList = null;
-                if (categories.Empty()) { continue; }
+                
+                newParents = GetBestFlavorCategory(food, FlavorCategoryDefOf.FT_Foods);
+                if (newParents.Count == 0) continue;  // skip if no parents found (e.g. ThingDef had null ModContentPack)
+                int bestScore = newParents.Max(element => element.Value);
+                if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
                 {
-                    newParents = GetBestFlavorCategory(food, FlavorCategoryDefOf.FT_Foods);
-                    if (newParents.Count == 0) continue;  // skip if no parents found (e.g. ThingDef had null ModContentPack)
-                    int bestScore = newParents.Max(element => element.Value);
-                    if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
-                    {
-                        bestParentsList = [.. newParents.Where(element => element.Value >= 2 * goodScoreForCategorization).Select(element => element.Key)];
-                    }
-                    else bestParentsList = [.. newParents.Where(element => element.Value == bestScore).Select(element => element.Key)];  // else accept the highest scored parent category
+                    bestParentsList = [.. newParents.Where(element => element.Value >= 2 * goodScoreForCategorization).Select(element => element.Key)];
+                }
+                else bestParentsList = [.. newParents.Where(element => element.Value == bestScore).Select(element => element.Key)];  // else accept the highest scored parent category
 
-                    if (!bestParentsList.NullOrEmpty())
+                Log.Message(bestParentsList.ToStringSafeEnumerable());
+
+                if (!bestParentsList.NullOrEmpty())
+                {
+                    foreach (FlavorCategoryDef newParent in bestParentsList)
                     {
-                        foreach (FlavorCategoryDef newParent in bestParentsList)
-                        {
-                            ThingParentCategories[food].AddDistinct(newParent);
-                            newParent.childThingDefs.AddDistinct(food);
-                        }
+                        ThingParentCategories[food].AddDistinct(newParent);
+                        newParent.childThingDefs.AddDistinct(food);
                     }
                 }
-                categories = ThingParentCategories.TryGetValue(food) ?? throw new NullReferenceException($"list of FlavorCategories for {food} in the ThingCategories dictionary was null after searching all FlavorCategories.");
-                if (categories.Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty after searching all FlavorCategories.");
+                
+                if (ThingParentCategories.TryGetValue(food).Empty()) throw new ArgumentOutOfRangeException($"list of FlavorCategories for {food} in the ThingCategories dictionary was empty after searching all FlavorCategories.");
             }
             catch (Exception)
             {
@@ -253,8 +249,8 @@ internal static class CategoryUtility
         {
             try
             {
-                if (!ThingParentCategories[building].Empty()) continue;
-                if (!ThingParentCategories.ContainsKey(building)) ThingParentCategories.Add(building, []);
+                if (ThingParentCategories.ContainsKey(building)) continue;
+                ThingParentCategories.Add(building, []);
                 var categories = ThingParentCategories.TryGetValue(building) ?? throw new NullReferenceException($"list of FlavorCategories for {building} in the ThingCategories dictionary was null.");
                 if (categories.Empty())
                 {
