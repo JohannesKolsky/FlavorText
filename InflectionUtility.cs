@@ -1,7 +1,9 @@
 ﻿using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
 
@@ -11,6 +13,10 @@ namespace FlavorText;
 /// various methods used to calculate stuff for ingredient name variations (e.g. singular vs plural)
 /// </summary>
 /// 
+
+//DONE: recipe parent hierarchy
+//DONE: spreadsheet descriptions are misaligned
+
 
 //TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active
 //TODO: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
@@ -35,13 +41,13 @@ internal static class InflectionUtility
 
         foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
-            if (!cat.inflectionsOverride.NullOrEmpty())
+            if (!cat.InflectionsOverride.NullOrEmpty())
             {
-                if (cat.childThingDefs.Count == 0)
+                if (cat.ChildThingDefs.Count == 0)
                 {
-                    cat.inflectionsOverride = [.. cat.inflectionsOverride.Select(inflect => inflect.Formatted("").Trim())];
+                    cat.InflectionsOverride = [.. cat.InflectionsOverride.Select(inflect => inflect.Formatted("").Trim())];
                 }
-                var inflections = GenerateInflections(cat, cat.inflectionsOverride);
+                var inflections = GenerateInflections(cat, cat.InflectionsOverride);
                 CategoryInflectionsDictionary.AddDistinct(cat, inflections);
             }
         }
@@ -61,7 +67,7 @@ internal static class InflectionUtility
                     var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndAncestors;
                     foreach (var cat in thisAndParents)
                     {
-                        if (cat.alwaysUseOverride == true) inflections = cat.inflectionsOverride;
+                        if (cat.AlwaysUseOverride == true) inflections = cat.InflectionsOverride;
                         if (inflections is not null) break;
                     }
                     if (inflections is null)
@@ -168,9 +174,9 @@ internal static class InflectionUtility
 
 
         // remove diacritics and capitalization
-        string labelClean = Remove.RemoveDiacritics(labelNoParentheses);  // Gruyere cheese
+        string labelClean = RemoveDiacritics(labelNoParentheses);  // Gruyere cheese
         labelClean = labelClean.ToLower();  // gruyere cheese
-        string defNameClean = Remove.RemoveDiacritics(defNameSplit); // EX GruyereCheese
+        string defNameClean = RemoveDiacritics(defNameSplit); // EX GruyereCheese
         defNameClean = defNameClean.ToLower();  // e x gruyere cheese
 
 
@@ -277,7 +283,7 @@ internal static class InflectionUtility
                 if (ingredient.GetType() == typeof(ThingDef))
                 {
                     FlavorCategoryDef parentCategory = CategoryUtility.ThingParentCategories[(ThingDef)ingredient].First();
-                    singularCollective = parentCategory.singularCollective;
+                    singularCollective = parentCategory.SingularCollective;
                     if (singularCollective == null)
                     {
                         throw new NullReferenceException($"failed to get singular collective bool from {ingredient.ToStringSafe()} with parent categories [{CategoryUtility.ThingParentCategories[(ThingDef)ingredient].ToStringSafeEnumerable()}]");
@@ -286,10 +292,10 @@ internal static class InflectionUtility
                 else if (ingredient.GetType() == typeof(FlavorCategoryDef))
                 {
                     FlavorCategoryDef category = (FlavorCategoryDef)ingredient;
-                    singularCollective = category.singularCollective;
+                    singularCollective = category.SingularCollective;
                     if (singularCollective == null)
                     {
-                        throw new NullReferenceException($"failed to get singular collective bool from {ingredient.ToStringSafe()} with parent categories [{category.parents.ToStringSafeEnumerable()}]");
+                        throw new NullReferenceException($"failed to get singular collective bool from {ingredient.ToStringSafe()} with parent categories [{category.Parents.ToStringSafeEnumerable()}]");
                     }
                 }
 
@@ -341,5 +347,23 @@ internal static class InflectionUtility
             Log.Error($"Error finding inflections of ${string2}: {ex}");
             throw;
         }
+    }
+
+    //TODO: add more special chars, like ø
+    internal static string RemoveDiacritics(string stIn)
+    {
+        string stFormD = stIn.Normalize(NormalizationForm.FormD);
+        StringBuilder sb = new StringBuilder();
+
+        for (int ich = 0; ich < stFormD.Length; ich++)
+        {
+            UnicodeCategory uc = CharUnicodeInfo.GetUnicodeCategory(stFormD[ich]);
+            if (uc != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(stFormD[ich]);
+            }
+        }
+
+        return (sb.ToString().Normalize(NormalizationForm.FormC));
     }
 }

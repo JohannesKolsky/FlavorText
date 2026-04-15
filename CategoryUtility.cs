@@ -51,9 +51,13 @@ internal static class CategoryUtility
 {
     private static bool tag;  // DEBUG
 
-	internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingParentCategories = [];
-	internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
-	internal const int goodScoreForCategorization = 5;
+    private static Dictionary<ThingDef, List<FlavorCategoryDef>> thingParentCategories = [];
+    private static Dictionary<ThingDef, List<FlavorCategoryDef>> mealsQualities = [];
+    private const int goodScoreForCategorization = 5;
+
+    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingParentCategories { get => thingParentCategories; set => thingParentCategories = value; }
+    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities { get => mealsQualities; set => mealsQualities = value; }
+
     static CategoryUtility()
     {
         Stopwatch stopwatch = new();
@@ -119,53 +123,36 @@ internal static class CategoryUtility
         {
             Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}] had child ThingDefs [{parent.DescendantThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}");
         }
-
-        //foreach (var cat in FlavorCategoryDefOf.FT_Foods.ThisAndDescendants)
-        //{
-        //    Log.Warning($"found {cat.ToStringSafe()} with parents [{cat.parents.ToStringSafeEnumerable()}] and child categories [{cat.childCategories.ToStringSafeEnumerable()}]");
-        //}
-
-        //Log.Message($"[{FlavorCategoryDef.Named("FT_MealsKinds").childThingDefs.ToStringSafeEnumerable()}]");
-        //Log.Message($"[{ThingParentCategories.TryGetValue(ThingDef.Named("Meat_Cow")).ToStringSafeEnumerable()}]");
-
-/*        foreach (var cat in DefDatabase<FlavorCategoryDef>.AllDefs.Where(catDef => catDef.defName.Contains("FT_Meat")))
-        {
-            Log.Warning(cat.defName);
-            foreach (ThingDef thingDef in cat.DescendantThingDefs)
-            {
-                Log.Message($"{thingDef.defName}");
-            }
-        }*/
     }
 
     // for FT_Categories, inherit mod extension variables from parent where appropriate
-    public static void InheritParentData()
+    private static void InheritParentData()
     {
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Root.DescendantCategories)
         {
-            if (cat.parents == null) throw new NullReferenceException($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data");
-            if (cat.singularCollective == null)
+            if (cat.Parents == null) throw new NullReferenceException($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data");
+            if (cat.SingularCollective == null)
             {
-                if (cat.parents.All(parent => parent.singularCollective == cat.parents[0].singularCollective))
+                if (cat.Parents.All(parent => parent.SingularCollective == cat.Parents[0].SingularCollective))
                 {
-                    cat.singularCollective = cat.parents[0].singularCollective;
+                    cat.SingularCollective = cat.Parents[0].SingularCollective;
                 }
-                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching singularCollective field values. The values were [{cat.parents.Select(parent => parent.singularCollective.ToStringSafe()).ToStringSafeEnumerable()}]");
+                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching singularCollective field values. The values were [{cat.Parents.Select(parent => parent.SingularCollective.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
             //Log.Error($"{cat.ToStringSafe()} had singularCollective = {cat.singularCollective.ToStringSafe()}");
 
             // inherit alwaysUseOverride if null in child
-            if (cat.alwaysUseOverride == null)
+            if (cat.AlwaysUseOverride == null)
             {
-                if (cat.parents.All(parent => parent.alwaysUseOverride == cat.parents[0].alwaysUseOverride))
+                if (cat.Parents.All(parent => parent.AlwaysUseOverride == cat.Parents[0].AlwaysUseOverride))
                 {
-                    cat.alwaysUseOverride = cat.parents[0].alwaysUseOverride;
+                    cat.AlwaysUseOverride = cat.Parents[0].AlwaysUseOverride;
                 }
-                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching alwaysUseOverride field values. The values were [{cat.parents.Select(parent => parent.alwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
+                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching alwaysUseOverride field values. The values were [{cat.Parents.Select(parent => parent.AlwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
 
-            cat.parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
-            cat.parents.ForEach(parent => cat.blacklistedMods.AddRangeUnique(parent.blacklistedMods));  // inherit blacklisted mods of parents
+            cat.Parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
+            cat.Parents.ForEach(parent => cat.BlacklistedMods.AddRangeUnique(parent.BlacklistedMods));  // inherit blacklisted mods of parents
         }
     }
 
@@ -201,7 +188,7 @@ internal static class CategoryUtility
                     foreach (FlavorCategoryDef newParent in bestParentsList)
                     {
                         ThingParentCategories[food].AddDistinct(newParent);
-                        newParent.childThingDefs.AddDistinct(food);
+                        newParent.ChildThingDefs.AddDistinct(food);
                     }
                 }
                 
@@ -235,7 +222,7 @@ internal static class CategoryUtility
                 if (ThingParentCategories[meal].Empty() || (FlavorTextSettings.laxRecipeMatching && ThingParentCategories[meal].Contains(FlavorCategoryDefOf.FT_MealsCooked)))
                 {
                     ThingParentCategories[meal].Add(FlavorCategoryDefOf.FT_MealsNormal);
-                    FlavorCategoryDefOf.FT_MealsNormal.childThingDefs.Add(meal);
+                    FlavorCategoryDefOf.FT_MealsNormal.ChildThingDefs.Add(meal);
                 }
             }
         }
@@ -256,7 +243,7 @@ internal static class CategoryUtility
                     {
                         var newParent = newParents.MaxBy(element => element.Value).Key;
                         ThingParentCategories[building].AddDistinct(newParent);
-                        newParent.childThingDefs.Add(building);
+                        newParent.ChildThingDefs.Add(building);
                     }
                 }
             }
@@ -274,15 +261,15 @@ internal static class CategoryUtility
     {
         if (root.DescendantThingDefs.Any())
         {
-            foreach (var childCat in root.childCategories)
+            foreach (var childCat in root.ChildCategories)
             {
                 PruneInactiveFlavorCategoriesRecursive(childCat);
             }
         }
         else
         {
-            root.parents = null;
-            root.childCategories.Clear();
+            root.Parents = null;
+            root.ChildCategories.Clear();
         }
     }
 
@@ -295,11 +282,11 @@ internal static class CategoryUtility
         allFlavorCategoryDefs = allFlavorCategoryDefs.Reverse();  // by reversing, you start at the lowest categories and work your way up  // this allows absorbing specific ThingDefs before the whole group in a higher Flavor Category
         foreach (var flavorCategory in allFlavorCategoryDefs)
         {
-            foreach (var child in flavorCategory.thingDefsToAbsorb)
+            foreach (var child in flavorCategory.ThingDefsToAbsorb)
             {
                 if (ThingParentCategories.ContainsKey(child)) ThingParentCategories[child].AddDistinct(flavorCategory);
                 else ThingParentCategories.Add(child, [flavorCategory]);
-                flavorCategory.childThingDefs.Add(child);
+                flavorCategory.ChildThingDefs.Add(child);
             }
             foreach (var thingCategory in flavorCategory.thingCategoryDefsToAbsorb)
             {
@@ -311,7 +298,7 @@ internal static class CategoryUtility
                         if (!parents.Any(parent => flavorCategory.ThisAndDescendants.Contains(parent))) ThingParentCategories[descendant].Add(flavorCategory);
                     }
                     else ThingParentCategories.Add(descendant, [flavorCategory]);
-                    flavorCategory.childThingDefs.AddDistinct(descendant);
+                    flavorCategory.ChildThingDefs.AddDistinct(descendant);
                 }
             }
         }
@@ -351,7 +338,7 @@ internal static class CategoryUtility
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndDescendants.ToList();
         if (searchedDef.modContentPack == null || searchedDef.modContentPack.PackageId == null) { Log.Warning($"{searchedDef.ToStringSafe()} did not have an associated ModContentPack or PackageId. Report this to that mod's creator."); return []; }
-        List<FlavorCategoryDef> categoriesToSkip = [.. categoriesToSearch.Where(cat => !cat.blacklistedMods.Contains(searchedDef.modContentPack.PackageId))];  // skip categories that have that mod blacklisted
+        List<FlavorCategoryDef> categoriesToSkip = [.. categoriesToSearch.Where(cat => !cat.BlacklistedMods.Contains(searchedDef.modContentPack.PackageId))];  // skip categories that have that mod blacklisted
 
         try
         {
@@ -390,8 +377,8 @@ internal static class CategoryUtility
             if (bestFlavorCategories.Count == 0)
             {
                 categoriesToSearch.RemoveAll(cat => FlavorCategoryDefOf.FT_MealsWithCompFlavor.ThisAndDescendants.Contains(cat));
-                ThingCategoryDef topLevelThingCategoryDef = !topLevelCategory.sisterCategories.Empty()
-                    ? topLevelCategory.sisterCategories.First()
+                ThingCategoryDef topLevelThingCategoryDef = !topLevelCategory.SisterCategories.Empty()
+                    ? topLevelCategory.SisterCategories.First()
                     : null;
 
                 var defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelThingCategoryDef)).ToList();
@@ -407,7 +394,7 @@ internal static class CategoryUtility
                         foreach (var flavorCategory in categoriesToSearch)
                         {
                             // if the current flavor category being tested has a sister category, give it a flat score of 6
-                            var sisterCategories = flavorCategory.sisterCategories;
+                            var sisterCategories = flavorCategory.SisterCategories;
                             if (sisterCategories != null && sisterCategories.Contains(defParent))
                             {
                                 categoryScore = 6;
@@ -449,7 +436,7 @@ internal static class CategoryUtility
             // get a score based on how well the flavorCategory keywords match the searchedDef's names
             categoryScore = 0;
             if (tag) Log.Warning($"keywords for {flavorCategory}");
-            List<string> keywords = flavorCategory.keywords;
+            List<string> keywords = flavorCategory.Keywords;
             foreach (string keyword in keywords)
             {
                 categoryScore += ScoreKeyword(splitNames, keyword);

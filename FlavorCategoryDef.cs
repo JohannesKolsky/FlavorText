@@ -24,24 +24,23 @@ namespace FlavorText;
 public class FlavorCategoryDef : Def
 {
     // vanilla category that corresponds to the FT_Category
-    internal List<ThingCategoryDef> sisterCategories = [];
+    public List<ThingCategoryDef> sisterCategories = [];
 
-	// any ThingDefs this FlavorCategoryDef should take in
-	// any ThingCategoryDefs whose descendant ThingDefs should be taken in
-	internal List<ThingDef> thingDefsToAbsorb = [];
-	internal List<ThingCategoryDef> thingCategoryDefsToAbsorb = [];
+    // any ThingDefs this FlavorCategoryDef should take in
+    // any ThingCategoryDefs whose descendant ThingDefs should be taken in
+    public List<ThingDef> thingDefsToAbsorb = [];
+    public List<ThingCategoryDef> thingCategoryDefsToAbsorb = [];
 
-	// whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
-	// if null, value will be inherited from its category parent
-	internal bool? singularCollective = null;
+    // whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
+    // if null, value will be inherited from its category parent
+    public bool? singularCollective = null;
 
-	internal List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
+    public List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
 
-	internal List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
+    public List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
 
-	internal List<string> blacklistedMods = [];  // mods whose ThingDefs should not be added to this category by the auto-categorizer; thingDefsToAbsorb and thingCategoryDefsToAbsorb will bypass this
+    public List<string> blacklistedMods = [];  // mods whose ThingDefs should not be added to this category by the auto-categorizer; thingDefsToAbsorb and thingCategoryDefsToAbsorb will bypass this
 
-	internal int nestDepth;
 
     public List<FlavorCategoryDef> parents;
 
@@ -49,22 +48,34 @@ public class FlavorCategoryDef : Def
 
     public bool? alwaysUseOverride = null;  // always use the inflection override; used for weird names, like eggs and Brussels sprouts
 
+    internal int nestDepth;
 
     [Unsaved]
-    public List<FlavorCategoryDef> childCategories = [];
+    private List<FlavorCategoryDef> childCategories = [];
     [Unsaved]
-    public List<ThingDef> childThingDefs = [];
+    private List<ThingDef> childThingDefs = [];
     [Unsaved]
     private HashSet<ThingDef> descendantThingDefsCached;
 
-    public IEnumerable<FlavorCategoryDef> ThisAndAncestors
+    internal List<ThingCategoryDef> SisterCategories { get => sisterCategories; set => sisterCategories = value; }
+    internal List<ThingDef> ThingDefsToAbsorb { get => thingDefsToAbsorb; set => thingDefsToAbsorb = value; }
+    internal bool? SingularCollective { get => singularCollective; set => singularCollective = value; }
+    internal List<string> Keywords { get => keywords; set => keywords = value; }
+    internal List<string> BlacklistedMods { get => blacklistedMods; set => blacklistedMods = value; }
+    internal List<FlavorCategoryDef> Parents { get => parents; set => parents = value; }
+    internal List<string> InflectionsOverride { get => inflectionsOverride; set => inflectionsOverride = value; }
+    internal bool? AlwaysUseOverride { get => alwaysUseOverride; set => alwaysUseOverride = value; }
+    internal List<FlavorCategoryDef> ChildCategories { get => childCategories; set => childCategories = value; }
+    internal List<ThingDef> ChildThingDefs { get => childThingDefs; set => childThingDefs = value; }
+
+    internal IEnumerable<FlavorCategoryDef> ThisAndAncestors
     {
         get
         {
             yield return this;
-            if (!parents.NullOrEmpty())
+            if (!Parents.NullOrEmpty())
             {
-                foreach (FlavorCategoryDef parent in parents)
+                foreach (FlavorCategoryDef parent in Parents)
                 {
                     foreach (FlavorCategoryDef ancestors in parent.ThisAndAncestors)
                         yield return ancestors;
@@ -73,13 +84,13 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public IEnumerable<FlavorCategoryDef> AncestorCategories
+    internal IEnumerable<FlavorCategoryDef> AncestorCategories
     {
         get
         {
-            if (!parents.NullOrEmpty())
+            if (!Parents.NullOrEmpty())
             {
-                foreach (FlavorCategoryDef parent in parents)
+                foreach (FlavorCategoryDef parent in Parents)
                 {
                     foreach (FlavorCategoryDef ancestors in parent.ThisAndAncestors)
                         yield return ancestors;
@@ -88,24 +99,24 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public IEnumerable<FlavorCategoryDef> ThisAndDescendants
+    internal IEnumerable<FlavorCategoryDef> ThisAndDescendants
     {
         get
         {
             FlavorCategoryDef origin = this;
             yield return origin;
-            foreach (FlavorCategoryDef childCategory1 in origin.childCategories)
+            foreach (FlavorCategoryDef childCategory1 in origin.ChildCategories)
             {
                 foreach (FlavorCategoryDef childCategory2 in childCategory1.ThisAndDescendants)
                     yield return childCategory2;
             }
         }
     }
-    public IEnumerable<FlavorCategoryDef> DescendantCategories
+    internal IEnumerable<FlavorCategoryDef> DescendantCategories
     {
         get
         {
-            foreach (FlavorCategoryDef childCategory1 in childCategories)
+            foreach (FlavorCategoryDef childCategory1 in ChildCategories)
             {
                 foreach (FlavorCategoryDef childCategory2 in childCategory1.ThisAndDescendants)
                     yield return childCategory2;
@@ -113,13 +124,13 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public IEnumerable<FlavorCategoryDef> LowestChildCategories
+    internal IEnumerable<FlavorCategoryDef> LowestChildCategories
     {
         get
         {
             FlavorCategoryDef childCategoryDef1 = this;
-            if (childCategoryDef1.childCategories.Count == 0) yield return childCategoryDef1;
-            foreach (FlavorCategoryDef childCategory in childCategoryDef1.childCategories)
+            if (childCategoryDef1.ChildCategories.Count == 0) yield return childCategoryDef1;
+            foreach (FlavorCategoryDef childCategory in childCategoryDef1.ChildCategories)
             {
                 foreach (FlavorCategoryDef childCategoryDef2 in childCategory.LowestChildCategories) yield return childCategoryDef2;
             }
@@ -127,7 +138,7 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    public HashSet<ThingDef> DescendantThingDefs
+    internal HashSet<ThingDef> DescendantThingDefs
     {
         get
         {
@@ -136,7 +147,7 @@ public class FlavorCategoryDef : Def
                 descendantThingDefsCached = [];
                 foreach (FlavorCategoryDef childCategoryDef in ThisAndDescendants)
                 {
-                    foreach (ThingDef childThingDef in childCategoryDef.childThingDefs)
+                    foreach (ThingDef childThingDef in childCategoryDef.ChildThingDefs)
                         descendantThingDefsCached.Add(childThingDef);
                 }
             }
@@ -145,20 +156,20 @@ public class FlavorCategoryDef : Def
     }
 
 
-    public bool ContainedInThisOrDescendant(ThingDef thingDef)
+    internal bool ContainedInThisOrDescendant(ThingDef thingDef)
     {
         return DescendantThingDefs.Contains(thingDef);
     }
 
     //FT_Foods -> FT_Fungus -> FT_Morrel
 
-    public bool ContainedInThisOrDescendant(FlavorCategoryDef child)
+    internal bool ContainedInThisOrDescendant(FlavorCategoryDef child)
     {
         return child.ThisAndAncestors.Contains(this);
     }
 
     // is this in the list or a descendant of one of the list members?
-    public bool DescendantOf(List<FlavorCategoryDef> list)
+    internal bool DescendantOf(List<FlavorCategoryDef> list)
     {
         foreach (var cat in ThisAndAncestors)
         {
@@ -167,7 +178,7 @@ public class FlavorCategoryDef : Def
         return false;
     }
 
-    public static FlavorCategoryDef Named(string defName)
+    internal static FlavorCategoryDef Named(string defName)
     {
         return DefDatabase<FlavorCategoryDef>.GetNamed(defName);
     }
@@ -180,18 +191,18 @@ public class FlavorCategoryDef : Def
 	internal static void SetNestLevelRecursive(FlavorCategoryDef cat, int nestDepth)
     {
         nestDepth += 1;
-        foreach (FlavorCategoryDef childCategory in cat.childCategories)
+        foreach (FlavorCategoryDef childCategory in cat.ChildCategories)
         {
             childCategory.nestDepth = nestDepth;
             SetNestLevelRecursive(childCategory, nestDepth + 1);
         }
     }
 
-    public static void FinalizeInit()
+    internal static void FinalizeInit()
     {
         foreach (FlavorCategoryDef allDef in DefDatabase<FlavorCategoryDef>.AllDefs)
         {
-            allDef.parents?.ForEach(parent => parent.childCategories.Add(allDef));
+            allDef.Parents?.ForEach(parent => parent.ChildCategories.Add(allDef));
         }
         SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
     }

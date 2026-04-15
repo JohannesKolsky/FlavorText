@@ -78,7 +78,6 @@
     <Compile Include="FlavorCategoryDefOf.cs" />
     <Compile Include="InflectionUtility.cs" />
     <Compile Include="HarmonyPatches.cs" />
-    <Compile Include="Remove.cs" />
     <Compile Include="CategoryUtility.cs" />
     <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />

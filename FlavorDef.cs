@@ -67,45 +67,55 @@ internal class DietKind
 ///     show what combination of ingredients/categories are needed for each particular flavor label
 /// </summary>
 /// 
-internal class FlavorDef : Def
+public class FlavorDef : Def
 {
     private static bool tag;  // debug tag
 
-    internal List<int> formattingIndices = [];  // this tells you which ingredient slot matches with which placeholder index for formatting the flavor label and description; this is needed because the ingredient slots are reordered according to specificity during game load
+    private List<int> formattingIndices = [];  // this tells you which ingredient slot matches with which placeholder index for formatting the flavor label and description; this is needed because the ingredient slots are reordered according to specificity during game load
 
-	internal float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
+    private float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
-	internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
+    internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
 
-	internal List<FlavorCategoryDef> requiredSketchyIngredients = []; // whether the FlavorDef requires something like fungus or insect meat
+    private List<FlavorCategoryDef> requiredSketchyIngredients = []; // whether the FlavorDef requires something like fungus or insect meat
 
-	internal List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
+    public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
-	internal List<FlavorCategoryDef> mealQualities = [];
+    public List<FlavorCategoryDef> mealQualities = [];
 
-	internal List<FlavorCategoryDef> cookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
+    private List<FlavorCategoryDef> cookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
 
-	internal IntRange hoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
+    private IntRange hoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
 
-	internal FloatRange ingredientsHitPointPercentage = new(0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
+    private FloatRange ingredientsHitPointPercentage = new(0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
 
     // all FlavorDefs that can be used with the current modlist
     private static IEnumerable<FlavorDef> activeFlavorDefs;
 	internal static IEnumerable<FlavorDef> ActiveFlavorDefs => activeFlavorDefs ??= DefDatabase<FlavorDef>.AllDefs
                     .Where(flavorDef => flavorDef != null)
-                        .Where(flavorDef => flavorDef.ingredients
+                        .Where(flavorDef => flavorDef.Ingredients
                             .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
 
-	private readonly string varietyTexture;
-    public string VarietyTexture => varietyTexture;
+    public string varietyTexture;
+    public string VarietyTexture { get {Log.Message($"VarietyTexture was {varietyTexture.ToStringSafe()}"); return varietyTexture; } }
 
-    private static readonly List<FlavorCategoryDef> activeMealKinds = [];
+    public List<IngredientSlot> ingredients = [];
+    internal List<IngredientSlot> Ingredients { get => ingredients; set => ingredients = value; }
+    internal List<int> FormattingIndices { get => formattingIndices; set => formattingIndices = value; }
+    internal float Specificity { get => specificity; set => specificity = value; }
+    internal List<FlavorCategoryDef> RequiredSketchyIngredients { get => requiredSketchyIngredients; set => requiredSketchyIngredients = value; }
+    internal List<FlavorCategoryDef> MealKinds { get => mealKinds; set => mealKinds = value; }
+    internal List<FlavorCategoryDef> MealQualities { get => mealQualities; set => mealQualities = value; }
+    internal List<FlavorCategoryDef> CookingStations { get => cookingStations; set => cookingStations = value; }
+    internal IntRange HoursOfDay { get => hoursOfDay; set => hoursOfDay = value; }
+    internal FloatRange IngredientsHitPointPercentage { get => ingredientsHitPointPercentage; set => ingredientsHitPointPercentage = value; }
 
-	internal List<IngredientSlot> ingredients = [];
+    internal static readonly List<FlavorCategoryDef> activeMealKinds = [];
 
-	internal static Dictionary<Diet, List<FlavorDef>> DietIndex = [];
 
-    public static void SetStaticData()
+    internal static readonly Dictionary<Diet, List<FlavorDef>> DietIndex = [];
+
+    internal static void SetStaticData()
     {
         try
         {
@@ -128,9 +138,9 @@ internal class FlavorDef : Def
     {
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
-            foreach (var slot in flavorDef.ingredients)
+            foreach (var slot in flavorDef.Ingredients)
             {
-                slot.AddAllowedCategoriesAndThingsRecursive(slot.categories);
+                slot.AddAllowedCategoriesAndThingsRecursive(slot.Categories);
             }
         }
     }
@@ -142,23 +152,23 @@ internal class FlavorDef : Def
         foreach (var flavorDef in ActiveFlavorDefs)
         {
             // get lowest child categories of all active mealKinds in the def
-            List<FlavorCategoryDef> defActiveMealKinds = [.. flavorDef.mealKinds.Except(emptyMealKinds)];
-            flavorDef.mealKinds.Clear();
+            List<FlavorCategoryDef> defActiveMealKinds = [.. flavorDef.MealKinds.Except(emptyMealKinds)];
+            flavorDef.MealKinds.Clear();
 
             if (defActiveMealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && defActiveMealKinds.Intersect(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants).Count() == 0 && defActiveMealKinds.Any(mealKind => mealKind.ThisAndAncestors.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
             {
-                flavorDef.mealKinds.AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories);
+                flavorDef.MealKinds.AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories);
             }
 
             foreach (var kind in defActiveMealKinds)
             {
                 foreach (var child in kind.LowestChildCategories)
                 {
-                    flavorDef.mealKinds.AddDistinct(child);
+                    flavorDef.MealKinds.AddDistinct(child);
                 }
             }
 
-            flavorDef.mealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
+            flavorDef.MealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
             //Log.Message($"{flavorDef.ToStringSafe()} had mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
 
         }
@@ -178,14 +188,14 @@ internal class FlavorDef : Def
             // (fungus, twisted meat) meal => [omnivore, twisted, fungus]
 
             // calculate if the FlavorDef could match a meat/vegan/vegetarian meal (can have multiple)
-            if (flavorDef.ingredients.Empty()) continue;
-            List<List<FlavorCategoryDef>> slotAllowedCategories = [.. Enumerable.Repeat(new List<FlavorCategoryDef>(), flavorDef.ingredients.Count())];
-            List<List<FlavorCategoryDef>> slotSketchyCategories = [.. Enumerable.Repeat(new List<FlavorCategoryDef>(), flavorDef.ingredients.Count())];
+            if (flavorDef.Ingredients.Empty()) continue;
+            List<List<FlavorCategoryDef>> slotAllowedCategories = [.. Enumerable.Repeat(new List<FlavorCategoryDef>(), flavorDef.Ingredients.Count())];
+            List<List<FlavorCategoryDef>> slotSketchyCategories = [.. Enumerable.Repeat(new List<FlavorCategoryDef>(), flavorDef.Ingredients.Count())];
 
-            for (int i = 0; i < flavorDef.ingredients.Count; i++)
+            for (int i = 0; i < flavorDef.Ingredients.Count; i++)
             {
-                IngredientSlot slot = flavorDef.ingredients[i];
-                foreach (var cat in slot.categories)
+                IngredientSlot slot = flavorDef.Ingredients[i];
+                foreach (var cat in slot.Categories)
                 {
                     // Meat, Animal, Plant, FoodRaw, Foods
                     // [Tomato, Meat, Foods, Chocolate]
@@ -214,10 +224,10 @@ internal class FlavorDef : Def
                 }
 
                 // remove diet categories that are within a disallowed category
-                if (slot.disallowedCategories.Any())
+                if (slot.DisallowedCategories.Any())
                 {
                     List<FlavorCategoryDef> slotDietCopy = [.. slotAllowedCategories[i]];
-                    foreach (var disallowedCat in slot.disallowedCategories)
+                    foreach (var disallowedCat in slot.DisallowedCategories)
                     {
                         foreach (var slotDietCat in slotAllowedCategories[i])
                         {
@@ -233,7 +243,7 @@ internal class FlavorDef : Def
 
             foreach (var sketchy in SketchyDietCategories)
             {
-                if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.requiredSketchyIngredients.Add(sketchy);
+                if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
             }
 
             //tag = slotAllowedCategories.Any(slot => slot.Empty());
@@ -273,43 +283,43 @@ internal class FlavorDef : Def
 
         foreach (FlavorDef flavorDef in ActiveFlavorDefs)
         {
-            if (flavorDef.mealKinds.NullOrEmpty())
+            if (flavorDef.MealKinds.NullOrEmpty())
             {
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
             }
 
 
-            float restrictions = flavorDef.ingredients.Sum(ing => Mathf.Sqrt(ing.AllowedThingDefs.Count()));  //sqrt to reduce impact of high ingredient counts
+            float restrictions = flavorDef.Ingredients.Sum(ing => Mathf.Sqrt(ing.AllowedThingDefs.Count()));  //sqrt to reduce impact of high ingredient counts
 
             // more specific if it has a required meal type, weighted to half-impact
-            restrictions = restrictions * ((flavorDef.mealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes) + 1) / 2;
+            restrictions = restrictions * ((flavorDef.MealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes) + 1) / 2;
 
             // more specific if it has a required cooking station, weighted to half-impact
-            if (!flavorDef.cookingStations.NullOrEmpty())
+            if (!flavorDef.CookingStations.NullOrEmpty())
             {
-                restrictions = ((restrictions * flavorDef.cookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations) + 1) / 2;
+                restrictions = ((restrictions * flavorDef.CookingStations.Sum(station => (float)station.DescendantThingDefs.Count()) / totalCookingStations) + 1) / 2;
             }
             // more specific if it has a required cooking time of day, weighted to half-impact
-            if (flavorDef.hoursOfDay != new IntRange(0, 23))
+            if (flavorDef.HoursOfDay != new IntRange(0, 23))
             {
-                int timeLength = flavorDef.hoursOfDay.max - flavorDef.hoursOfDay.min;
+                int timeLength = flavorDef.HoursOfDay.max - flavorDef.HoursOfDay.min;
                 timeLength = (timeLength % 24) + 1;
                 restrictions *= (((float)timeLength / 24) + 1) / 2;
             }
 
-            if (flavorDef.ingredientsHitPointPercentage != new FloatRange(0, 1))
+            if (flavorDef.IngredientsHitPointPercentage != new FloatRange(0, 1))
             {
-                restrictions *= flavorDef.ingredientsHitPointPercentage.Span;
+                restrictions *= flavorDef.IngredientsHitPointPercentage.Span;
             }
 
             // higher restrictions: more broad (more ingredients, more cooking stations, etc)
             // higher specificity: more narrow
-            if (restrictions > 0) flavorDef.specificity = 10000 / Mathf.Pow(restrictions, 2);
+            if (restrictions > 0) flavorDef.Specificity = 10000 / Mathf.Pow(restrictions, 2);
 
 
             // get each category and its parents
-            List<FlavorCategoryDef> allCategoriesInDef = [.. flavorDef.ingredients
-                    .SelectMany(slot => slot.categories)
+            List<FlavorCategoryDef> allCategoriesInDef = [.. flavorDef.Ingredients
+                    .SelectMany(slot => slot.Categories)
                     .Distinct()];
 
         }
@@ -321,10 +331,10 @@ internal class FlavorDef : Def
     {
         foreach (var flavorDef in ActiveFlavorDefs)
         {
-            IEnumerable<(IngredientSlot value, int index)> slotsSorted = flavorDef.ingredients.Select((value, index) => (value, index))
+            IEnumerable<(IngredientSlot value, int index)> slotsSorted = flavorDef.Ingredients.Select((value, index) => (value, index))
                 .OrderBy(item => item.value.AllowedThingDefs.Count());
-            flavorDef.ingredients = [.. slotsSorted.Select(slot => slot.value)];
-            flavorDef.formattingIndices = [.. slotsSorted.Select(slot => slot.index)];
+            flavorDef.Ingredients = [.. slotsSorted.Select(slot => slot.value)];
+            flavorDef.FormattingIndices = [.. slotsSorted.Select(slot => slot.index)];
         }
     }
 
@@ -351,12 +361,12 @@ internal class FlavorDef : Def
         {
             flavorDefsToSearch = flavorDefsToSearch.Intersect(DietIndex[ingredientChunkDiet])
             .Where(flavorDef =>
-                ((mealCanBeAnyKind && flavorDef.mealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
-                && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
-                && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
+                ((mealCanBeAnyKind && flavorDef.MealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.MealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
+                && (flavorDef.MealQualities.NullOrEmpty() || flavorDef.MealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
+                && (flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat =>
                     cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
-                && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
-                        compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
+                && flavorDef.HoursOfDay.min <= compFlavor.HourOfDay &&
+                        compFlavor.HourOfDay <= flavorDef.HoursOfDay.max
                                             /*&& flavorDef.ingredientsHitPointPercentage.Includes(
                                                 (float)compFlavor.IngredientsHitPointPercentage!)*/);
             if (flavorDefsToSearch.Count() > 0) return flavorDefsToSearch;
@@ -365,12 +375,12 @@ internal class FlavorDef : Def
         flavorDefsToSearch = DietIndex[ingredientChunkDiet];
         return flavorDefsToSearch
         .Where(flavorDef =>
-            ((mealCanBeAnyKind && flavorDef.mealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.mealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
-            && (flavorDef.mealQualities.NullOrEmpty() || flavorDef.mealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
-            && (flavorDef.cookingStations.NullOrEmpty() || flavorDef.cookingStations.Any(cat =>
+            ((mealCanBeAnyKind && flavorDef.MealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.MealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
+            && (flavorDef.MealQualities.NullOrEmpty() || flavorDef.MealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
+            && (flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
-            && flavorDef.hoursOfDay.min <= compFlavor.HourOfDay &&
-                    compFlavor.HourOfDay <= flavorDef.hoursOfDay.max
+            && flavorDef.HoursOfDay.min <= compFlavor.HourOfDay &&
+                    compFlavor.HourOfDay <= flavorDef.HoursOfDay.max
                                     /*&& flavorDef.ingredientsHitPointPercentage.Includes(
                                         (float)compFlavor.IngredientsHitPointPercentage!)*/);
         
@@ -382,19 +392,22 @@ public class IngredientSlot : IExposable
 {
     public List<FlavorCategoryDef> categories = [];
     public List<FlavorCategoryDef> disallowedCategories = [];
-    private HashSet<ThingDef> allowedThingDefs = [];
-    private HashSet<FlavorCategoryDef> allowedCategories = [];  // all allowed categories
-    public IEnumerable<ThingDef> AllowedThingDefs => allowedThingDefs;
-    public IEnumerable<FlavorCategoryDef> AllowedCategories => allowedCategories;
+    internal HashSet<ThingDef> allowedThingDefs = [];
+    internal HashSet<FlavorCategoryDef> allowedCategories = [];  // all allowed categories
 
-	internal void AddAllowedCategoriesAndThingsRecursive(IEnumerable<FlavorCategoryDef> cats)
+    internal List<FlavorCategoryDef> Categories { get => categories; set => categories = value; }
+    internal List<FlavorCategoryDef> DisallowedCategories { get => disallowedCategories; set => disallowedCategories = value; }
+    internal IEnumerable<ThingDef> AllowedThingDefs => allowedThingDefs;
+    internal IEnumerable<FlavorCategoryDef> AllowedCategories => allowedCategories;
+
+    internal void AddAllowedCategoriesAndThingsRecursive(IEnumerable<FlavorCategoryDef> cats)
     {
         foreach (var cat in cats)
         {
-            if (disallowedCategories.Contains(cat)) continue;
+            if (DisallowedCategories.Contains(cat)) continue;
             allowedCategories.Add(cat);
-            allowedThingDefs.AddRange(cat.childThingDefs);
-            AddAllowedCategoriesAndThingsRecursive(cat.childCategories);
+            allowedThingDefs.AddRange(cat.ChildThingDefs);
+            AddAllowedCategoriesAndThingsRecursive(cat.ChildCategories);
         }
     }
 

@@ -7,30 +7,27 @@ namespace FlavorText
 {
 	public class CompFlavorUtility : MapComponent
     {
-        private static int iterations;
-		internal static int Iterations
-        {
-            get { return iterations; }
-        }
+        internal static int Iterations { get => iterations; private set => iterations = value; }
 
-		internal static void Iterate()
+        internal static void Iterate()
         {
-            iterations++;
+            Iterations++;
         }
 
         private static Dictionary<int, CompFlavor> activeProcesses;
 
         private static List<int> thingIDNumbers;
         private static List<CompFlavor> compFlavors;
+        private static int iterations;
 
         public CompFlavorUtility(Map map) : base(map)
         {
-            iterations = 0;
+            Iterations = 0;
         }
 
-        private static void Next()
+        internal static void Next()
         {
-            iterations++;
+            Iterations++;
         }
 
         public static Dictionary<int, CompFlavor> ActiveProcesses

@@ -7,15 +7,9 @@ using Verse;
 /// 
 namespace FlavorText
 {
-
     public class ThingInflectionsData : Def
     {
         public string packageID;
         public Dictionary<string, List<string>> dictionary;
     }
-/*    public class FlavorCategoryInflectionsData : Def
-    {
-        public string packageID;
-        public Dictionary<string, List<string>> dictionary;
-    }*/
 }
