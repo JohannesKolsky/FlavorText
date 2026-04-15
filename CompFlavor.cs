@@ -140,6 +140,7 @@ using static FlavorText.DietKind;
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //TODO: possible error when removing VCE stews mid-processing
 //TODO: remove if (Prefs.DevMode) requirement for errors?
+//TODO: alligator meat single ingredient error no flavor defs found
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
