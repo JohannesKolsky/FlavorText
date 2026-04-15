@@ -26,22 +26,22 @@ public class FlavorCategoryDef : Def
     // vanilla category that corresponds to the FT_Category
     internal List<ThingCategoryDef> sisterCategories = [];
 
-    // any ThingDefs this FlavorCategoryDef should take in
-    // any ThingCategoryDefs whose descendant ThingDefs should be taken in
-    internal List<ThingDef> thingDefsToAbsorb = [];
-    internal List<ThingCategoryDef> thingCategoryDefsToAbsorb = [];
+	// any ThingDefs this FlavorCategoryDef should take in
+	// any ThingCategoryDefs whose descendant ThingDefs should be taken in
+	internal List<ThingDef> thingDefsToAbsorb = [];
+	internal List<ThingCategoryDef> thingCategoryDefsToAbsorb = [];
 
-    // whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
-    // if null, value will be inherited from its category parent
-    internal bool? singularCollective = null;
+	// whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
+	// if null, value will be inherited from its category parent
+	internal bool? singularCollective = null;
 
-    internal List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
+	internal List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
 
-    internal List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
+	internal List<string> blacklist = []; // keywords NOT to match; e.g. pig != guinea pig
 
-    internal List<string> blacklistedMods = [];  // mods whose ThingDefs should not be added to this category by the auto-categorizer; thingDefsToAbsorb and thingCategoryDefsToAbsorb will bypass this
+	internal List<string> blacklistedMods = [];  // mods whose ThingDefs should not be added to this category by the auto-categorizer; thingDefsToAbsorb and thingCategoryDefsToAbsorb will bypass this
 
-    internal int nestDepth;
+	internal int nestDepth;
 
     public List<FlavorCategoryDef> parents;
 
@@ -177,7 +177,7 @@ public class FlavorCategoryDef : Def
         return defName.GetHashCode();
     }
 
-    internal static void SetNestLevelRecursive(FlavorCategoryDef cat, int nestDepth)
+	internal static void SetNestLevelRecursive(FlavorCategoryDef cat, int nestDepth)
     {
         nestDepth += 1;
         foreach (FlavorCategoryDef childCategory in cat.childCategories)

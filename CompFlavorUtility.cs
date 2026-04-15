@@ -5,15 +5,15 @@ using Verse;
 
 namespace FlavorText
 {
-    public class CompFlavorUtility : MapComponent
+	public class CompFlavorUtility : MapComponent
     {
         private static int iterations;
-        internal static int Iterations
+		internal static int Iterations
         {
             get { return iterations; }
         }
 
-        internal static void Iterate()
+		internal static void Iterate()
         {
             iterations++;
         }
@@ -28,7 +28,7 @@ namespace FlavorText
             iterations = 0;
         }
 
-        internal static void Next()
+        private static void Next()
         {
             iterations++;
         }

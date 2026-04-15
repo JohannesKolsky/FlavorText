@@ -155,7 +155,7 @@ namespace FlavorText;
 
 public class CompFlavor : ThingComp
 {
-
+    private const int V = 5;
     private readonly bool tag;
 
     private bool generatedCoreFlavorDef = true;
@@ -184,13 +184,13 @@ public class CompFlavor : ThingComp
 
     public List<string> MealTags = [];
 
-    internal Diet mealDiet;
+    private Diet mealDiet;
 
-    internal List<FlavorCategoryDef> sketchyIngredients = [];
+    private List<FlavorCategoryDef> sketchyIngredients = [];
 
-    internal List<FlavorCategoryDef> excludedCategories;
+    private List<FlavorCategoryDef> excludedCategories;
 
-    internal int? iteration = null;
+    private int? iteration = null;
 
     public List<ThingDef> Ingredients
     {
@@ -205,7 +205,7 @@ public class CompFlavor : ThingComp
 
     public CompIngredients CompIngredients => parent.TryGetComp<CompIngredients>();
 
-    public CompProperties_Flavor Props => (CompProperties_Flavor)props;
+    internal CompProperties_Flavor Props => (CompProperties_Flavor)props;
 
     public override string TransformLabel(string label)
     {
@@ -367,7 +367,7 @@ public class CompFlavor : ThingComp
         }
     }
 
-    public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
+    internal void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
         if (TriedFlavorText)
         {
@@ -608,7 +608,7 @@ public class CompFlavor : ThingComp
                     //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
-                if (matchingFlavors.Count >= 5) break;
+                if (matchingFlavors.Count >= V) break;
             }
             Rand.PopState();
 

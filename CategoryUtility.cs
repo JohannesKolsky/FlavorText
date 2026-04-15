@@ -51,9 +51,9 @@ internal static class CategoryUtility
 {
     private static bool tag;  // DEBUG
 
-    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingParentCategories = [];
-    internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
-    internal const int goodScoreForCategorization = 5;
+	internal static Dictionary<ThingDef, List<FlavorCategoryDef>> ThingParentCategories = [];
+	internal static Dictionary<ThingDef, List<FlavorCategoryDef>> MealsQualities = [];
+	internal const int goodScoreForCategorization = 5;
     static CategoryUtility()
     {
         Stopwatch stopwatch = new();
@@ -77,7 +77,7 @@ internal static class CategoryUtility
 
     }
 
-    internal static void Initialize()
+	internal static void Initialize()
     {
         FlavorCategoryDef.FinalizeInit();
         FlavorCategoryDef.SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
@@ -94,7 +94,7 @@ internal static class CategoryUtility
         //Debug();
     }
 
-/*    internal static void Reinitialize()
+/*    private static void Reinitialize()
     {
         XmlInheritance.Clear();
         DefDatabase<FlavorCategoryDef>.Clear();
@@ -182,7 +182,6 @@ internal static class CategoryUtility
         {
             try
             {
-                Log.Warning($"testing {food.ToStringSafe()}");
                 if (ThingParentCategories.ContainsKey(food)) continue;
                 ThingParentCategories.Add(food, []);
                 Dictionary<FlavorCategoryDef, int> newParents = null;
@@ -196,8 +195,6 @@ internal static class CategoryUtility
                     bestParentsList = [.. newParents.Where(element => element.Value >= 2 * goodScoreForCategorization).Select(element => element.Key)];
                 }
                 else bestParentsList = [.. newParents.Where(element => element.Value == bestScore).Select(element => element.Key)];  // else accept the highest scored parent category
-
-                Log.Message(bestParentsList.ToStringSafeEnumerable());
 
                 if (!bestParentsList.NullOrEmpty())
                 {
@@ -524,7 +521,7 @@ internal static class CategoryUtility
 
     // calculate the lowest category containing all the categories in the given list
     // no need to include disallowed categories b/c those should always be a subcategory of a valid category
-    internal static FlavorCategoryDef FindLowestCommonCategory(List<FlavorCategoryDef> categoryList)
+    private static FlavorCategoryDef FindLowestCommonCategory(List<FlavorCategoryDef> categoryList)
     {
 
         // compare the corresponding elements of each sublist, starting with the one with the fewest elements

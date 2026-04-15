@@ -1159,7 +1159,7 @@ var numberParse = function( value, properties ) {
 
 				// This should never be reached.
 				default:
-					throw new Error( "Internal error" );
+					throw new Error( "private error" );
 			}
 			return "";
 		};
@@ -1591,7 +1591,7 @@ Globalize.prototype.parseNumber = function( value, options ) {
 };
 
 /**
- * Optimization to avoid duplicating some internal functions across modules.
+ * Optimization to avoid duplicating some private functions across modules.
  */
 Globalize._createErrorUnsupportedFeature = createErrorUnsupportedFeature;
 Globalize._numberNumberingSystem = numberNumberingSystem;

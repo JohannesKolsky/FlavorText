@@ -13,17 +13,18 @@ namespace FlavorText;
 /// 
 
 //TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active
+//TODO: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
 
 [StaticConstructorOnStartup]
 internal static class InflectionUtility
 {
     private static bool tag;
 
-    public const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
-    public static readonly List<string> grammaticalInflections = ["plur", "coll", "sing", "adj"];
-    public static readonly List<string> grammaticalCollections = ["AND", "OR", "OTHER"];
+    internal const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
+    internal static readonly List<string> grammaticalInflections = ["plur", "coll", "sing", "adj"];
+    internal static readonly List<string> grammaticalCollections = ["AND", "OR", "OTHER"];
 
-    
+
     internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];  // inflections for specific ThingDefs
     internal static Dictionary<FlavorCategoryDef, List<string>> CategoryInflectionsDictionary = [];  // inflections for FlavorCategoryDefs
 
@@ -102,7 +103,7 @@ internal static class InflectionUtility
         }
     }
     // generate various grammatical forms of each ingredient
-    internal static List<string> GenerateInflections(Def ingredient, List<string> inflections)
+    private static List<string> GenerateInflections(Def ingredient, List<string> inflections)
     {
         //tag = ingredient.defName.ToLower().Contains("flour");
 

@@ -29,21 +29,21 @@ namespace FlavorText;
 internal class DietKind
 {
 
-    // basic diet types based on possible ingredients
-    // this is exclusive: omnivore requires a plant ingredient, vegetarian requires an animal ingredient
-    // this order is strict, because a subrange of this can be used in searches
-    internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan }
+	// basic diet types based on possible ingredients
+	// this is exclusive: omnivore requires a plant ingredient, vegetarian requires an animal ingredient
+	// this order is strict, because a subrange of this can be used in searches
+	internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan }
 
-    internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
+	internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
     {
      {Diet.hyperCarnivore, [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
      {Diet.carnivore, [FlavorCategoryDefOf.FT_PlantFoodRaw]},
      {Diet.omnivore, []},
      {Diet.vegetarian, [FlavorCategoryDefOf.FT_MeatRaw]},
      {Diet.vegan, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]}
-    }; 
-    
-    internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietIncludedCategories = new()
+    };
+
+	internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietIncludedCategories = new()
     {
      {Diet.hyperCarnivore, [FlavorCategoryDefOf.FT_MeatRaw]},
      {Diet.carnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]},
@@ -52,11 +52,11 @@ internal class DietKind
      {Diet.omnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw]}
     };
 
-    internal static readonly List<FlavorCategoryDef> NormalDietCategories = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw/*, FlavorCategoryDefOf.FT_FoodRaw, FlavorCategoryDefOf.FT_Foods*/];
+	internal static readonly List<FlavorCategoryDef> NormalDietCategories = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw/*, FlavorCategoryDefOf.FT_FoodRaw, FlavorCategoryDefOf.FT_Foods*/];
 
-    internal static readonly List<FlavorCategoryDef> SketchyDietCategories = [FlavorCategoryDefOf.FT_Fungus, FlavorCategoryDefOf.FT_Meat_Human, FlavorCategoryDefOf.FT_Meat_Insect, FlavorCategoryDefOf.FT_Meat_Twisted];
+	internal static readonly List<FlavorCategoryDef> SketchyDietCategories = [FlavorCategoryDefOf.FT_Fungus, FlavorCategoryDefOf.FT_Meat_Human, FlavorCategoryDefOf.FT_Meat_Insect, FlavorCategoryDefOf.FT_Meat_Twisted];
 
-    internal static IEnumerable<FlavorCategoryDef> GetExcludedFlavorCategoriesFromDiet(Diet dietTuple)
+	internal static IEnumerable<FlavorCategoryDef> GetExcludedFlavorCategoriesFromDiet(Diet dietTuple)
     {
         return dietExcludedCategories[dietTuple];
     }
@@ -67,43 +67,43 @@ internal class DietKind
 ///     show what combination of ingredients/categories are needed for each particular flavor label
 /// </summary>
 /// 
-public class FlavorDef : Def
+internal class FlavorDef : Def
 {
     private static bool tag;  // debug tag
 
     internal List<int> formattingIndices = [];  // this tells you which ingredient slot matches with which placeholder index for formatting the flavor label and description; this is needed because the ingredient slots are reordered according to specificity during game load
 
-    public float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
+	internal float specificity;  // how specific is this FlavorDef: how many ingredient choices are there, does it need to be a certain meal type, etc?
 
-    internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
+	internal List<Diet> allowedDiets = []; // what types of food are generally allowed by this FlavorDef (vegan, vegetarian, carn)
 
-    internal List<FlavorCategoryDef> requiredSketchyIngredients = []; // whether the FlavorDef requires something like fungus or insect meat
+	internal List<FlavorCategoryDef> requiredSketchyIngredients = []; // whether the FlavorDef requires something like fungus or insect meat
 
-    public List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
+	internal List<FlavorCategoryDef> mealKinds = [];  // what types of meals are allowed to have this FlavorDef; empty means all
 
-    public List<FlavorCategoryDef> mealQualities = [];
+	internal List<FlavorCategoryDef> mealQualities = [];
 
-    public List<FlavorCategoryDef> cookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
+	internal List<FlavorCategoryDef> cookingStations = [];  // which buildings are allowed to cook this FlavorDef; empty means all
 
-    public IntRange hoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
+	internal IntRange hoursOfDay = new(0, 23);  // what hours of the day this FlavorDef can be completed during, defaults to all day (0-23)
 
-    public FloatRange ingredientsHitPointPercentage = new(0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
+	internal FloatRange ingredientsHitPointPercentage = new(0, 1); // allowed range of percentage of hit points of each ingredient group (ignoring quantity in group), defaults to all (0-1)
 
     // all FlavorDefs that can be used with the current modlist
     private static IEnumerable<FlavorDef> activeFlavorDefs;
-    public static IEnumerable<FlavorDef> ActiveFlavorDefs => activeFlavorDefs ??= DefDatabase<FlavorDef>.AllDefs
+	internal static IEnumerable<FlavorDef> ActiveFlavorDefs => activeFlavorDefs ??= DefDatabase<FlavorDef>.AllDefs
                     .Where(flavorDef => flavorDef != null)
                         .Where(flavorDef => flavorDef.ingredients
                             .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
 
-    private readonly string varietyTexture;
+	private readonly string varietyTexture;
     public string VarietyTexture => varietyTexture;
 
     private static readonly List<FlavorCategoryDef> activeMealKinds = [];
 
-    public List<IngredientSlot> ingredients = [];
+	internal List<IngredientSlot> ingredients = [];
 
-    internal static Dictionary<Diet, List<FlavorDef>> DietIndex = [];
+	internal static Dictionary<Diet, List<FlavorDef>> DietIndex = [];
 
     public static void SetStaticData()
     {
@@ -304,7 +304,7 @@ public class FlavorDef : Def
 
             // higher restrictions: more broad (more ingredients, more cooking stations, etc)
             // higher specificity: more narrow
-            if (restrictions > 0) flavorDef.specificity = 100 / restrictions;
+            if (restrictions > 0) flavorDef.specificity = 10000 / Mathf.Pow(restrictions, 2);
 
 
             // get each category and its parents
@@ -328,9 +328,9 @@ public class FlavorDef : Def
         }
     }
 
-    // all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
-    // can be restricted to a given list of flavorDefsToSearch, which is used when loading a saved meal that already has flavor text to reduce search time
-    internal static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, Diet ingredientChunkDiet, IEnumerable<FlavorDef> flavorDefsToSearch = null)
+	// all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
+	// can be restricted to a given list of flavorDefsToSearch, which is used when loading a saved meal that already has flavor text to reduce search time
+	internal static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, Diet ingredientChunkDiet, IEnumerable<FlavorDef> flavorDefsToSearch = null)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
 
@@ -387,7 +387,7 @@ public class IngredientSlot : IExposable
     public IEnumerable<ThingDef> AllowedThingDefs => allowedThingDefs;
     public IEnumerable<FlavorCategoryDef> AllowedCategories => allowedCategories;
 
-    internal void AddAllowedCategoriesAndThingsRecursive(IEnumerable<FlavorCategoryDef> cats)
+	internal void AddAllowedCategoriesAndThingsRecursive(IEnumerable<FlavorCategoryDef> cats)
     {
         foreach (var cat in cats)
         {

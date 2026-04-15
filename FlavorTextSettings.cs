@@ -49,9 +49,9 @@ namespace FlavorText
         }
     }
 
-    internal class FlavorTextMod : Mod
+    public class FlavorTextMod : Mod
     {
-        internal static FlavorTextSettings flavorTextSettings;
+        private static FlavorTextSettings flavorTextSettings;
         public FlavorTextMod(ModContentPack content) : base(content)
         {
             flavorTextSettings = GetSettings<FlavorTextSettings>();

@@ -407,7 +407,7 @@ Globalize.locale = function( locale ) {
 };
 
 /**
- * Optimization to avoid duplicating some internal functions across modules.
+ * Optimization to avoid duplicating some private functions across modules.
  */
 Globalize._alwaysArray = alwaysArray;
 Globalize._createError = createError;
