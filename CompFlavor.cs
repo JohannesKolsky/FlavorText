@@ -108,20 +108,20 @@ using static FlavorText.DietKind;
 //DONE: Pyon hornet jelly and smokey honey aren't being considered ingredients for Flavor Text
 //DONE: VCE chili peppers may be invalid
 
-//RELEASE: check all with v1.6
-//RELEASE: update XML files
+//RELEASED: check all with v1.6
+//RELEASED: update XML files
+//RELEASED: check new game
+//RELEASED: check add to game
 //RELEASE: check remove from game
-//RELEASE: check add to game
-//RELEASE: check new game
-//RELEASE: check updating FlavorText on save
-//RELEASE: check save and reload game
+//RELEASED: check updating FlavorText on save
+//RELEASED: check save and reload game
 //RELEASE: check all meal types
-//RELEASE: check food modlist
+//RELEASED: check food modlist
 //RELEASE: check your own saves
-//RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASE: test FTV
 //RELEASE: test C# meats
-//RELEASE: test medieval overhaul
+//RELEASED: test medieval overhaul
 //RELEASE: disable log messages
 
 
@@ -172,7 +172,7 @@ public class CompFlavor : ThingComp
     private string finalFlavorDescription;
 
     private List<FlavorDef> finalFlavorDefs = [];
-    public List<FlavorDef> FinalFlavorDefs { get { Log.Message($"FinalFlavorDefs were [{finalFlavorDefs.ToStringSafeEnumerable()}]"); return finalFlavorDefs; } }
+    public List<FlavorDef> FinalFlavorDefs { get; }
 
     private Diet mealDiet;
 
@@ -772,26 +772,13 @@ public class CompFlavor : ThingComp
     // generate the labels and descriptions for the meal
     private void GenerateFlavorText(List<List<ThingDef>> ingredientChunks, List<(FlavorDef def, List<int> index)> bestFlavors)
     {
-        //Stopwatch stopwatch = new();
-        //stopwatch.Start();
         for (int i = 0; i < bestFlavors.Count; i++)
         {
             var flavorTuple = bestFlavors[i];
             if (flavorTuple.def == null || flavorTuple.index == null) throw new NullReferenceException($"A chosen FlavorDef with index of {i.ToStringSafe()} is null, cancelling the search. Please report.");
 
-            // {Meat, Grain, Fruit} [0, 1, 2]
-            // {Fruit, Grain, Meat} [2, 1, 0]
-            // (Berries, Beef) [0, -1, 1] [2, 1, 0]
-
             finalFlavorDefs.Add(bestFlavors[i].def);
             List<ThingDef> ingredientChunk = [.. ingredientChunks[i]];
-            //if (Prefs.DevMode)
-            //{
-            //    stopwatch.Stop();
-            //    Log.Message(">>[Flavor Text] GenerateFlavorText setup in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-            //    stopwatch.Restart();
-            //    //TODO: this is taking up an oddly large amount of time
-            //}
 
             // fill in missing ingredients with ghost ingredients
             for (int j = 0; j < flavorTuple.def.Ingredients.Count; j++)
@@ -803,12 +790,6 @@ public class CompFlavor : ThingComp
                     flavorTuple.index[j] = ingredientChunk.Count - 1;
                 }
             }
-            //if (Prefs.DevMode)
-            //{
-            //    stopwatch.Stop();
-            //    Log.Message(">>[Flavor Text] GenerateFlavorText GenerateGhostIngredient in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-            //    stopwatch.Restart();
-            //}
 
             string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientChunk, bestFlavors[i].def.label); // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient from the meal
             if (flavorLabel.NullOrEmpty())
@@ -830,14 +811,6 @@ public class CompFlavor : ThingComp
                 throw new FormatException();
             }
             flavorDescriptions.Add(flavorDescription);
-
-            //if (Prefs.DevMode)
-            //{
-            //    stopwatch.Stop();
-            //    Log.Message(">>[Flavor Text] GenerateFlavorText FormatFlavorString in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-            //    stopwatch.Restart();
-            //}
-
         }
 
         if (flavorLabels.Empty())
@@ -854,11 +827,6 @@ public class CompFlavor : ThingComp
         {
             throw new NullReferenceException("The final compiled and formatted flavor label was null or empty despite getting valid Flavor Defs [" + finalFlavorDefs.ToStringSafeEnumerable() + "]. Please report.");
         }
-        //if (Prefs.DevMode)
-        //{
-        //    stopwatch.Stop();
-        //    Log.Message(">>[Flavor Text] GenerateFlavorText Compile in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-        //}
     }
 
     // replace placeholders in flavor label/description with the correctly inflected ingredient label
