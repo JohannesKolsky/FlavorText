@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
@@ -107,6 +108,11 @@ using static FlavorText.DietKind;
 //DONE: paste FlavorDefs are appearing on normal meals
 //DONE: Pyon hornet jelly and smokey honey aren't being considered ingredients for Flavor Text
 //DONE: VCE chili peppers may be invalid
+//DONE: FTV isn't accessing FinalFlavorDefs at all
+//DONE: take care of issues with deleting RemoveRepeatedWords()
+//DONE: remove if (Prefs.DevMode) requirement for errors?
+//DONE: fat (and maybe meat) is allowed in vegetarian FlavorDefs
+//DONE: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)  // medieval overhaul has inconsistent capitalization
 
 //RELEASED: check all with v1.6
 //RELEASED: update XML files
@@ -133,15 +139,10 @@ using static FlavorText.DietKind;
 //TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
-//TODO: take care of issues with deleting RemoveRepeatedWords()
 //TODO: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
-//TODO: fat (and maybe meat) is allowed in vegetarian FlavorDefs
-//TODO: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
-//TODO: possible error when removing VCE stews mid-processing
-//TODO: remove if (Prefs.DevMode) requirement for errors?
-//TODO: alligator meat single ingredient error no flavor defs found
-//TODO: FTV isn't accessing FinalFlavorDefs at all
+//TODO: error when removing VCE stews mid-processing
+//TODO: error when saving VCE stews mid-processing
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -155,8 +156,9 @@ using static FlavorText.DietKind;
 
 namespace FlavorText;
 
-public class CompFlavor : ThingComp
+public class CompFlavor : ThingComp, IExposable
 {
+
     private readonly bool tag;
     private const int numFlavorDefsBeforeBreak = 5;
     private bool generatedCoreFlavorDef = true;
@@ -191,6 +193,7 @@ public class CompFlavor : ThingComp
 
     public ThingDef CookingStation { get => cookingStation; set => cookingStation = value; }
     public int? TickCreated { get => tickCreated; set => tickCreated = value; }
+    public int? Iteration { get => iteration; set => iteration = value; }
 
     public int? HourOfDay { get => hourOfDay; set => hourOfDay = value; }
     public int? CookID { get => cookID; set => cookID = value; }
@@ -297,7 +300,7 @@ public class CompFlavor : ThingComp
                 otherCompFlavor.HourOfDay = HourOfDay;
                 otherCompFlavor.TickCreated = TickCreated;
                 otherCompFlavor.MealTags = MealTags;
-                otherCompFlavor.iteration = iteration;
+                otherCompFlavor.Iteration = Iteration;
             }
         }
         catch (Exception arg)
@@ -326,11 +329,11 @@ public class CompFlavor : ThingComp
             {
                 TickCreated = GenTicks.TicksAbs;
             }
-            Rand.PushState(Find.World.info.Seed + iteration.Value);
+            Rand.PushState(Find.World.info.Seed + Iteration.Value);
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
             TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
-            iteration = Rand.Element(iteration, otherFlavorComp.iteration);
+            Iteration = Rand.Element(Iteration, otherFlavorComp.Iteration);
             try
             {
                 List<string> mealTags1 = MealTags;
@@ -382,11 +385,11 @@ public class CompFlavor : ThingComp
         {
             return;
         }
-        if (!iteration.HasValue)
+        if (!Iteration.HasValue)
         {
             CompFlavorUtility.Iterate();
-            iteration = CompFlavorUtility.Iterations;
-            //Log.Message($"it = {CompFlavorUtility.Iterations}");
+            Iteration = CompFlavorUtility.Iterations;
+            Log.Message($"iteration = {CompFlavorUtility.Iterations}");
         }
         TriedFlavorText = true;
         Stopwatch stopwatch = new();
@@ -407,7 +410,7 @@ public class CompFlavor : ThingComp
                 {
                     TickCreated = GenTicks.TicksAbs;
                 }
-                Rand.PushState(Find.World.info.Seed + iteration.Value);
+                Rand.PushState(Find.World.info.Seed + Iteration.Value);
                 System.Random r = new();
                 valueOrDefault = HourOfDay.GetValueOrDefault();
                 if (!HourOfDay.HasValue)
@@ -444,7 +447,7 @@ public class CompFlavor : ThingComp
             if (Prefs.DevMode)
             {
                 stopwatch.Stop();
-                Log.Message("[Flavor Text] TryGetFlavorText GetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
+                //Log.Message("[Flavor Text] TryGetFlavorText GetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
             }
         }
     }
@@ -536,7 +539,6 @@ public class CompFlavor : ThingComp
             mealDiet = Diet.vegetarian;
         }
 
-        Log.Message($"DietKind for meal {parent.ThingID} was {mealDiet.ToStringSafe()}");
         foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
         {
             excludedCategories.AddDistinct(dietCat);
@@ -604,7 +606,7 @@ public class CompFlavor : ThingComp
             }
 
 
-            Rand.PushState(Find.World.info.Seed + iteration.Value);
+            Rand.PushState(Find.World.info.Seed + Iteration.Value);
             int startIndex = Rand.Range(0, flavorDefsToSearch.Count);
             int j;
             for (int i = 0; i < flavorDefsToSearch.Count; i++)
@@ -630,7 +632,7 @@ public class CompFlavor : ThingComp
                 (FlavorDef def, List<int> indices) bestFlavor;
                 if (FlavorTextSettings.randomizedRecipeOuput)
                 {
-                    Rand.PushState(Find.World.info.Seed + iteration.Value);
+                    Rand.PushState(Find.World.info.Seed + Iteration.Value);
                     bestFlavor = matchingFlavors.RandomElementByWeight(((FlavorDef def, List<int> indices) matchingFlavor) => matchingFlavor.def.Specificity);
                     Rand.PopState();
                 }
@@ -834,12 +836,9 @@ public class CompFlavor : ThingComp
     {
         try
         {
-            //Stopwatch stopwatch = new();
-            //stopwatch.Start();
-            Rand.PushState(Find.World.info.Seed + iteration.Value);
+            Rand.PushState(Find.World.info.Seed + Iteration.Value);
 
             // find placeholders and replace them with the appropriate inflection of the right ingredient
-            //Log.Warning("Found [" + ingredients.ToStringSafeEnumerable() + "] in meal with FlavorDef " + flavorTuple.def.defName.ToStringSafe() + " and indices [" + flavorTuple.index.ToStringSafeEnumerable() + "]");
             for (int i = 0; i < flavorTuple.def.Ingredients.Count; i++)
             {
                 IngredientSlot slot = flavorTuple.def.Ingredients[i];
@@ -853,62 +852,73 @@ public class CompFlavor : ThingComp
                     throw new ArgumentOutOfRangeException($"Error formatting string for {flavorTuple}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
                 }
 
-                //if (Prefs.DevMode)
-                //{
-                //    stopwatch.Stop();
-                //    Log.Message(">>>[Flavor Text] FormatFlavorString setup in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-                //    stopwatch.Restart();
-                //}
                 for (int j = 0; j < InflectionUtility.grammaticalInflections.Count; j++)
                 {
                     string infName = InflectionUtility.grammaticalInflections[j];
                     NamedArgument argument = new("{" + formattingIndex + "_" + infName + "}", inflections[j]);
-                    flavorString = flavorString.Replace(argument.arg.ToString(), argument.label.ToString());
+
+                    flavorString = RemoveRepeatedWords(flavorString, argument);
+                    
+
+                    flavorString = flavorString.Replace(argument.arg.ToString(), argument.label);
                     //TODO: can formatted be used here?
                     // String.Replace is about as fast as Regex.Replace
                 }
-                //if (Prefs.DevMode)
-                //{
-                //    stopwatch.Stop();
-                //    Log.Message(">>>[Flavor Text] FormatFlavorString loop in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-                //    stopwatch.Restart();
-                //}
             }
-            Rand.PopState();
+            Rand.PopState();            
             return flavorString;
         }
         catch (Exception e)
         {
-            throw new Exception($"Error when formatting flavor {flavorString.ToStringSafe()} for {flavorTuple.ToStringSafe()} with ingredients [{ingredients.ToStringSafeEnumerable()}] and indices [{flavorTuple.index.ToStringSafeEnumerable()}]: reason: {e}");
+            throw new Exception($"Error when formatting flavor ({flavorString.ToStringSafe()}) for {flavorTuple.def.ToStringSafe()} with ingredients [{ingredients.ToStringSafeEnumerable()}] and indices [{flavorTuple.index.ToStringSafeEnumerable()}]: reason: {e}");
         }
 
         // remove words repeated directly after each other
-        static string RemoveRepeatedWords(string inflection, Match placeholderWithContext)
+        static string RemoveRepeatedWords(string flavorString, NamedArgument argument)
         {
-            // return if a blank inflection, currently only used for the adjectival form of "flour"
-            if (inflection == "")
-            {
-                return inflection;
-            }
-            List<string> inflectionSplit = inflection.Split(' ').ToList();
-            if (placeholderWithContext.Groups.Count != 3)
-            {
-                throw new ArgumentOutOfRangeException("The number of capture groups from Regex.Match for " + inflection + " was not 3.");
-            }
 
-            // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
-            if (InflectionUtility.RemoveDiacritics(placeholderWithContext.Groups[1].Value).ToLower() == InflectionUtility.RemoveDiacritics(inflectionSplit.First()).ToLower())
+            // capture the words before and after the placeholder
+            // Match.Groups = [regex string, capture group 1, capture group 2]
+            MatchCollection argumentsWithContext = Regex.Matches(flavorString, "([^ .,;:]*) *" + argument.arg.ToString() + " *([^ .,;:]*)");
+            foreach (Match match in argumentsWithContext)
             {
-                inflectionSplit.RemoveAt(0);
-            }
+                // return if a blank inflection, currently only used for the adjectival form of "flour"
+                if (match == Match.Empty)
+                {
+                    continue;
+                }
+                if (match.Groups.Count != 3)
+                {
+                    throw new ArgumentOutOfRangeException("The number of groups from Regex.Match for was not 3.");
+                }
+                //some meat {0_coll} meat dog
+                //(10, 17) (0, 9) (18, 26)
 
-            // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
-            if (InflectionUtility.RemoveDiacritics(placeholderWithContext.Groups[2].Value).ToLower() == InflectionUtility.RemoveDiacritics(inflectionSplit.Last()).ToLower())
-            {
-                inflectionSplit.RemoveLast();
+                //fried {0_coll}
+                //(6, 13) (0, 5) (14, 14)
+                //(0, 13) (0, 0) (13, 0)
+                //(0, 13) (0, 0) (13, 0)
+
+
+                List<string> flavorSubstrings = [flavorString.Substring(0, Math.Max(match.Groups[0].Index, 0)), flavorString.Substring(match.Groups[0].Index, match.Groups[0].Length), flavorString.Substring(Math.Min(match.Groups[0].Index + match.Groups[0].Length, flavorString.Length - 1), flavorString.Length - (match.Groups[0].Index + match.Groups[0].Length))];
+
+                List<string> argumentSplit = [.. argument.label.Split(' ')];
+
+                // if you captured a word before the placeholder, see if it duplicates the first word of "inflection"
+                if (InflectionUtility.RemoveDiacritics(match.Groups[1].Value).ToLower() == InflectionUtility.RemoveDiacritics(argumentSplit.First()).ToLower())
+                {
+                    flavorSubstrings[1] = flavorSubstrings[1].Remove(0, match.Groups[1].Length);
+                }
+
+                // if you captured a word after the placeholder, see if it duplicates the last word of "inflection"
+                if (InflectionUtility.RemoveDiacritics(match.Groups[2].Value).ToLower() == InflectionUtility.RemoveDiacritics(argumentSplit.Last()).ToLower())
+                {
+                    flavorSubstrings[1] = flavorSubstrings[1].Remove(flavorSubstrings[1].Length - match.Groups[2].Length, match.Groups[2].Length);
+                }
+                flavorString = string.Join("", flavorSubstrings);
             }
-            inflection = string.Join(" ", inflectionSplit);
-            return inflection;
+            return flavorString;
+
         }
     }
 
@@ -1006,7 +1016,7 @@ public class CompFlavor : ThingComp
             {
                 return;
             }
-            Rand.PushState(Find.World.info.Seed + iteration.Value);
+            Rand.PushState(Find.World.info.Seed + Iteration.Value);
             RulePackDef sideDishClauses = RulePackDef.Named("FT_SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
             StringBuilder stringBuilder = new();
             for (int j = 0; j < flavorDescriptions.Count; j++)
@@ -1047,6 +1057,11 @@ public class CompFlavor : ThingComp
             flavorDescription = GenText.CapitalizeSentences(flavorDescription);
         }
         return flavorDescription;
+    }
+
+    public void ExposeData()
+    {
+        return;
     }
 
     // used to order meat in a more grammatical way when using adjectival forms (e.g. "twisted chicken tacos" rather than "chicken twisted tacos")

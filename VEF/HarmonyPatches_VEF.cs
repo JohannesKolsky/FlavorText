@@ -1,7 +1,9 @@
+using FlavorText;
 using HarmonyLib;
 using PipeSystem;
+using System.Collections.Generic;
+using System.Linq;
 using Verse;
-using FlavorText;
 
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
@@ -33,7 +35,8 @@ namespace VEF
             {
                 if (VerifyCompFlavorIntegrity(compFlavor))
                 {
-                    CompFlavorUtility.ActiveProcesses.Add(comp.parent.thingIDNumber, compFlavor);
+                    CompFlavorUtility.ActiveProcesses.Add(comp.parent.thingIDNumber, new CompFlavorUtility.CompFlavorData(compFlavor));
+                    Log.Warning($"activeProcesses were [{CompFlavorUtility.ActiveProcesses.Select(kvp => kvp.Key.ToStringSafe() + " : " + kvp.Value?.iteration.ToStringSafe()).ToStringSafeEnumerable()}]");
                 }
                 else Log.Error($"CompFlavor for input meal into {comp.parent} had a null field, ignoring it. Output meal CompFlavor will be regenerated. Please report.");
             }
@@ -42,7 +45,6 @@ namespace VEF
             {
                 if (compFlavor?.TickCreated == null) return false;
                 if (compFlavor?.MealTags == null) return false;
-                //if (compFlavor.IngredientsHitPointPercentage == null) return false;
                 return true;
             }
         }
@@ -54,12 +56,12 @@ namespace VEF
             if (outThing.TryGetComp(out CompFlavor outCompFlavor))
             {
                 int key = __instance.advancedProcessor.parent.thingIDNumber;
-                if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavor cachedCompFlavor))
+                if (CompFlavorUtility.ActiveProcesses.TryGetValue(key, out CompFlavorUtility.CompFlavorData cachedCompFlavorData))
                 {
-                    Log.Message($"Changing old CompFlavor {outCompFlavor.ToStringSafe()} to cached CompFlavor {cachedCompFlavor.ToStringSafe()}");
-                    outCompFlavor.TickCreated = cachedCompFlavor.TickCreated;
-                    outCompFlavor.MealTags = cachedCompFlavor.MealTags;
-                    //outCompFlavor.IngredientsHitPointPercentage = cachedCompFlavor.IngredientsHitPointPercentage;
+                    Log.Message($"Changing old CompFlavor {outCompFlavor.ToStringSafe()} with iteration {outCompFlavor.Iteration.ToStringSafe()} to cached CompFlavor {cachedCompFlavorData.ToStringSafe()} with processor ID {key.ToStringSafe()} and iteration {cachedCompFlavorData.iteration.ToStringSafe()}");
+                    outCompFlavor.MealTags = cachedCompFlavorData.mealTags;
+                    outCompFlavor.Iteration = cachedCompFlavorData.iteration;
+                    outCompFlavor.CookID = cachedCompFlavorData.cookID;
                     CompFlavorUtility.ActiveProcesses.Remove(key);
                 }
             }

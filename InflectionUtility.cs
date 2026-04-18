@@ -18,7 +18,7 @@ namespace FlavorText;
 //DONE: spreadsheet descriptions are misaligned
 
 
-//TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active
+//TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active (because FlavorText doesn't know what to do with MayRequire?)
 //TODO: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
 
 [StaticConstructorOnStartup]

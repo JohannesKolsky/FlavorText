@@ -16,7 +16,6 @@ namespace SYR
     {
         static HarmonyPatches_SYR()
         {
-            Log.Warning("SYR Patches Loading...");
             var patchType = typeof(HarmonyPatches_SYR);
             Harmony harmony = new("rimworld.hekmo.SYR");
             {
@@ -27,7 +26,6 @@ namespace SYR
         // cache CompFlavor before old meal is destroyed
         public static void HarmonyPatch_SYR_TakeOutProductPrefix(ref ActiveProcess activeProcess, ref ThingComp __instance)
         {
-            Log.Warning("TakeOutProductPrefix");
             foreach (var ingredientThing in activeProcess.ingredientThings)
             {
                 if (ingredientThing.TryGetComp(out CompFlavor compFlavor))
@@ -41,7 +39,6 @@ namespace SYR
         // retrieve cached CompFlavor and apply it to new meal
         public static void HarmonyPatch_SYR_TakeOutProductPostfix(ref ThingComp __instance, ref Thing __result)
         {
-            Log.Warning("TakeOutProductPostfix");
             if (__result.TryGetComp(out CompFlavor outCompFlavor))
             {
                 int key = __instance.parent.thingIDNumber;
