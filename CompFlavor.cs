@@ -113,6 +113,8 @@ using static FlavorText.DietKind;
 //DONE: remove if (Prefs.DevMode) requirement for errors?
 //DONE: fat (and maybe meat) is allowed in vegetarian FlavorDefs
 //DONE: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)  // medieval overhaul has inconsistent capitalization
+//DONE: WhatsThatMod loses color in its tag
+//DONE: error when saving VCE stews mid-processing
 
 //RELEASED: check all with v1.6
 //RELEASED: update XML files
@@ -133,16 +135,15 @@ using static FlavorText.DietKind;
 
 //TODO: variety matters warnings and errors?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
-//TODO: WhatsThatMod loses color in its tag
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
 //TODO: test iterations carryover for merge/split/save
 //TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
 //TODO: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
+//TODO: test speed wih non-random flavor text generation and full search
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //TODO: error when removing VCE stews mid-processing
-//TODO: error when saving VCE stews mid-processing
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
