@@ -48,6 +48,7 @@ using static FlavorText.DietKind;
 //DONE: stinker fungus (VCE_Mushrooms) is in Foods, but glowcap fungus is in PlantFoodRaw
 //DONE: no compFlavor for nutrient paste meals for now
 //DONE: this can mismatch; in VV, some foods are categorized in FT_FoodRaw, which can create omnivore ingredient diet with a vegan meal diet
+//DONE: ruined grill conversion
 
 //RELEASED: side dish clauses isn't working
 //RELEASED: check for that null bug again
@@ -115,6 +116,7 @@ using static FlavorText.DietKind;
 //DONE: some ingredients are getting capitalized in flavor descriptions (Meat, Pumpkin)  // medieval overhaul has inconsistent capitalization
 //DONE: WhatsThatMod loses color in its tag
 //DONE: error when saving VCE stews mid-processing
+//DONE: test iterations carryover for merge/split/save
 
 //RELEASED: check all with v1.6
 //RELEASED: update XML files
@@ -136,14 +138,13 @@ using static FlavorText.DietKind;
 //TODO: variety matters warnings and errors?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
-//TODO: test iterations carryover for merge/split/save
-//TODO: check how disallowed slot categories are handled
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: common sense spawned bread is becoming sourdough
 //TODO: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
 //TODO: test speed wih non-random flavor text generation and full search
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
-//TODO: error when removing VCE stews mid-processing
+//TODO: 0-ingredient meals only get condiment ghost ingredients
+//TODO: check how disallowed slot categories are handled
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -188,8 +189,7 @@ public class CompFlavor : ThingComp, IExposable
     private int? tickCreated = null;
     private int? iteration = null;
     private int? hourOfDay = null;
-    private int? cookID = null;
-    private float? ingredientsHitPointPercentage;
+    private string cookID = "";
     private List<string> mealTags = [];
 
     public ThingDef CookingStation { get => cookingStation; set => cookingStation = value; }
@@ -197,8 +197,7 @@ public class CompFlavor : ThingComp, IExposable
     public int? Iteration { get => iteration; set => iteration = value; }
 
     public int? HourOfDay { get => hourOfDay; set => hourOfDay = value; }
-    public int? CookID { get => cookID; set => cookID = value; }
-    public float? IngredientsHitPointPercentage { get => ingredientsHitPointPercentage; set => ingredientsHitPointPercentage = value; }
+    public string CookID { get => cookID; set => cookID = value; }
 
     public List<string> MealTags { get => mealTags; set => mealTags = value; }
 
@@ -251,6 +250,7 @@ public class CompFlavor : ThingComp, IExposable
         Scribe_Values.Look(ref hourOfDay, "hourOfDay");
         Scribe_Values.Look(ref tickCreated, "tickCreated");
         Scribe_Values.Look(ref iteration, "iteration");
+        Scribe_Values.Look(ref cookID, "cookID");
         Scribe_Collections.Look(ref mealTags, "tags", LookMode.Undefined);
         if (Scribe.mode == LoadSaveMode.PostLoadInit && MealTags == null)
         {
@@ -302,6 +302,7 @@ public class CompFlavor : ThingComp, IExposable
                 otherCompFlavor.TickCreated = TickCreated;
                 otherCompFlavor.MealTags = MealTags;
                 otherCompFlavor.Iteration = Iteration;
+                otherCompFlavor.CookID = CookID;
             }
         }
         catch (Exception arg)
@@ -334,6 +335,7 @@ public class CompFlavor : ThingComp, IExposable
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
             TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
+            CookID = Rand.Element(CookID, otherFlavorComp.CookID);
             Iteration = Rand.Element(Iteration, otherFlavorComp.Iteration);
             try
             {

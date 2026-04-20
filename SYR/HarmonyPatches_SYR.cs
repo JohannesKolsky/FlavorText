@@ -33,7 +33,7 @@ namespace SYR
             {
                 if (ingredientThing.TryGetComp(out CompFlavor compFlavor))
                 {
-                    CompFlavorUtility.ActiveProcesses.Add(__instance.parent.ThingID, new CompFlavorUtility.CompFlavorData(compFlavor));
+                    CompFlavorUtility.ActiveProcesses.Add(__instance.parent.ThingID, new CompFlavorData(compFlavor));
                     Log.Warning($"activeProcesses were [{CompFlavorUtility.ActiveProcesses.Select(kvp => kvp.Key.ToStringSafe() + " : " + kvp.Value?.iteration.ToStringSafe()).ToStringSafeEnumerable()}]");
                     break;
                 }
@@ -46,7 +46,7 @@ namespace SYR
             if (__result.TryGetComp(out CompFlavor outCompFlavor))
             {
                 string processorID = __instance.parent.ThingID;
-                if (CompFlavorUtility.ActiveProcesses.TryGetValue(processorID, out CompFlavorUtility.CompFlavorData cachedCompFlavorData))
+                if (CompFlavorUtility.ActiveProcesses.TryGetValue(processorID, out CompFlavorData cachedCompFlavorData))
                 {
                     Log.Message($"Changing old CompFlavor {outCompFlavor.ToStringSafe()} with iteration {outCompFlavor.Iteration.ToStringSafe()} to cached CompFlavor {cachedCompFlavorData.ToStringSafe()} with processor ID {processorID.ToStringSafe()} and iteration {cachedCompFlavorData.iteration.ToStringSafe()}");
                     outCompFlavor.Iteration = cachedCompFlavorData.iteration;

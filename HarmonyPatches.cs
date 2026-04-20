@@ -6,6 +6,7 @@ using Verse;
 
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
+//DONE: cookID isn't being saved
 
 //TODO: HandleIngredientsAndQualityPostfix can't use a PipeSystem subclass // why??
 
@@ -50,7 +51,7 @@ public static class HarmonyPatches
                     compFlavor.CookingStation = ((Thing)billGiver).def;
                     compFlavor.HourOfDay = GenLocalDate.HourOfDay(billGiver.Map);
                     compFlavor.TickCreated = GenTicks.TicksAbs;
-                    compFlavor.CookID = worker?.thingIDNumber;
+                    compFlavor.CookID = worker?.ThingID;
                     if (ModsConfig.BiotechActive && worker?.genes is not null && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
                         Rand.PushState(Find.World.info.Seed + CompFlavorUtility.Iterations);

@@ -4,12 +4,14 @@ using System.Linq;
 using UnityEngine;
 using Verse;
 
-//TODO: LookMode.Reference errror for compFlavor
-//TODO: saving mid-processing crashes RW
-//TODO: cookID isn't being saved
-//TODO: ruined soup
-//TODO: processor destroyed or uninstalled mid-process
-//TDOO: CompFlavorData constructor not found error on load of save
+//DONE: CompFlavorData constructor not found error on load of save
+//DONE: error on adding FlavorText while meal is processing, then taking it out when finished
+//DONE: saving mid-processing crashes RW
+//DONE: processor destroyed or uninstalled mid-process
+//--TODO: ruined soup  // disappears
+//DONE: LookMode.Reference errror for compFlavor
+
+//TODO: iterations seems to be resetting to 0
 
 namespace FlavorText
 {
@@ -24,9 +26,6 @@ namespace FlavorText
         }
 
         private static Dictionary<string, CompFlavorData> activeProcesses;
-
-        private static List<int> processorIDNumbers;
-        private static List<CompFlavorData> flavorComps;
 
         public CompFlavorUtility(Map map) : base(map)
         {
@@ -56,16 +55,11 @@ namespace FlavorText
 
         public class CompFlavorData : IExposable
         {
-            public int? iteration;
-            public int? cookID;
-            public List<string> mealTags;
+        public int? iteration;
+        public string cookID;
+        public List<string> mealTags;
 
-            public CompFlavorData(int? iteration, int? cookID, List<string> mealTags)
-            {
-                this.iteration = iteration.Value;
-                this.cookID = cookID.Value;
-                this.mealTags = mealTags;
-            }
+            public CompFlavorData() { }
 
             public CompFlavorData(CompFlavor compFlavor)
             {
