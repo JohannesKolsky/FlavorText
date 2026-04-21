@@ -20,6 +20,8 @@ namespace FlavorText;
 
 //TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active (because FlavorText doesn't know what to do with MayRequire?)
 //TODO: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
+//TODO: if mismatch between label and defName in FT_MeatRaw, don't add "meat"
+//TODO: such weird behavior with inflectionsOverride: blank names, names becoming "meat"
 
 [StaticConstructorOnStartup]
 internal static class InflectionUtility
@@ -27,6 +29,7 @@ internal static class InflectionUtility
     private static bool tag;
 
     internal const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
+    private const int minimumLengthForInflectionRoot = 3;
     internal static readonly List<string> grammaticalInflections = ["plur", "coll", "sing", "adj"];
     internal static readonly List<string> grammaticalCollections = ["AND", "OR", "OTHER"];
 
@@ -198,11 +201,12 @@ internal static class InflectionUtility
 
         // figure out common words by comparing label and defName
         string root = LongestCommonSubstring(defNameBitsDeleted, labelBitsDeleted);  // e.g. EX_GruyereCheese + GruyèreCheese => gruyere cheese
-                                                                                     // if that didn't work, try again without deleted words
-        if (root.Length == 0 && inflections.Empty())
+
+        if (root.Length < minimumLengthForInflectionRoot && inflections.Empty())
         {
             root = LongestCommonSubstring(defNameClean, labelClean);
-            if (root.Length == 0) root = labelClean;
+            // if that didn't work, try again without deleted words
+            if (root.Length < 3) root = labelClean;
         }
         if (!Regex.IsMatch(labelClean, $"\\b{root}")) root = null;
 

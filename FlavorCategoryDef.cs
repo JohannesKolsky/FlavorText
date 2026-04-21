@@ -33,7 +33,7 @@ public class FlavorCategoryDef : Def
 
     // whether the collective inflection is naturally a singular or plural form; e.g. "grilled cabbage" vs "grilled berries"
     // if null, value will be inherited from its category parent
-    public bool? singularCollective = null;
+    public bool? singularCollective;
 
     public List<string> keywords = []; // keywords to search for when deciding which modded ingredients fit into which FlavorCategoryDefs
 
@@ -46,9 +46,9 @@ public class FlavorCategoryDef : Def
 
     public List<string> inflectionsOverride = []; // default name for an ingredient when this category is empty (only used if numAllowedMissingIngredients) > 0
 
-    public bool? alwaysUseOverride = null;  // always use the inflection override; used for weird names, like eggs and Brussels sprouts
+    public bool? alwaysUseOverride;  // always use the inflection override; used for weird names, like eggs and Brussels sprouts
 
-    internal int nestDepth;
+    internal int nestDepth; 
 
     [Unsaved]
     private List<FlavorCategoryDef> childCategories = [];

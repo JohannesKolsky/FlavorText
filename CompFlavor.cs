@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
@@ -117,6 +116,7 @@ using static FlavorText.DietKind;
 //DONE: WhatsThatMod loses color in its tag
 //DONE: error when saving VCE stews mid-processing
 //DONE: test iterations carryover for merge/split/save
+//DONE: simple meal jjigae with 1-ingredient dried meat fails to generate ghost ingredient
 
 //RELEASED: check all with v1.6
 //RELEASED: update XML files
@@ -145,6 +145,7 @@ using static FlavorText.DietKind;
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //TODO: 0-ingredient meals only get condiment ghost ingredients
 //TODO: check how disallowed slot categories are handled
+//TODO: VCE take bring soup to pot option not appearing => try without FT
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -221,7 +222,6 @@ public class CompFlavor : ThingComp, IExposable
     public override string TransformLabel(string label)
     {
         TryGetFlavorText();
-        if (finalFlavorLabel.NullOrEmpty()) Log.ErrorOnce($"found no flavor text for {parent.ThingID} at {parent.PositionHeld} with real ingredients [{Ingredients.ToStringSafeEnumerable()}]", 37291870);
         return parent.stackCount == 1 || FlavorTextSettings.flavorTextForStacks
             ? (!finalFlavorLabel.NullOrEmpty()) ? (finalFlavorLabel + " (" + base.TransformLabel(label) + ")") : base.TransformLabel(label)
             : base.TransformLabel(label);
@@ -427,7 +427,7 @@ public class CompFlavor : ThingComp, IExposable
                 }
                 //IngredientsHitPointPercentage ??= Rand.Range(0f, 1f);
                 Rand.PopState();
-                
+
                 GetFlavorText(flavorDefsToSearch);
             }
         }
@@ -861,14 +861,14 @@ public class CompFlavor : ThingComp, IExposable
                     NamedArgument argument = new("{" + formattingIndex + "_" + infName + "}", inflections[j]);
 
                     flavorString = RemoveRepeatedWords(flavorString, argument);
-                    
+
 
                     flavorString = flavorString.Replace(argument.arg.ToString(), argument.label);
                     //TODO: can formatted be used here?
                     // String.Replace is about as fast as Regex.Replace
                 }
             }
-            Rand.PopState();            
+            Rand.PopState();
             return flavorString;
         }
         catch (Exception e)
@@ -929,9 +929,9 @@ public class CompFlavor : ThingComp, IExposable
     {
         ThingDef ghost = null;
         List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
-        if (ghostCategories.Empty())  // if you'd fail to generate, make a warning, then recalculate diet from ingredients instead of meal
+        if (ghostCategories.Empty())  // if you'd fail to generate, recalculate diet from ingredients instead of meal
         {
-            Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.Categories.ToStringSafeEnumerable()}], the restrictions [{excludedCategories.ToStringSafeEnumerable()}] prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
+            Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.Categories.ToStringSafeEnumerable()}], the restrictions prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
             excludedCategories = [.. Props.defaultGhostExcludedCategories];
             foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(CalculateIngredientDiet(ingredients)))
             {

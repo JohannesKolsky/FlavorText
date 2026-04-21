@@ -33,13 +33,13 @@ using static FlavorText.CategoryUtility;
 //DONE: RC2 Chili peppers are in FT_Foods
 //DONE: keep canned and pickled and such; problem is atm not deleting those causes "meat" to be deleted
 //DONE: can you get link FT_MealsFlavor to FT_FoodMeals and not have this funkiness where you assign to the second and then check if it also belongs in the first?
+//DONE: you can remove all categories with 0 contained ThingDefs to boost GetFlavorText search speed
+//DONE: create a function for searching child and parent categories
+//DONE: hitting the blacklist isn't triggering the removal of the category and its descendants
+//DONE: if defName and label are different, the meal is never categorized: e.g. DankPyon_Slop_Simple (stew)
 
 //TODO: examine more items that may be food: anything that has nutrition (drugs, alcohol)
-//TODO: if defName and label are different, the meal is never categorized: e.g. DankPyon_Slop_Simple (stew)
 //TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
-//TODO: hitting the blacklist isn't triggering the removal of the category and its descendants
-//TODO: create a function for searching child and parent categories
-//TODO: you can remove all categories with 0 contained ThingDefs to boost GetFlavorText search speed
 
 namespace FlavorText;
 
@@ -117,11 +117,14 @@ internal static class CategoryUtility
 
     private static void Debug()
     {
-        int count = FlavorCategoryDefOf.FT_Foods.DescendantThingDefs.Count();
+        var test = DefDatabase<FlavorDef>.GetNamed("FlavorText_Foods_Jjigae");
+        Log.Warning($"{test.ToStringSafe()} had slots [{test.Ingredients.Select(slot => "[" + slot.AllowedCategories.ToStringSafe() + " : " + slot.AllowedThingDefs.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]");
+        int count = FlavorCategoryDefOf.FT_Root.DescendantThingDefs.Count();
         Log.Warning($"found {count} food items");
-        foreach (var thing in FlavorCategoryDefOf.FT_Foods.DescendantThingDefs)
+        foreach (var thing in FlavorCategoryDefOf.FT_Root.DescendantThingDefs)
         {
-            Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}] had child ThingDefs [{parent.DescendantThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}");
+            tag = thing.defName.ToLower().Contains("slop");
+            if (tag) Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}] had child ThingDefs [{parent.DescendantThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}");
         }
     }
 
@@ -130,7 +133,7 @@ internal static class CategoryUtility
     {
         foreach (FlavorCategoryDef cat in FlavorCategoryDefOf.FT_Root.DescendantCategories)
         {
-            if (cat.Parents == null) throw new NullReferenceException($"{cat.ToStringSafe()} had null parent when attempting to inherit parent data");
+            if (cat.Parents.NullOrEmpty()) throw new NullReferenceException($"{cat.ToStringSafe()} parents were null or empty when attempting to inherit parent data");
             if (cat.SingularCollective == null)
             {
                 if (cat.Parents.All(parent => parent.SingularCollective == cat.Parents[0].SingularCollective))
@@ -141,14 +144,15 @@ internal static class CategoryUtility
             }
             //Log.Error($"{cat.ToStringSafe()} had singularCollective = {cat.singularCollective.ToStringSafe()}");
 
-            // inherit alwaysUseOverride if null in child
+            // inherit alwaysUseOverride if null in child; ignore null parent values
             if (cat.AlwaysUseOverride == null)
             {
-                if (cat.Parents.All(parent => parent.AlwaysUseOverride == cat.Parents[0].AlwaysUseOverride))
+                List<FlavorCategoryDef> nonNullParents = [.. cat.parents.Where(parent => parent.AlwaysUseOverride != null)];
+                if (nonNullParents.Any() && nonNullParents.All(p => p.AlwaysUseOverride == nonNullParents[0].AlwaysUseOverride))
                 {
-                    cat.AlwaysUseOverride = cat.Parents[0].AlwaysUseOverride;
+                    cat.AlwaysUseOverride = nonNullParents[0].AlwaysUseOverride;
                 }
-                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching alwaysUseOverride field values. The values were [{cat.Parents.Select(parent => parent.AlwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
+                else throw new ArgumentException($"for their alwaysUseOverride field, the parents of {cat.ToStringSafe()} had both true and false values, or had all null values. The values were [{cat.Parents.Select(parent => parent.AlwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
 
             cat.Parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
@@ -169,6 +173,7 @@ internal static class CategoryUtility
         {
             try
             {
+                if (!food.IsHumanFood()) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
                 ThingParentCategories.Add(food, []);
                 Dictionary<FlavorCategoryDef, int> newParents = null;

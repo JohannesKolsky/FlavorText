@@ -10,14 +10,15 @@ using Verse;
 //DONE: processor destroyed or uninstalled mid-process
 //--TODO: ruined soup  // disappears
 //DONE: LookMode.Reference errror for compFlavor
-
-//TODO: iterations seems to be resetting to 0
+//DONE: process doesn't get removed when map is destroyed
+//DONE: multi-map: need separate CompFlavorUtilities
+//DONE: iterations seems to be resetting to 0
 
 namespace FlavorText
 {
-    public class CompFlavorUtility : MapComponent
+    public class CompFlavorUtility(Map map) : MapComponent(map)
     {
-        private static int iterations;
+        private static int iterations = 0;
         internal static int Iterations { get => iterations; private set => iterations = value; }
 
         internal static void Iterate()
@@ -25,26 +26,10 @@ namespace FlavorText
             Iterations++;
         }
 
-        private static Dictionary<string, CompFlavorData> activeProcesses;
+        private Dictionary<string, CompFlavorData> activeProcesses = [];
+        public Dictionary<string, CompFlavorData> ActiveProcesses { get => activeProcesses; }
 
-        public CompFlavorUtility(Map map) : base(map)
-        {
-            Iterations = 0;
-        }
 
-        internal static void Next()
-        {
-            Iterations++;
-        }
-
-        public static Dictionary<string, CompFlavorData> ActiveProcesses
-        {
-            get
-            {
-                activeProcesses ??= [];
-                return activeProcesses;
-            }
-        }
 
         public override void ExposeData()
         {
@@ -53,26 +38,26 @@ namespace FlavorText
         } 
     }
 
-        public class CompFlavorData : IExposable
+    public class CompFlavorData : IExposable
+    {
+    public int? iteration;
+    public string cookID;
+    public List<string> mealTags;
+
+        public CompFlavorData() { }
+
+        public CompFlavorData(CompFlavor compFlavor)
         {
-        public int? iteration;
-        public string cookID;
-        public List<string> mealTags;
-
-            public CompFlavorData() { }
-
-            public CompFlavorData(CompFlavor compFlavor)
-            {
-                iteration = compFlavor.Iteration;
-                cookID = compFlavor.CookID;
-                mealTags = compFlavor.MealTags;
-            }
-
-            public void ExposeData()
-            {
-                Scribe_Values.Look(ref iteration, "iteration");
-                Scribe_Values.Look(ref cookID, "cookID");
-                Scribe_Collections.Look(ref mealTags, "tags", LookMode.Undefined);
-            }
+            iteration = compFlavor.Iteration;
+            cookID = compFlavor.CookID;
+            mealTags = compFlavor.MealTags;
         }
+
+        public void ExposeData()
+        {
+            Scribe_Values.Look(ref iteration, "iteration");
+            Scribe_Values.Look(ref cookID, "cookID");
+            Scribe_Collections.Look(ref mealTags, "tags", LookMode.Undefined);
+        }
+    }
 }
