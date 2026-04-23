@@ -44,7 +44,7 @@ public class FlavorCategoryDef : Def
 
     public List<FlavorCategoryDef> parents;
 
-    public List<string> inflectionsOverride = []; // default name for an ingredient when this category is empty (only used if numAllowedMissingIngredients) > 0
+    public List<string> inflectionsOverride; // default name for an ingredient when this category is empty (only used if numAllowedMissingIngredients) > 0
 
     public bool? alwaysUseOverride;  // always use the inflection override; used for weird names, like eggs and Brussels sprouts
 

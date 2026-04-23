@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
+using static PipeSystem.ProcessDef;
 
 namespace FlavorText;
 
@@ -46,7 +47,7 @@ internal static class InflectionUtility
         {
             if (!cat.InflectionsOverride.NullOrEmpty())
             {
-                if (cat.ChildThingDefs.Count == 0)
+                if (cat.DescendantThingDefs.Count == 0)
                 {
                     cat.InflectionsOverride = [.. cat.InflectionsOverride.Select(inflect => inflect.Formatted("").Trim())];
                 }
@@ -60,18 +61,18 @@ internal static class InflectionUtility
         {
             try
             {                
-                // tag = ingredient.defName.ToLower().Contains("flour");
+                 //tag = ingredient.defName.ToLower().Contains("gorilla");
                 // try and get inflections defined in the XML
                 List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
                 if (inflections is null)
                 {
                     ThingInflectionsDictionary.Add(ingredient, []);
-                    if (tag) Log.Warning($"Could not find {ingredient} in the thingDefs of predefined inflections, checking category overrides...");
-                    var thisAndParents = CategoryUtility.ThingParentCategories[ingredient].First().ThisAndAncestors;
-                    foreach (var cat in thisAndParents)
+                    if (tag) Log.Warning($"{ingredient.ToStringSafe()} did not have any predefined inflections, checking category overrides...");
+                    var parents = CategoryUtility.ThingParentCategories[ingredient];
+                    if (parents.Count == 1)
                     {
-                        if (cat.AlwaysUseOverride == true) inflections = cat.InflectionsOverride;
-                        if (inflections is not null) break;
+                        inflections = parents[0].inflectionsOverride;
+                        if (tag) Log.Message($"found category inflections override to use: [{inflections.ToStringSafeEnumerable()}]");
                     }
                     if (inflections is null)
                     {
@@ -114,7 +115,7 @@ internal static class InflectionUtility
     // generate various grammatical forms of each ingredient
     private static List<string> GenerateInflections(Def ingredient, List<string> inflections)
     {
-        //tag = ingredient.defName.ToLower().Contains("flour");
+        //tag = ingredient.defName.ToLower().Contains("gorilla");
 
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
@@ -202,10 +203,11 @@ internal static class InflectionUtility
         // figure out common words by comparing label and defName
         string root = LongestCommonSubstring(defNameBitsDeleted, labelBitsDeleted);  // e.g. EX_GruyereCheese + GruyèreCheese => gruyere cheese
 
+        // if that didn't work, try again with fewer deleted words
         if (root.Length < minimumLengthForInflectionRoot && inflections.Empty())
         {
             root = LongestCommonSubstring(defNameClean, labelClean);
-            // if that didn't work, try again without deleted words
+            // if that didn't work, just use the label with fewer deleted words
             if (root.Length < 3) root = labelClean;
         }
         if (!Regex.IsMatch(labelClean, $"\\b{root}")) root = null;

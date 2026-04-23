@@ -155,6 +155,15 @@ internal static class CategoryUtility
                 else throw new ArgumentException($"for their alwaysUseOverride field, the parents of {cat.ToStringSafe()} had both true and false values, or had all null values. The values were [{cat.Parents.Select(parent => parent.AlwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
 
+            if (cat.InflectionsOverride == null && cat.AlwaysUseOverride == true)
+            {
+                if (cat.Parents.All(parent => parent.InflectionsOverride == cat.Parents[0].InflectionsOverride))
+                {
+                    cat.InflectionsOverride = cat.Parents[0].InflectionsOverride;
+                }
+                else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching InflectionsOverride field values. The values were [{cat.Parents.Select(parent => parent.InflectionsOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
+            }
+
             cat.Parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
             cat.Parents.ForEach(parent => cat.BlacklistedMods.AddRangeUnique(parent.BlacklistedMods));  // inherit blacklisted mods of parents
         }

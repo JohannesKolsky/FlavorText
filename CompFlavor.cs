@@ -163,7 +163,7 @@ public class CompFlavor : ThingComp, IExposable
 {
 
     private readonly bool tag;
-    private const int numFlavorDefsBeforeBreak = 5;
+    private const int numFlavorDefsBeforeBreak = 10;
     private bool generatedCoreFlavorDef = true;
 
     internal bool TriedFlavorText { get; set; }
@@ -928,7 +928,7 @@ public class CompFlavor : ThingComp, IExposable
     private ThingDef GenerateGhostIngredient((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
     {
         ThingDef ghost = null;
-        List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
+        List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
         if (ghostCategories.Empty())  // if you'd fail to generate, recalculate diet from ingredients instead of meal
         {
             Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.Categories.ToStringSafeEnumerable()}], the restrictions prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
@@ -937,7 +937,7 @@ public class CompFlavor : ThingComp, IExposable
             {
                 excludedCategories.AddDistinct(dietCat);
             }
-            ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InflectionsOverride.NullOrEmpty() && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
+            ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
 
         }
         if (!generatedCoreFlavorDef)
