@@ -273,18 +273,18 @@ internal static class CategoryUtility
     // remove references to FlavorCategoryDefs that don't have any descendant ThingDefs
     private static void PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDef root)
     {
-        if (root.DescendantThingDefs.Any())
+        
+        foreach (var childCat in root.ChildCategories)
         {
-            foreach (var childCat in root.ChildCategories)
-            {
-                PruneInactiveFlavorCategoriesRecursive(childCat);
-            }
+            PruneInactiveFlavorCategoriesRecursive(childCat);
         }
-        else
+        
+        if (root.DescendantThingDefs.Count == 0)
         {
-            root.Parents = null;
+            root.Parents.Clear();
             root.ChildCategories.Clear();
         }
+        
     }
 
 

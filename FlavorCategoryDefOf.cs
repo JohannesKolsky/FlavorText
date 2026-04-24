@@ -11,6 +11,7 @@ public static class FlavorCategoryDefOf
     public static FlavorCategoryDef FT_PlantFoodRaw;
     public static FlavorCategoryDef FT_MeatRaw;
     public static FlavorCategoryDef FT_AnimalProductRaw;
+    public static FlavorCategoryDef FT_Condiment;
     public static FlavorCategoryDef FT_Fungus;
     public static FlavorCategoryDef FT_Meat_Human;
     public static FlavorCategoryDef FT_Meat_Twisted;

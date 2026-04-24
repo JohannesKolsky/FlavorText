@@ -117,6 +117,9 @@ using static FlavorText.DietKind;
 //DONE: error when saving VCE stews mid-processing
 //DONE: test iterations carryover for merge/split/save
 //DONE: simple meal jjigae with 1-ingredient dried meat fails to generate ghost ingredient
+//DONE: 0-ingredient meals only get condiment ghost ingredients
+//--TODO: VCE take bring soup to pot option not appearing // not from FT
+//DONE: check how disallowed slot categories are handled
 
 //RELEASED: check all with v1.6
 //RELEASED: update XML files
@@ -139,13 +142,10 @@ using static FlavorText.DietKind;
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
 //TODO: sidedishclauses for single flavordef descriptions
-//TODO: common sense spawned bread is becoming sourdough
 //TODO: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
 //TODO: test speed wih non-random flavor text generation and full search
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
-//TODO: 0-ingredient meals only get condiment ghost ingredients
-//TODO: check how disallowed slot categories are handled
-//TODO: VCE take bring soup to pot option not appearing => try without FT
+//TODO: common sense spawned bread is becoming sourdough
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -465,7 +465,7 @@ public class CompFlavor : ThingComp, IExposable
         {
             CalculateMealDiet();
 
-            //Log.Warning($"meal dietKind was {mealDietKind.ToStringSafe()}");
+            Log.Warning($"mealDiet was {mealDiet.ToStringSafe()}");
         }
         catch (Exception)
         {
@@ -562,6 +562,7 @@ public class CompFlavor : ThingComp, IExposable
     // determine what FlavorDefs the given ingredient list matches
     private Diet CalculateIngredientDiet(List<ThingDef> ingredients)
     {
+        if (ingredients.Empty()) throw new NullReferenceException($"CalculateIngredientKind was passed an empty list of ingredients");
         if (ingredients.All(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant)) return Diet.hyperCarnivore;
         if (ingredients.All(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.vegan;
         if (ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing))) return Diet.carnivore;
@@ -597,11 +598,12 @@ public class CompFlavor : ThingComp, IExposable
             {
                 //see which FinalFlavorDefs match with the ingredients in the meal
 
-                Diet ingredientsDiet;
-                ingredientsDiet = CalculateIngredientDiet(ingredients);
-                ingredientsDietString = ingredientsDiet.ToStringSafe();
-                //Log.Message($"ingredientsDiet was {ingredientsDiet.ToStringSafe()}");
-                flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, ingredientsDiet, flavorDefsToSearch)];
+                Diet diet;
+                if (!ingredients.Empty()) diet = CalculateIngredientDiet(ingredients);
+                else diet = mealDiet;
+                ingredientsDietString = diet.ToStringSafe();
+                Log.Message($"diet was {diet.ToStringSafe()}");
+                flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, diet, flavorDefsToSearch)];
                 if (flavorDefsToSearch.NullOrEmpty())
                 {
                     throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories[parent.def].ToStringSafeEnumerable() + "] but there were none. Please report.");
@@ -928,6 +930,7 @@ public class CompFlavor : ThingComp, IExposable
     private ThingDef GenerateGhostIngredient((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
     {
         ThingDef ghost = null;
+        List<ThingDef> ghostIngredients = [.. slot.AllowedThingDefs.Where(ing => !excludedCategories.Any(ecat => ecat.ContainedInThisOrDescendant(ing)))];
         List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
         if (ghostCategories.Empty())  // if you'd fail to generate, recalculate diet from ingredients instead of meal
         {

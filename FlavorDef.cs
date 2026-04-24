@@ -19,10 +19,11 @@ using static FlavorText.DietKind;
 //DONE: more general categories like MealsCooked for mealKinds, so you don't have to list all of them for stuff like Mud Cookies or condiment creations
 //--TODO: use default disallowed ingredients for SimpleMeal to exclude human meat, insect meat, etc from meals; -- picks up Insect Jelly
 //DONE: how are condiments and diet handled in SetDiet? seems like it won't assign a diet to a condiment-only FlavorDef
+//DONE: with full modded list, paste FlavorDefs are appearing for simple meals
+//DONE: stuff like FT_SugarCandy has allowedDietKind hypercarnivore and carnivore
 
 //TODO: DankPyon_CaveCobraEggFertilized becomes "c cobra"
-//TODO: with full modded list, paste FlavorDefs are appearing for simple meals
-//TODO: stuff like FT_SugarCandy has allowedDietKind hypercarnivore and carnivore
+//TODO: Fried_Foods doesn't have Diet.omnivore
 
 namespace FlavorText;
 
@@ -52,7 +53,7 @@ internal class DietKind
      {Diet.omnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw]}
     };
 
-	internal static readonly List<FlavorCategoryDef> NormalDietCategories = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw/*, FlavorCategoryDefOf.FT_FoodRaw, FlavorCategoryDefOf.FT_Foods*/];
+	internal static readonly List<FlavorCategoryDef> NormalDietCategories = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw];
 
 	internal static readonly List<FlavorCategoryDef> SketchyDietCategories = [FlavorCategoryDefOf.FT_Fungus, FlavorCategoryDefOf.FT_Meat_Human, FlavorCategoryDefOf.FT_Meat_Insect, FlavorCategoryDefOf.FT_Meat_Twisted];
 
@@ -119,6 +120,7 @@ public class FlavorDef : Def
     {
         try
         {
+            RemoveInactiveCategories();
             SetAllowedIngredients();
             SetActiveMealKinds();
             SetDiets();
@@ -132,7 +134,33 @@ public class FlavorDef : Def
         }
     }
 
+    // remove categories that contain no descendant ThingDefs
+    private static void RemoveInactiveCategories()
+    {
+        foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
+        {
+            foreach (var slot in flavorDef.Ingredients)
+            {
+                List<FlavorCategoryDef> categoriesCopy = [.. slot.Categories];
+                foreach (FlavorCategoryDef cat in categoriesCopy)
+                {
+                    if (cat.Parents.Empty() && cat.ChildCategories.Empty())
+                    {
+                        slot.Categories.Remove(cat);
+                    }
+                }
 
+                List<FlavorCategoryDef> disallowedCategoriesCopy = [.. slot.DisallowedCategories];
+                foreach (FlavorCategoryDef cat in disallowedCategoriesCopy)
+                {
+                    if (cat.Parents.Empty() && cat.ChildCategories.Empty())
+                    {
+                        slot.DisallowedCategories.Remove(cat);
+                    }
+                }
+            }
+        }
+    }
     // register all allowed Defs for each ingredient slot in each Flavor Def
     private static void SetAllowedIngredients()
     {
@@ -202,12 +230,15 @@ public class FlavorDef : Def
 
                     // [Foods <Meat>]
 
+                    if (!FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(cat)) { Log.Error($"{cat.ToStringSafe()} had ancestors [{cat.ThisAndAncestors.ToStringSafeEnumerable()}]"); throw new ArgumentOutOfRangeException($"{cat.ToStringSafe()} was used for slot #{i.ToStringSafe()} of {flavorDef.ToStringSafe()}, but it is not a category under FT_Foods. Terminating FlavorDef setup.");}
 
-                    // do normal categories like FT_MeatRaw, FT_Foods
+                    // figure out whether cat belongs under plant/animal/meat
+                    bool categorized = false;
                     foreach (FlavorCategoryDef dietCat in NormalDietCategories)
                     {
                         if (dietCat.ContainedInThisOrDescendant(cat) || cat.ContainedInThisOrDescendant(dietCat))
                         {
+                            categorized = true;
                             //TODO: when you use List.Add, this adds the dietCat to EACH sublist, why??
                             if (!slotAllowedCategories[i].Contains(dietCat)) slotAllowedCategories[i] = [.. slotAllowedCategories[i], dietCat];
                         }
@@ -221,8 +252,16 @@ public class FlavorDef : Def
                             slotSketchyCategories[i] = [.. slotSketchyCategories[i], sketchyCat];
                         }
                     }
+
+                    // if the category was not categorized, that implies it is FT_Condiment or something, which can be plant+animal+meat, so just add them all and you're done
+                    if (categorized == false)
+                    {
+                        slotAllowedCategories[i] = NormalDietCategories;
+                        break;
+                    }
                 }
 
+                //TODO: FT_Condiment as a disallowed category will have no effect; can this cause any issues?
                 // remove diet categories that are within a disallowed category
                 if (slot.DisallowedCategories.Any())
                 {
@@ -246,15 +285,20 @@ public class FlavorDef : Def
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
             }
 
-            //tag = slotAllowedCategories.Any(slot => slot.Empty());
 
-            if (slotAllowedCategories.All(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
-            if (slotAllowedCategories.Any(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
-            if ((slotAllowedCategories.Count == 1 && slotAllowedCategories[0].Empty()) || (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)))) flavorDef.allowedDiets.Add(Diet.omnivore);
-            if (slotAllowedCategories.Any(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
-            if (slotAllowedCategories.All(diet => diet.Empty() || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
+            if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
 
-            if (tag) Log.Warning($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+            if (
+                (slotAllowedCategories.Count == 1 && slotAllowedCategories[0] == NormalDietCategories)
+                || (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)))
+                )
+                flavorDef.allowedDiets.Add(Diet.omnivore);
+
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
+            if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
+
+            Log.Message($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]. NormalDietCategories were [{NormalDietCategories.ToStringSafeEnumerable()}]. Had {slotAllowedCategories.Count} slots");
 
 
         }
@@ -340,7 +384,7 @@ public class FlavorDef : Def
 
 	// all FinalFlavorDefs that fit the given meal type, quality, and extra parameters
 	// can be restricted to a given list of flavorDefsToSearch, which is used when loading a saved meal that already has flavor text to reduce search time
-	internal static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, Diet ingredientChunkDiet, IEnumerable<FlavorDef> flavorDefsToSearch = null)
+	internal static IEnumerable<FlavorDef> ValidFlavorDefs(ThingWithComps meal, Diet diet, IEnumerable<FlavorDef> flavorDefsToSearch = null)
     {
         var compFlavor = meal.TryGetComp<CompFlavor>();
 
@@ -359,20 +403,18 @@ public class FlavorDef : Def
 
         if (flavorDefsToSearch != null)
         {
-            flavorDefsToSearch = flavorDefsToSearch.Intersect(DietIndex[ingredientChunkDiet])
+            flavorDefsToSearch = flavorDefsToSearch.Intersect(DietIndex[diet])
             .Where(flavorDef =>
                 ((mealCanBeAnyKind && flavorDef.MealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.MealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
                 && (flavorDef.MealQualities.NullOrEmpty() || flavorDef.MealQualities.Any(mealQuality => mealQuality.ContainedInThisOrDescendant(meal.def)))
                 && (flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat =>
                     cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
                 && flavorDef.HoursOfDay.min <= compFlavor.HourOfDay &&
-                        compFlavor.HourOfDay <= flavorDef.HoursOfDay.max
-                                            /*&& flavorDef.ingredientsHitPointPercentage.Includes(
-                                                (float)compFlavor.IngredientsHitPointPercentage!)*/);
+                        compFlavor.HourOfDay <= flavorDef.HoursOfDay.max);
             if (flavorDefsToSearch.Count() > 0) return flavorDefsToSearch;
         }
         
-        flavorDefsToSearch = DietIndex[ingredientChunkDiet];
+        flavorDefsToSearch = DietIndex[diet];
         return flavorDefsToSearch
         .Where(flavorDef =>
             ((mealCanBeAnyKind && flavorDef.MealKinds.Any(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants.Contains)) || (!mealCanBeAnyKind && flavorDef.MealKinds.Any(mealKind => mealThingParentCategories.Contains(mealKind))))
@@ -380,9 +422,7 @@ public class FlavorDef : Def
             && (flavorDef.CookingStations.NullOrEmpty() || flavorDef.CookingStations.Any(cat =>
                 cat.ContainedInThisOrDescendant(compFlavor.CookingStation)))
             && flavorDef.HoursOfDay.min <= compFlavor.HourOfDay &&
-                    compFlavor.HourOfDay <= flavorDef.HoursOfDay.max
-                                    /*&& flavorDef.ingredientsHitPointPercentage.Includes(
-                                        (float)compFlavor.IngredientsHitPointPercentage!)*/);
+                    compFlavor.HourOfDay <= flavorDef.HoursOfDay.max);
         
 
     }
