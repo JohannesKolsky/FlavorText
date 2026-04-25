@@ -17,12 +17,12 @@ namespace FlavorText;
 
 //DONE: recipe parent hierarchy
 //DONE: spreadsheet descriptions are misaligned
+//DONE: such weird behavior with inflectionsOverride: blank names, names becoming "meat"
+//DONE: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active (because FlavorText doesn't know what to do with MayRequire?)
 
 
-//TODO: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active (because FlavorText doesn't know what to do with MayRequire?)
 //TODO: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
 //TODO: if mismatch between label and defName in FT_MeatRaw, don't add "meat"
-//TODO: such weird behavior with inflectionsOverride: blank names, names becoming "meat"
 
 [StaticConstructorOnStartup]
 internal static class InflectionUtility

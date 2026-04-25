@@ -22,7 +22,6 @@ using static FlavorText.DietKind;
 //DONE: with full modded list, paste FlavorDefs are appearing for simple meals
 //DONE: stuff like FT_SugarCandy has allowedDietKind hypercarnivore and carnivore
 
-//TODO: DankPyon_CaveCobraEggFertilized becomes "c cobra"
 //TODO: Fried_Foods doesn't have Diet.omnivore
 
 namespace FlavorText;
@@ -298,7 +297,7 @@ public class FlavorDef : Def
             if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
 
-            Log.Message($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]. NormalDietCategories were [{NormalDietCategories.ToStringSafeEnumerable()}]. Had {slotAllowedCategories.Count} slots");
+            //Log.Message($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]. NormalDietCategories were [{NormalDietCategories.ToStringSafeEnumerable()}]. Had {slotAllowedCategories.Count} slots");
 
 
         }

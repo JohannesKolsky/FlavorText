@@ -92,7 +92,7 @@ using static FlavorText.DietKind;
 //DONE: ^ appearing sometimes in recipes
 //DONE: berries adj = berries
 //DONE: ghost ingredient should match vegetarian/carnivore
-//TODO: merge stack error on dev quicktest b/c game starts paused
+//--TODO: merge stack error on dev quicktest // b/c game starts paused
 //--TODO: options to prevent merging meals
 //DONE: name generation should be based on previous meal made in this save, to make it more consistent
 //DONE: VCE_Soup names are re-rolled after cooking
@@ -392,7 +392,6 @@ public class CompFlavor : ThingComp, IExposable
         {
             CompFlavorUtility.Iterate();
             Iteration = CompFlavorUtility.Iterations;
-            Log.Message($"iteration = {CompFlavorUtility.Iterations}");
         }
         TriedFlavorText = true;
         Stopwatch stopwatch = new();
@@ -602,7 +601,6 @@ public class CompFlavor : ThingComp, IExposable
                 if (!ingredients.Empty()) diet = CalculateIngredientDiet(ingredients);
                 else diet = mealDiet;
                 ingredientsDietString = diet.ToStringSafe();
-                Log.Message($"diet was {diet.ToStringSafe()}");
                 flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, diet, flavorDefsToSearch)];
                 if (flavorDefsToSearch.NullOrEmpty())
                 {

@@ -95,7 +95,7 @@ internal static class CategoryUtility
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
-        //Debug();
+        Debug();
     }
 
 /*    private static void Reinitialize()
@@ -117,14 +117,14 @@ internal static class CategoryUtility
 
     private static void Debug()
     {
-        var test = DefDatabase<FlavorDef>.GetNamed("FlavorText_Foods_Jjigae");
-        Log.Warning($"{test.ToStringSafe()} had slots [{test.Ingredients.Select(slot => "[" + slot.AllowedCategories.ToStringSafe() + " : " + slot.AllowedThingDefs.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]");
+/*        var test = DefDatabase<FlavorDef>.GetNamed("FlavorText_Foods_Jjigae");
+        Log.Warning($"{test.ToStringSafe()} had slots [{test.Ingredients.Select(slot => "[" + slot.AllowedCategories.ToStringSafe() + " : " + slot.AllowedThingDefs.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]");*/
         int count = FlavorCategoryDefOf.FT_Root.DescendantThingDefs.Count();
         Log.Warning($"found {count} food items");
         foreach (var thing in FlavorCategoryDefOf.FT_Root.DescendantThingDefs)
         {
-            tag = thing.defName.ToLower().Contains("slop");
-            if (tag) Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}] had child ThingDefs [{parent.DescendantThingDefs.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}");
+            tag = thing.defName.ToLower().Contains("egg");
+            if (tag) Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}").ToStringSafeEnumerable()}]");
         }
     }
 
@@ -154,6 +154,7 @@ internal static class CategoryUtility
                 }
                 else throw new ArgumentException($"for their alwaysUseOverride field, the parents of {cat.ToStringSafe()} had both true and false values, or had all null values. The values were [{cat.Parents.Select(parent => parent.AlwaysUseOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
+            //Log.Message($"{cat.ToStringSafe()} had alwaysUseOverride = {cat.alwaysUseOverride.ToStringSafe()}");
 
             if (cat.InflectionsOverride == null && cat.AlwaysUseOverride == true)
             {
@@ -163,6 +164,7 @@ internal static class CategoryUtility
                 }
                 else throw new ArgumentException($"the parents of {cat.ToStringSafe()} did  not have matching InflectionsOverride field values. The values were [{cat.Parents.Select(parent => parent.InflectionsOverride.ToStringSafe()).ToStringSafeEnumerable()}]");
             }
+            //Log.Message($"{cat.ToStringSafe()} had inflectionsOverride = [{cat.inflectionsOverride.ToStringSafeEnumerable()}]");
 
             cat.Parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
             cat.Parents.ForEach(parent => cat.BlacklistedMods.AddRangeUnique(parent.BlacklistedMods));  // inherit blacklisted mods of parents
@@ -195,7 +197,15 @@ internal static class CategoryUtility
                 {
                     bestParentsList = [.. newParents.Where(element => element.Value >= 2 * goodScoreForCategorization).Select(element => element.Key)];
                 }
-                else bestParentsList = [.. newParents.Where(element => element.Value == bestScore).Select(element => element.Key)];  // else accept the highest scored parent category
+                else  // else accept the highest scored parent category
+                {
+                    bestParentsList = [.. newParents.Where(element => element.Value == bestScore).Select(element => element.Key)];
+                    if (bestParentsList.Count > 1)
+                    {
+                        int deepestNestDepth = bestParentsList.Max(p => p.nestDepth);
+                        bestParentsList = [.. bestParentsList.Where(p => p.nestDepth == deepestNestDepth)];
+                    }
+                }
 
                 if (!bestParentsList.NullOrEmpty())
                 {
@@ -343,7 +353,7 @@ internal static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
-        //tag = searchedDef.defName.ToLower().Contains("stew");
+        //tag = searchedDef.defName.Contains("EggChickenUnfertilized");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);
@@ -395,11 +405,10 @@ internal static class CategoryUtility
                     ? topLevelCategory.SisterCategories.First()
                     : null;
 
-                var defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelThingCategoryDef)).ToList();
-                while (true)
+                List<ThingCategoryDef> defParents = searchedDef.thingCategories?.Where(cat => cat != null && cat.Parents.Contains(topLevelThingCategoryDef)).ToList();
+                while (!defParents.NullOrEmpty())
                 {
-                    if (defParents.NullOrEmpty()) break;
-                    if (tag) Log.Warning($"{searchedDef.defName} had parent categories [{defParents.ToStringSafeEnumerable()}]");
+                    if (tag) Log.Warning($"{searchedDef.ToStringSafe()} had parent categories [{defParents.ToStringSafeEnumerable()}]");
 
                     foreach (ThingCategoryDef defParent in defParents)
                     {
@@ -420,7 +429,7 @@ internal static class CategoryUtility
                                 GetKeywordScores(flavorCategory);
                             }
 
-                            if (categoryScore >= 1)
+                            if (categoryScore > 0)
                                 bestFlavorCategories.AddDistinct(flavorCategory, categoryScore);
                         }
                     }
