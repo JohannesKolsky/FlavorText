@@ -108,6 +108,11 @@ internal static class InflectionUtility
             foreach (var kvp in thingInflectionsList)
             {
                 var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
+                if (key == null) 
+                {
+                    Log.Error($"{kvp.Key.ToStringSafe()} returned a key value of null when searched. The ThingDef has been deleted by another mod. Ignoring."); 
+                    continue; 
+                }
                 ThingInflectionsDictionary.AddDistinct(key, kvp.Value);
             }
         }
