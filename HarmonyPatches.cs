@@ -54,6 +54,7 @@ public static class HarmonyPatches
                     compFlavor.CookID = worker?.ThingID;
                     if (ModsConfig.BiotechActive && worker?.genes is not null && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
+                        
                         Rand.PushState(Find.World.info.Seed + CompFlavorUtility.Iterations);
                         if (Rand.Range(0, 20) == 0)
                         {

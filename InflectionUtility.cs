@@ -19,10 +19,12 @@ namespace FlavorText;
 //DONE: spreadsheet descriptions are misaligned
 //DONE: such weird behavior with inflectionsOverride: blank names, names becoming "meat"
 //DONE: VCE_Flour has MayRequire=VGP in ThingInflectionsData.xml but still is applied when VGP isn't active (because FlavorText doesn't know what to do with MayRequire?)
+//DONE: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
 
 
-//TODO: DankPyon_EggLargeCobraCaveFertilized => Large c Egg
 //TODO: if mismatch between label and defName in FT_MeatRaw, don't add "meat"
+//TODO: add more predefined inflection operators, such as {use label except for final word}
+//TODO: find out how to remove parentheses
 
 [StaticConstructorOnStartup]
 internal static class InflectionUtility
@@ -120,7 +122,7 @@ internal static class InflectionUtility
     // generate various grammatical forms of each ingredient
     private static List<string> GenerateInflections(Def ingredient, List<string> inflections)
     {
-        //tag = ingredient.defName.ToLower().Contains("gorilla");
+        tag = ingredient.defName.ToLower().Contains("cobracave");
 
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
@@ -215,6 +217,7 @@ internal static class InflectionUtility
             // if that didn't work, just use the label with fewer deleted words
             if (root.Length < 3) root = labelClean;
         }
+        if (root.Split(' ').Last().Length < 2) root = Regex.Match(labelNoParentheses, "(?i)" + root + "[^ ]*").Value;  // if last word of root is a single letter extend it to the end of the word
         if (!Regex.IsMatch(labelClean, $"\\b{root}")) root = null;
 
         // VCE_Flour: root = ""

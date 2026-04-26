@@ -95,7 +95,7 @@ internal static class CategoryUtility
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
-        Debug();
+        //Debug();
     }
 
 /*    private static void Reinitialize()

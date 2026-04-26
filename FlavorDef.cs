@@ -21,8 +21,7 @@ using static FlavorText.DietKind;
 //DONE: how are condiments and diet handled in SetDiet? seems like it won't assign a diet to a condiment-only FlavorDef
 //DONE: with full modded list, paste FlavorDefs are appearing for simple meals
 //DONE: stuff like FT_SugarCandy has allowedDietKind hypercarnivore and carnivore
-
-//TODO: Fried_Foods doesn't have Diet.omnivore
+//DONE: Fried_Foods doesn't have Diet.omnivore
 
 namespace FlavorText;
 
@@ -289,7 +288,7 @@ public class FlavorDef : Def
             if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
 
             if (
-                (slotAllowedCategories.Count == 1 && slotAllowedCategories[0] == NormalDietCategories)
+                (slotAllowedCategories.Count == 1 && slotAllowedCategories[0].All(NormalDietCategories.Contains))
                 || (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)))
                 )
                 flavorDef.allowedDiets.Add(Diet.omnivore);
