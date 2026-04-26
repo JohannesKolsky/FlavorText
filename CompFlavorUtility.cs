@@ -19,26 +19,26 @@ namespace FlavorText
     public class CompFlavorUtility(Map map) : MapComponent(map)
     {
         private static int iterations = 0;
-        internal static int Iterations { get => iterations; private set => iterations = value; }
+        public static int Iterations { get => iterations; private set => iterations = value; }
 
         internal static void Iterate()
         {
             Iterations++;
         }
 
-        private Dictionary<string, CompFlavorData> activeProcesses = [];
-        public Dictionary<string, CompFlavorData> ActiveProcesses { get => activeProcesses; }
+/*        private Dictionary<string, CompFlavorData> activeProcesses = [];
+        public Dictionary<string, CompFlavorData> ActiveProcesses { get => activeProcesses; }*/
 
 
 
         public override void ExposeData()
         {
             Scribe_Values.Look(ref iterations, "iterations");
-            Scribe_Collections.Look(ref activeProcesses, "activeProcesses", LookMode.Value, LookMode.Deep);
+            //Scribe_Collections.Look(ref activeProcesses, "activeProcesses", LookMode.Value, LookMode.Deep);
         } 
     }
 
-    public class CompFlavorData : IExposable
+/*    public class CompFlavorData : IExposable
     {
     public int? iteration;
     public string cookID;
@@ -59,5 +59,5 @@ namespace FlavorText
             Scribe_Values.Look(ref cookID, "cookID");
             Scribe_Collections.Look(ref mealTags, "tags", LookMode.Undefined);
         }
-    }
+    }*/
 }

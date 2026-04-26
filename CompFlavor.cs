@@ -417,19 +417,16 @@ public class CompFlavor : ThingComp, IExposable
                 if (!TickCreated.HasValue)
                 {
                     TickCreated = GenTicks.TicksAbs;
-                    Log.Message($"TickCreated set to {TickCreated.ToStringSafe()}");
                 }
                 Rand.PushState(Find.World.info.Seed + Iteration.Value);
                 if (!HourOfDay.HasValue)
                 {
                     HourOfDay = Rand.Range(0, 24);
-                    Log.Message($"HourOfDay set to {HourOfDay.ToStringSafe()}");
                 }
                 if (CookingStation == null)
                 {
                     List<ThingDef> allCookingStations = [.. FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct()];
                     CookingStation = allCookingStations[Rand.Range(0, allCookingStations.Count - 1)];
-                    Log.Message($"CookingStation set to {CookingStation.ToStringSafe()}");
                 }
                 Rand.PopState();
 
@@ -476,7 +473,6 @@ public class CompFlavor : ThingComp, IExposable
         {
             ingredientChunks = [.. from chunk in Chunk(Ingredients)
                                 select chunk.OrderByDescending(m => m, new MeatComparer()).ToList()];
-            Log.Warning($"ingredientChunks was [{ingredientChunks.ToStringSafeEnumerable()}]");
         }
         List<(FlavorDef def, List<int> index)> bestFlavors = [];
         // try searching in any saved FlavorDefs that you were given
@@ -598,7 +594,6 @@ public class CompFlavor : ThingComp, IExposable
 
             Rand.PushState(Find.World.info.Seed + Iteration.Value);
             int startIndex = Rand.Range(0, flavorDefsToSearch.Count);
-            Log.Warning($"started at index {startIndex} with {flavorDefsToSearch.Count} flavorDefsToSearch");
             int j;
             for (int i = 0; i < flavorDefsToSearch.Count; i++)
             {

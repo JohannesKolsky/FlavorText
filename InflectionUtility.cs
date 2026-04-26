@@ -122,7 +122,7 @@ internal static class InflectionUtility
     // generate various grammatical forms of each ingredient
     private static List<string> GenerateInflections(Def ingredient, List<string> inflections)
     {
-        tag = ingredient.defName.ToLower().Contains("cobracave");
+        //tag = ingredient.defName.ToLower().Contains("cobracave");
 
         // plural form // a dish made of CABBAGES that are diced and then stewed in a pot
         // collective form, singular/plural ending depending in real-life ing size // stew with CABBAGE  // stew with PEAS
