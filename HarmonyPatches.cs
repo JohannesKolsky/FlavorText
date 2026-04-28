@@ -62,7 +62,18 @@ public static class HarmonyPatches
                         }
                         Rand.PopState();
                     }
+                } 
+                
+                // check for CompFlavored ingredients and try to use those FlavorDefs
+                List<FlavorDef> ingredientFlavorDefs = [];
+                foreach (var ing in ingredients)
+                {
+                    if (ing.TryGetComp(out CompFlavor ingCompFlavor))
+                    {
+                        ingredientFlavorDefs.AddRange(ingCompFlavor.FinalFlavorDefs);
+                    }
                 }
+                compFlavor.TryGetFlavorText(ingredientFlavorDefs);
             }
             yield return product;
         }

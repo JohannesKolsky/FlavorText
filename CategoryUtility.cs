@@ -190,7 +190,7 @@ internal static class CategoryUtility
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> bestParentsList = null;
                 
-                newParents = GetBestFlavorCategory(food, FlavorCategoryDefOf.FT_Foods);
+                newParents = GetBestFlavorCategory(food, FlavorCategoryDefOf.FT_Items);
                 if (newParents.Count == 0) continue;  // skip if no parents found (e.g. ThingDef had null ModContentPack)
                 int bestScore = newParents.Max(element => element.Value);
                 if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
@@ -353,7 +353,7 @@ internal static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
-        //tag = searchedDef.defName.Contains("EggChickenUnfertilized");
+        //tag = searchedDef.defName.ToLower().Contains("lunch");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);
@@ -362,12 +362,10 @@ internal static class CategoryUtility
         var splitNamesBlackList = splitNames;  // blacklist always stays based on original Def defName and label
         var categoriesToSearch = topLevelCategory.ThisAndDescendants.ToList();
         if (searchedDef.modContentPack == null || searchedDef.modContentPack.PackageId == null) { Log.Warning($"{searchedDef.ToStringSafe()} did not have an associated ModContentPack or PackageId. Report this to that mod's creator."); return []; }
-        List<FlavorCategoryDef> categoriesToSkip = [.. categoriesToSearch.Where(cat => !cat.BlacklistedMods.Contains(searchedDef.modContentPack.PackageId))];  // skip categories that have that mod blacklisted
+        List<FlavorCategoryDef> categoriesToSkip = [.. categoriesToSearch.Where(cat => cat.BlacklistedMods.Contains(searchedDef.modContentPack.PackageId))];  // skip categories that have that mod blacklisted
 
         try
         {
-            if (tag) { Log.Message($"Getting BestFlavorCategory for {searchedDef.defName}"); }
-
             // look in each category and record its score if above 0
             for (var i = 0; i < categoriesToSearch.Count; i++)
             {
@@ -378,6 +376,7 @@ internal static class CategoryUtility
                     if (categoryScore > 0) bestFlavorCategories.Add(flavorCategory, categoryScore);
                 }
             }
+            if (tag) { Log.Message($"bestFlavorCategories for {searchedDef.defName} were [{bestFlavorCategories.Select(kvp => kvp.Key.ToStringSafe()).ToStringSafeEnumerable()}]"); }
 
             // if the best category was FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, put the thing in FT_FoodMeals
             if (bestFlavorCategories.Count > 0)
@@ -390,6 +389,7 @@ internal static class CategoryUtility
                         {
                             bestFlavorCategories.Remove(bestCategory.Key);
                             bestFlavorCategories.SetOrAdd(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
+                            Log.Message($"{searchedDef.defName} had score of {bestCategory.Value.ToStringSafe()}");
                         }
                     }
                 }

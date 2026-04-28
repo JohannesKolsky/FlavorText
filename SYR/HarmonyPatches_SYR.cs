@@ -10,7 +10,7 @@ using Verse.AI;
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
 
-//TODO: the new patch runs but TargetB and TargetC are null
+//TODO: cookID isn't added, might need transpiler; CompProcessor.TakeOutProduct can't access the pawn, and JobDriver_EmptyProcessor can't access the Thing (to add the pawn data to)
 
 
 namespace SYR
@@ -26,9 +26,9 @@ namespace SYR
             var patchType = typeof(HarmonyPatches_SYR);
             Harmony harmony = new("rimworld.hekmo.SYR");
             {
-                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.JobDriver_EmptyProcessor"), "MakeNewToils"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_MakeNewToilsPrefix"));
-/*                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.CompProcessor"), "TakeOutProduct"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPrefix"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPostfix"));
-                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.MapComponent_Processors"), "Deregister"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_DeregisterPostfix"));*/
+                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.CompProcessor"), "TakeOutProduct"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPostfix"));
+                /*                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.CompProcessor"), "TakeOutProduct"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPrefix"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_TakeOutProductPostfix"));
+                                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("ProcessorFramework.MapComponent_Processors"), "Deregister"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_SYR_DeregisterPostfix"));*/
             }
         }
 
@@ -69,26 +69,15 @@ namespace SYR
                 }*/
 
         //SYR: add CompFlavor data
-        public static void HarmonyPatch_SYR_MakeNewToilsPrefix(ref JobDriver_EmptyProcessor __instance, ref Thing ___ProductToHaul)
+        public static void HarmonyPatch_SYR_TakeOutProductPostfix(ref Thing __result, ref CompProcessor __instance)
         {
-            Log.Message($"MakeNewToilsPrefix with {__instance.job.GetTarget(TargetIndex.A).Thing.ToStringSafe()}, {__instance.job.GetTarget(TargetIndex.B).Thing.ToStringSafe()}, {__instance.job.GetTarget(TargetIndex.C).Thing.ToStringSafe()}, ");
+            Log.Message($"TakeOutProductPostfix");
             {
-                if (__instance.job.GetTarget(TargetIndex.B).Thing.TryGetComp(out CompFlavor outCompFlavor))
+                if (__result.TryGetComp(out CompFlavor outCompFlavor))
                 {
-                    outCompFlavor.CookingStation = __instance.job.GetTarget(TargetIndex.A).Thing.def;
-                    outCompFlavor.HourOfDay = GenLocalDate.HourOfDay(__instance.job.GetTarget(TargetIndex.A).Thing.MapHeld);
+                    outCompFlavor.CookingStation = __instance.parent.def;
+                    outCompFlavor.HourOfDay = GenLocalDate.HourOfDay(__instance.parent.MapHeld);
                     outCompFlavor.TickCreated = GenTicks.TicksAbs;
-                    outCompFlavor.CookID = __instance.pawn.ThingID;
-                    if (ModsConfig.BiotechActive && __instance.pawn?.genes is not null && __instance.pawn.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
-                    {
-
-                        Rand.PushState(Find.World.info.Seed + CompFlavorUtility.Iterations);
-                        if (Rand.Range(0, 20) == 0)
-                        {
-                            outCompFlavor.MealTags.Add("hairy");
-                        }
-                        Rand.PopState();
-                    }
                 }
             }
         }

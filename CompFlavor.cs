@@ -150,6 +150,7 @@ using static FlavorText.DietKind;
 //TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //TODO: for ghost ingredients add 0-n random, then search
 //TODO: if not changing ghost ingredient generation, sort ghost ingredients using MeatComparer
+//TODO: add list operators, like {0_plur_ALL}
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -184,7 +185,7 @@ public class CompFlavor : ThingComp, IExposable
     private string finalFlavorDescription;
 
     private List<FlavorDef> finalFlavorDefs = [];
-    public List<FlavorDef> FinalFlavorDefs { get; }
+    public List<FlavorDef> FinalFlavorDefs { get => finalFlavorDefs; }
 
     private Diet mealDiet;
 
@@ -265,7 +266,7 @@ public class CompFlavor : ThingComp, IExposable
         }
         try
         {
-            Scribe_Collections.Look(ref finalFlavorDefs, "flavorDefs", LookMode.Undefined);
+            Scribe_Collections.Look(ref finalFlavorDefs, "finalFlavorDefs", LookMode.Undefined);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (finalFlavorDefs == null)
@@ -577,28 +578,27 @@ public class CompFlavor : ThingComp, IExposable
             }
             List<(FlavorDef def, List<int> indices)> matchingFlavors = [];
 
-            {
-                //see which FinalFlavorDefs match with the ingredients in the meal
+            //see which FinalFlavorDefs match with the ingredients in the meal
 
-                Diet diet;
-                if (!ingredients.Empty()) diet = CalculateIngredientDiet(ingredients);
-                else diet = mealDiet;
-                ingredientsDietString = diet.ToStringSafe();
-                flavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, diet, flavorDefsToSearch)];
-                if (flavorDefsToSearch.NullOrEmpty())
-                {
-                    throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories[parent.def].ToStringSafeEnumerable() + "] but there were none. Please report.");
-                }
+            Diet diet;
+            if (!ingredients.Empty()) diet = CalculateIngredientDiet(ingredients);
+            else diet = mealDiet;
+            ingredientsDietString = diet.ToStringSafe();
+            List<FlavorDef> validFlavorDefsToSearch = [.. FlavorDef.ValidFlavorDefs(parent, diet, flavorDefsToSearch)];
+            if (validFlavorDefsToSearch.NullOrEmpty())
+            {
+                throw new InvalidOperationException("Attempted to get list of all valid Flavor Defs for meal type '" + parent.def.defName.ToStringSafe() + "' in [" + CategoryUtility.ThingParentCategories[parent.def].ToStringSafeEnumerable() + "] but there were none. Please report.");
             }
+            
 
 
             Rand.PushState(Find.World.info.Seed + Iteration.Value);
-            int startIndex = Rand.Range(0, flavorDefsToSearch.Count);
+            int startIndex = Rand.Range(0, validFlavorDefsToSearch.Count);
             int j;
-            for (int i = 0; i < flavorDefsToSearch.Count; i++)
+            for (int i = 0; i < validFlavorDefsToSearch.Count; i++)
             {
-                j = (i + startIndex) % flavorDefsToSearch.Count;
-                FlavorDef flavorDef = flavorDefsToSearch[j];
+                j = (i + startIndex) % validFlavorDefsToSearch.Count;
+                FlavorDef flavorDef = validFlavorDefsToSearch[j];
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
