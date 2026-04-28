@@ -1,4 +1,5 @@
 ﻿
+using HarmonyLib;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -176,6 +177,8 @@ public class CompFlavor : ThingComp, IExposable
 
     internal bool TriedFlavorText { get; set; }
 
+    internal bool GeneratedGhostIngredients { get; set; }
+
     private List<string> flavorLabels = [];
 
     private string finalFlavorLabel;
@@ -210,22 +213,23 @@ public class CompFlavor : ThingComp, IExposable
 
     public List<string> MealTags { get => mealTags; set => mealTags = value; }
 
-
+    internal List<ThingDef> ingredientsCached;
     internal List<ThingDef> Ingredients
     {
         get
         {
-            List<ThingDef> result = [.. from def in parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
+            ingredientsCached ??= [.. from def in parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
                                           orderby def.defName.GetHashCode()
                                           select def];
-            return result;
+            return ingredientsCached;
         }
     }
+
+    private int FlavorSeed => Find.World.info.Seed + Iteration.Value;
 
     private CompIngredients CompIngredients => parent.TryGetComp<CompIngredients>();
 
     public CompProperties_Flavor Props => (CompProperties_Flavor)props;
-
 
     public override string TransformLabel(string label)
     {
@@ -254,6 +258,7 @@ public class CompFlavor : ThingComp, IExposable
     public override void PostExposeData()
     {
         base.PostExposeData();
+        GeneratedGhostIngredients = true;
         Scribe_Defs.Look(ref cookingStation, "cookingStation");
         Scribe_Values.Look(ref hourOfDay, "hourOfDay");
         Scribe_Values.Look(ref tickCreated, "tickCreated");
@@ -299,6 +304,7 @@ public class CompFlavor : ThingComp, IExposable
             if (piece != parent)
             {
                 CompFlavor otherCompFlavor = piece.TryGetComp<CompFlavor>();
+                otherCompFlavor.GeneratedGhostIngredients = true;
                 otherCompFlavor.TriedFlavorText = TriedFlavorText;
                 otherCompFlavor.finalFlavorDefs = finalFlavorDefs;
                 otherCompFlavor.flavorLabels = flavorLabels;
@@ -339,7 +345,7 @@ public class CompFlavor : ThingComp, IExposable
             {
                 TickCreated = GenTicks.TicksAbs;
             }
-            Rand.PushState(Find.World.info.Seed + Iteration.Value);
+            Rand.PushState(FlavorSeed);
             CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
             HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
             TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
@@ -389,19 +395,13 @@ public class CompFlavor : ThingComp, IExposable
         }
     }
 
+
     // must be public b/c FTV accesses it
     public void TryGetFlavorText(List<FlavorDef> flavorDefsToSearch = null)
     {
-        if (TriedFlavorText)
-        {
-            return;
-        }
-        if (!Iteration.HasValue)
-        {
-            CompFlavorUtility.Iterate();
-            Iteration = CompFlavorUtility.Iterations;
-        }
+        if (TriedFlavorText) return;
         TriedFlavorText = true;
+        if (!Iteration.HasValue) Iteration = CompFlavorUtility.Iterate();
         Stopwatch stopwatch = new();
         stopwatch.Start();
         try
@@ -412,26 +412,31 @@ public class CompFlavor : ThingComp, IExposable
             flavorDescriptions = [];
             finalFlavorDescription = null;
             finalFlavorDefs = [];
-            if (Ingredients != null && (!Ingredients.Empty() || FlavorTextSettings.numAllowedMissingIngredients != 0))
+            if (Ingredients != null)
             {
-                // fill in the extra parameters with pseudorandom data if they are null
-                if (!TickCreated.HasValue)
+                if (!Ingredients.Empty() || FlavorTextSettings.numAllowedMissingIngredients > 0)
                 {
-                    TickCreated = GenTicks.TicksAbs;
-                }
-                Rand.PushState(Find.World.info.Seed + Iteration.Value);
-                if (!HourOfDay.HasValue)
-                {
-                    HourOfDay = Rand.Range(0, 24);
-                }
-                if (CookingStation == null)
-                {
-                    List<ThingDef> allCookingStations = [.. FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct()];
-                    CookingStation = allCookingStations[Rand.Range(0, allCookingStations.Count - 1)];
-                }
-                Rand.PopState();
+                    //set restrictions based on the FoodKind of the meal and weird ingredients
+                    CalculateMealDiet();
+                    if (!GeneratedGhostIngredients) 
+                    {
+                        AddGhostIngredients();
+                        TriedFlavorText = true;
+                    }
 
-                GetFlavorText(flavorDefsToSearch);
+                    // fill in the extra parameters with pseudorandom data if they are null
+                    TickCreated ??= GenTicks.TicksAbs;
+                    Rand.PushState(Find.World.info.Seed + Iteration.Value);
+                    HourOfDay ??= Rand.Range(0, 24);
+                    if (CookingStation == null)
+                    {
+                        List<ThingDef> allCookingStations = [.. FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct()];
+                        CookingStation = allCookingStations[Rand.Range(0, allCookingStations.Count - 1)];
+                    }
+                    Rand.PopState();
+
+                    GetFlavorText(flavorDefsToSearch);
+                }
             }
         }
         catch (Exception ex)
@@ -461,11 +466,6 @@ public class CompFlavor : ThingComp, IExposable
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
     private void GetFlavorText(List<FlavorDef> flavorDefsToSearch)
     {
-        //set restrictions based on the FoodKind of the meal
-        generatedCoreFlavorDef = Ingredients.Count() > 0;
-
-        CalculateMealDiet();
-        //Log.Warning($"mealDiet was {mealDiet.ToStringSafe()}");
 
         // divide the ingredients into groups of size n and get a flavorDef for each group
         // within each group, move all meat to the front and arrange it in an order that will be more grammatically pleasing
@@ -475,6 +475,7 @@ public class CompFlavor : ThingComp, IExposable
             ingredientChunks = [.. from chunk in Chunk(Ingredients)
                                 select chunk.OrderByDescending(m => m, new MeatComparer()).ToList()];
         }
+        else return;
         List<(FlavorDef def, List<int> index)> bestFlavors = [];
         // try searching in any saved FlavorDefs that you were given
         if (!flavorDefsToSearch.NullOrEmpty())
@@ -505,7 +506,6 @@ public class CompFlavor : ThingComp, IExposable
 
     private void CalculateMealDiet()
     {
-        excludedCategories = [.. Props.defaultGhostExcludedCategories];
         if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
         {
             mealDiet = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat
@@ -525,6 +525,7 @@ public class CompFlavor : ThingComp, IExposable
             mealDiet = Diet.vegetarian;
         }
 
+        excludedCategories = [.. Props.defaultGhostExcludedCategories];
         foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
         {
             excludedCategories.AddDistinct(dietCat);
@@ -665,7 +666,7 @@ public class CompFlavor : ThingComp, IExposable
                     return null;
                 }
                 // if flavorDef length doesn't match ingredient list length, skip
-                if (ingredients.Count > flavorDef.Ingredients.Count || flavorDef.Ingredients.Count > ingredients.Count + FlavorTextSettings.numAllowedMissingIngredients)
+                if (ingredients.Count != flavorDef.Ingredients.Count)
                 {
                     return null;
                 }
@@ -681,6 +682,7 @@ public class CompFlavor : ThingComp, IExposable
                     }
                 }
 
+                //TODO: is this needed anymore?
                 // (fungus, insect meat) xx [Egg, Fungus]
                 // (fungus, insect meat) <=> [Meat, Fungus]
                 // if sketchy ingredients (fungus, insect meat, etc) are in the ingredients, ensure they appear
@@ -728,17 +730,9 @@ public class CompFlavor : ThingComp, IExposable
                         }
                     }
                 }
-                // # missing ingredients must be LESS than the number of ingredient slots, and less than the number of allowed missing ingredients
-                int missingIngredients = matchedIndices.Count((int index) => index == -1);
-                if (availableIngredients.Empty() && missingIngredients <= FlavorTextSettings.numAllowedMissingIngredients)
-                {
-                    return matchedIndices;
-                }
-                else
-                {
-                    //Log.Message($"{flavorDef.ToStringSafe()} failed due to missing ingredients [{availableIngredients.Select(entry => entry.def.ToStringSafe()).ToStringSafeEnumerable()}]");
-                    return null;
-                }
+
+                if (matchedIndices.Any(index => index == -1)) return null;
+                return matchedIndices;
             }
             catch (Exception ex3)
             {
@@ -767,19 +761,6 @@ public class CompFlavor : ThingComp, IExposable
 
             finalFlavorDefs.Add(bestFlavors[i].def);
             List<ThingDef> ingredientChunk = [.. ingredientChunks[i]];
-
-            Rand.PushState(Find.World.info.Seed + Iteration.Value);
-            // fill in missing ingredients with ghost ingredients
-            for (int j = 0; j < flavorTuple.def.Ingredients.Count; j++)
-            {
-                if (flavorTuple.index[j] == -1)
-                {
-                    ThingDef ghost = GenerateGhostIngredient(flavorTuple, ingredientChunk, j, flavorTuple.def.Ingredients[j]);
-                    ingredientChunk.Add(ghost);
-                    flavorTuple.index[j] = ingredientChunk.Count - 1;
-                }
-            }
-            Rand.PopState();
 
             string flavorLabel = FormatFlavorString(bestFlavors[i], ingredientChunk, bestFlavors[i].def.label); // make flavor labels look nicer for main label; replace placeholders in the flavor label with the corresponding ingredient from the meal
             if (flavorLabel.NullOrEmpty())
@@ -824,7 +805,7 @@ public class CompFlavor : ThingComp, IExposable
     {
         try
         {
-            Rand.PushState(Find.World.info.Seed + Iteration.Value);
+            Rand.PushState(FlavorSeed);
 
             // find placeholders and replace them with the appropriate inflection of the right ingredient
             for (int i = 0; i < flavorTuple.def.Ingredients.Count; i++)
@@ -910,7 +891,7 @@ public class CompFlavor : ThingComp, IExposable
         }
     }
 
-    private ThingDef GenerateGhostIngredient((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
+    private ThingDef GenerateGhostIngredientDeprecated((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
     {
         ThingDef ghost = null;
         List<ThingDef> ghostIngredients = [.. slot.AllowedThingDefs.Where(ing => !excludedCategories.Any(ecat => ecat.ContainedInThisOrDescendant(ing)))];
@@ -968,6 +949,35 @@ public class CompFlavor : ThingComp, IExposable
         }
 
         return ghost ?? throw new NullReferenceException($"Failed to generate ghost ingredient for {flavorTuple.def.defName.ToStringSafe()}. Slot {slotIndex} with ghost categories [{ghostCategories.ToStringSafeEnumerable()}] in flavorDef {flavorTuple.def.defName.ToStringSafe()}");
+    }
+
+    // add random ingredients if settings allow, 50% chance for each
+    internal void AddGhostIngredients()
+    {
+        Rand.PushState(FlavorSeed);
+        bool[] ghostBools = [.. Enumerable.Repeat(Rand.Bool, FlavorTextSettings.numAllowedMissingIngredients)];
+        Log.Message($"ghostBools were [{ghostBools.ToStringSafeEnumerable()}]");
+        if (ghostBools.All(boo => boo == false)) { Rand.PopState(); return; }  // short-circuit if you didn't roll any ghost ingredients
+
+        List<FlavorCategoryDef> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet)];
+        List<ThingDef> eles = [.. ghostCategories
+            .Where(cat => cat.DescendantThingDefs.Count > 0)
+            .SelectMany(cat => cat.ThisAndDescendants)
+            .Where(desc => !desc.ThisAndAncestors.Any(excludedCategories.Contains))
+            .SelectMany(cat => cat.ChildThingDefs)
+            .Where(thing => !Ingredients.Contains(thing))];
+        Log.Message($"[{eles.ToStringSafeEnumerable()}] available for ghosts");
+        for (int i = 0; i < ghostBools.Length; i++)
+        {
+            if (eles.Count() == 0) break;
+            if (!ghostBools[i]) continue;
+            int r = Rand.Range(0, eles.Count());
+            parent.TryGetComp<CompIngredients>().RegisterIngredient(eles[r]);
+            Log.Message($"added {eles[r]} to ingredients");
+            eles.RemoveAt(r);
+        }
+        Rand.PopState();
+        return;
     }
 
     // compile the flavor labels into one long displayed flavor label

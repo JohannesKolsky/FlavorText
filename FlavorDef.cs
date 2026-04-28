@@ -59,6 +59,10 @@ internal class DietKind
     {
         return dietExcludedCategories[dietTuple];
     }
+    internal static IEnumerable<FlavorCategoryDef> GetIncludedFlavorCategoriesFromDiet(Diet dietTuple)
+    {
+        return dietIncludedCategories[dietTuple];
+    }
 }
 
 /// <summary>

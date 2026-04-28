@@ -34,7 +34,7 @@ public static class HarmonyPatches
     {
         if (!__instance.parent.HasComp<CompFlavor>()) return;
         CompFlavor compFlavor = __instance.parent.TryGetComp<CompFlavor>();
-        if (compFlavor != null) compFlavor.TriedFlavorText = false;
+        if (compFlavor != null) { compFlavor.TriedFlavorText = false; compFlavor.ingredientsCached = null; }
     }
 
 

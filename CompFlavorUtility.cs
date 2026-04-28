@@ -21,9 +21,10 @@ namespace FlavorText
         private static int iterations = 0;
         public static int Iterations { get => iterations; private set => iterations = value; }
 
-        internal static void Iterate()
+        internal static int Iterate()
         {
             Iterations++;
+            return Iterations;
         }
 
 /*        private Dictionary<string, CompFlavorData> activeProcesses = [];
