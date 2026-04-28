@@ -955,29 +955,38 @@ public class CompFlavor : ThingComp, IExposable
     internal void AddGhostIngredients()
     {
         Rand.PushState(FlavorSeed);
-        bool[] ghostBools = [.. Enumerable.Repeat(Rand.Bool, FlavorTextSettings.numAllowedMissingIngredients)];
-        Log.Message($"ghostBools were [{ghostBools.ToStringSafeEnumerable()}]");
-        if (ghostBools.All(boo => boo == false)) { Rand.PopState(); return; }  // short-circuit if you didn't roll any ghost ingredients
+        List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.numAllowedMissingIngredients).Select(e => Rand.Bool)];
 
-        List<FlavorCategoryDef> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet)];
-        List<ThingDef> eles = [.. ghostCategories
-            .Where(cat => cat.DescendantThingDefs.Count > 0)
+        List<FlavorCategoryDef> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet).Where(cat => cat.DescendantThingDefs.Count > 0)
             .SelectMany(cat => cat.ThisAndDescendants)
-            .Where(desc => !desc.ThisAndAncestors.Any(excludedCategories.Contains))
-            .SelectMany(cat => cat.ChildThingDefs)
-            .Where(thing => !Ingredients.Contains(thing))];
-        Log.Message($"[{eles.ToStringSafeEnumerable()}] available for ghosts");
-        for (int i = 0; i < ghostBools.Length; i++)
+            .Where(desc => desc.ChildThingDefs.Count > 0 && !desc.ThisAndAncestors.Any(excludedCategories.Contains))];
+        ghostCategories.SortBy(c => Rand.Value);  // sort in random order so you can iterate over it
+
+        Log.Message($"ghostCategories were [{ghostCategories.ToStringSafeEnumerable()}]");
+        List<ThingDef> ings;
+        if (ghostBools.Any(boo => boo == true))
         {
-            if (eles.Count() == 0) break;
-            if (!ghostBools[i]) continue;
-            int r = Rand.Range(0, eles.Count());
-            parent.TryGetComp<CompIngredients>().RegisterIngredient(eles[r]);
-            Log.Message($"added {eles[r]} to ingredients");
-            eles.RemoveAt(r);
+            for (int i = 0; i < ghostBools.Count; i++)
+            {
+                int j = i % ghostCategories.Count;  // wrap around ghostCategories
+                ings = [.. ghostCategories[j].DescendantThingDefs.Where(thing => !Ingredients.Contains(thing))];
+                if (ghostBools[j]) AddGhostIngredientSingle(ings);
+            }
+        }
+        if (Ingredients.Count == 0)  // if 0 ingredients ensure 1 generates
+        {
+            AddGhostIngredientSingle([.. ghostCategories.SelectMany(cat => cat.DescendantThingDefs)]);
         }
         Rand.PopState();
         return;
+
+        void AddGhostIngredientSingle(List<ThingDef> ings)
+        {
+            if (ings.Count() == 0) return;
+            int r = Rand.Range(0, ings.Count());
+            parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
+            Log.Message($"added {ings[r]} to ingredients");
+        }
     }
 
     // compile the flavor labels into one long displayed flavor label

@@ -26,7 +26,7 @@ namespace FlavorText
             Listing_Standard listing_Standard = new();
             listing_Standard.Begin(inRect);
             listing_Standard.Gap();
-            numAllowedMissingIngredients = (int)listing_Standard.SliderLabeled("numAllowedMissingIngredients".Translate(numAllowedMissingIngredients), numAllowedMissingIngredients, 0, 10, labelPct: 0.7f, tooltip: "numAllowedMissingIngredientsTooltip".Translate());
+            numAllowedMissingIngredients = (int)listing_Standard.SliderLabeled("numAllowedMissingIngredients".Translate(numAllowedMissingIngredients), numAllowedMissingIngredients, 0, 6, labelPct: 0.7f, tooltip: "numAllowedMissingIngredientsTooltip".Translate());
             listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("randomizedRecipeOutput".Translate(), ref randomizedRecipeOuput, "randomizedRecipeOutputTooltip".Translate());
             listing_Standard.Gap();
