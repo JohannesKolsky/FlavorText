@@ -218,9 +218,7 @@ public class CompFlavor : ThingComp, IExposable
     {
         get
         {
-            ingredientsCached ??= [.. from def in parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i))
-                                          orderby def.defName.GetHashCode()
-                                          select def];
+            ingredientsCached ??= [.. parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i)).OrderBy(def => Rand.Value)];
             return ingredientsCached;
         }
     }

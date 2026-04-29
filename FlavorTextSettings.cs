@@ -5,6 +5,7 @@ using Verse;
 //DONE: reload flavor text on settings change  // happens on reload of save
 
 //TODO: reinitialize Defs when settings change so you don't require a restart (laxRecipeMatching, dynamicMealIncorporation)
+//TODO: always randomized recipe output?
 
 namespace FlavorText
 {
@@ -30,11 +31,11 @@ namespace FlavorText
             listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("randomizedRecipeOutput".Translate(), ref randomizedRecipeOuput, "randomizedRecipeOutputTooltip".Translate());
             listing_Standard.Gap();
+            listing_Standard.CheckboxLabeled("flavorTextForStacks".Translate(), ref flavorTextForStacks, "flavorTextForStacksTooltip".Translate());
+            listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("laxRecipeMatching".Translate(), ref laxRecipeMatching, "laxRecipeMatchingTooltip".Translate());
             listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("dynamicMealIncorporation".Translate(), ref dynamicMealIncorporation, "dynamicMealIncorporationTooltip".Translate());
-            listing_Standard.Gap();
-            listing_Standard.CheckboxLabeled("flavorTextForStacks".Translate(), ref flavorTextForStacks, "flavorTextForStacksTooltip".Translate());
             listing_Standard.End();
         }
 
