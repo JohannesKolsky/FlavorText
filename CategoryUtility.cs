@@ -81,6 +81,8 @@ internal static class CategoryUtility
 
     }
 
+    //TODO: move this to a more central place: FlavorText.cs?
+
 	internal static void Initialize()
     {
         FlavorCategoryDef.FinalizeInit();
@@ -92,6 +94,8 @@ internal static class CategoryUtility
         DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
         PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
         DefDatabase<FlavorDef>.ResolveAllReferences();
+
+        CompFlavorUtility.BuildMealRecipeDatabase();
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
@@ -389,7 +393,7 @@ internal static class CategoryUtility
                         {
                             bestFlavorCategories.Remove(bestCategory.Key);
                             bestFlavorCategories.SetOrAdd(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
-                            Log.Message($"{searchedDef.defName} had score of {bestCategory.Value.ToStringSafe()}");
+                            if (tag) Log.Message($"{searchedDef.defName} had score of {bestCategory.Value.ToStringSafe()}");
                         }
                     }
                 }

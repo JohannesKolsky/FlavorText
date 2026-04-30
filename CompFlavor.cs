@@ -826,9 +826,8 @@ public class CompFlavor : ThingComp, IExposable
 
                     flavorString = RemoveRepeatedWords(flavorString, argument);
 
-
                     flavorString = flavorString.Replace(argument.arg.ToString(), argument.label);
-                    //TODO: can formatted be used here?
+                    //TODO: formatted here causes kéÿ łańġųaǵə
                     // String.Replace is about as fast as Regex.Replace
                 }
             }
@@ -955,10 +954,14 @@ public class CompFlavor : ThingComp, IExposable
         Rand.PushState(FlavorSeed);
         List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.numAllowedMissingIngredients).Select(e => Rand.Bool)];
 
+
         List<FlavorCategoryDef> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet).Where(cat => cat.DescendantThingDefs.Count > 0)
             .SelectMany(cat => cat.ThisAndDescendants)
             .Where(desc => desc.ChildThingDefs.Count > 0 && !desc.ThisAndAncestors.Any(excludedCategories.Contains))];
         ghostCategories.SortBy(c => Rand.Value);  // sort in random order so you can iterate over it
+
+        IEnumerable<ThingDef> recipeAllowedDefs = [];
+        recipeAllowedDefs = CompFlavorUtility.MealRecipeDatabase[parent.def];
 
         Log.Message($"ghostCategories were [{ghostCategories.ToStringSafeEnumerable()}]");
         List<ThingDef> ings;
@@ -967,7 +970,7 @@ public class CompFlavor : ThingComp, IExposable
             for (int i = 0; i < ghostBools.Count; i++)
             {
                 int j = i % ghostCategories.Count;  // wrap around ghostCategories
-                ings = [.. ghostCategories[j].DescendantThingDefs.Where(thing => !Ingredients.Contains(thing))];
+                ings = [.. ghostCategories[j].DescendantThingDefs.Where(thing => !Ingredients.Contains(thing) && recipeAllowedDefs.Contains(thing))];
                 if (ghostBools[j]) AddGhostIngredientSingle(ings);
             }
         }

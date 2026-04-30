@@ -14,6 +14,8 @@ using Verse;
 //DONE: multi-map: need separate CompFlavorUtilities
 //DONE: iterations seems to be resetting to 0
 
+//TODO: does this work when there is no map?
+
 namespace FlavorText
 {
     public class CompFlavorUtility(Map map) : MapComponent(map)
@@ -36,7 +38,38 @@ namespace FlavorText
         {
             Scribe_Values.Look(ref iterations, "iterations");
             //Scribe_Collections.Look(ref activeProcesses, "activeProcesses", LookMode.Value, LookMode.Deep);
-        } 
+        }
+
+
+        internal static Dictionary<ThingDef, List<ThingDef>> MealRecipeDatabase = [];  // dictionary of what actual recipes (not FlavorDefs) are used for what meals
+
+        internal static void BuildMealRecipeDatabase()
+        {
+            foreach (var meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
+            {
+                List<RecipeDef> recipesForMeal = AllRecipesWithThisAsProduct(meal);
+                List<ThingDef> allowedThingDefs = [.. recipesForMeal.SelectMany(recipe => recipe.ingredients.SelectMany(slot => slot.filter.AllowedThingDefs))];
+                allowedThingDefs.RemoveDuplicates();
+                if (recipesForMeal.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{meal.ToStringSafe()} had {recipesForMeal.Count} recipes, but across all those recipes there were no allowedThingDefs to use.");
+                else MealRecipeDatabase.Add(meal, allowedThingDefs);
+            }
+        }
+
+
+        //TODO: this doesn't cover processes, but how often is that really needed?
+        private static List<RecipeDef> AllRecipesWithThisAsProduct(ThingDef def)
+        {
+            List<RecipeDef> recipesForThing = [];
+            List<RecipeDef> allDefsListForReading = DefDatabase<RecipeDef>.AllDefsListForReading;
+            for (int j = 0; j < allDefsListForReading.Count; j++)
+            {
+                if (allDefsListForReading[j].products != null && allDefsListForReading[j].products.Any(product => product.thingDef == def))
+                {
+                    recipesForThing.Add(allDefsListForReading[j]);
+                }
+            }
+            return recipesForThing;
+        }
     }
 
 /*    public class CompFlavorData : IExposable
