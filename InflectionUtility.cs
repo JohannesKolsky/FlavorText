@@ -63,7 +63,7 @@ internal static class InflectionUtility
         {
             try
             {                
-                 //tag = ingredient.defName.ToLower().Contains("gorilla");
+                 //tag = ingredient.defName.ToLower().Contains("gooseberry");
                 // try and get inflections defined in the XML
                 List<string> inflections = ThingInflectionsDictionary.TryGetValue(ingredient);
                 if (inflections is null)

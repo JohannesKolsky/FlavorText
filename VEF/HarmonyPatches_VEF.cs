@@ -37,50 +37,50 @@ namespace VEF
 
         //PipeSystem.Process.ResetProcess
 
-/*        // VEF: cache CompFlavor when meal is added to processor
-        public static void HarmonyPatch_VEF_AddIngredientPrefix(ref ThingComp comp, ref Thing thing)
-        {
-            if (thing == null) throw new NullReferenceException($"item being inserted into processor was null in HarmonyPatch_VEF_AddIngredientPrefix. Please report.");
-            if (thing.TryGetComp(out CompFlavor compFlavor))
-            {
-                compFlavor.TryGetFlavorText();
-                if (VerifyCompFlavorIntegrity(compFlavor))
+        /*        // VEF: cache CompFlavor when meal is added to processor
+                public static void HarmonyPatch_VEF_AddIngredientPrefix(ref ThingComp comp, ref Thing thing)
                 {
-                    Log.Message($"thing was {thing.ToStringSafe()} on map {thing?.Map.ToStringSafe()}");
-                    var activeProcesses = thing.MapHeld.GetComponent<CompFlavorUtility>().ActiveProcesses;
-                    activeProcesses.Add(comp.parent.ThingID, new CompFlavorData(compFlavor));
-                    Log.Warning($"activeProcesses were [{activeProcesses.Select(kvp => kvp.Key.ToStringSafe() + " : " + kvp.Value?.iteration.ToStringSafe()).ToStringSafeEnumerable()}]");
-                }
-                else Log.Error($"CompFlavor for input meal into {comp.parent} had a null field, ignoring it. Output meal CompFlavor will be regenerated. Please report.");
-            }
+                    if (thing == null) throw new NullReferenceException($"item being inserted into processor was null in HarmonyPatch_VEF_AddIngredientPrefix. Please report.");
+                    if (thing.TryGetComp(out CompFlavor compFlavor))
+                    {
+                        compFlavor.TryGetFlavorText();
+                        if (VerifyCompFlavorIntegrity(compFlavor))
+                        {
+                            Log.Message($"thing was {thing.ToStringSafe()} on map {thing?.Map.ToStringSafe()}");
+                            var activeProcesses = thing.MapHeld.GetComponent<CompFlavorUtility>().ActiveProcesses;
+                            activeProcesses.Add(comp.parent.ThingID, new CompFlavorData(compFlavor));
+                            Log.Warning($"activeProcesses were [{activeProcesses.Select(kvp => kvp.Key.ToStringSafe() + " : " + kvp.Value?.iteration.ToStringSafe()).ToStringSafeEnumerable()}]");
+                        }
+                        else Log.Error($"CompFlavor for input meal into {comp.parent} had a null field, ignoring it. Output meal CompFlavor will be regenerated. Please report.");
+                    }
 
-            static bool VerifyCompFlavorIntegrity(CompFlavor compFlavor)
-            {
-                if (compFlavor?.Iteration == null) return false;
-                // no need for cookID since that might be null for spawned meals
-                if (compFlavor?.MealTags == null) return false;
-                return true;
-            }
-        }*/
+                    static bool VerifyCompFlavorIntegrity(CompFlavor compFlavor)
+                    {
+                        if (compFlavor?.Iteration == null) return false;
+                        // no need for cookID since that might be null for spawned meals
+                        if (compFlavor?.MealTags == null) return false;
+                        return true;
+                    }
+                }*/
 
-/*        // VEF: retrieve CompFlavor from cache when meal is removed from processor
-        public static void HarmonyPatch_VEF_HandleIngredientsAndQualityPostfix(ref Thing outThing, ref PipeSystem.Process __instance)
-        {
-            if (outThing.TryGetComp(out CompFlavor outCompFlavor))
-            {
-                string processorID = __instance.advancedProcessor.parent.ThingID;
-                var activeProcesses = __instance.advancedProcessor.parent.MapHeld.GetComponent<CompFlavorUtility>().ActiveProcesses;
-                activeProcesses.TryGetValue(processorID, out CompFlavorData cachedCompFlavorData);
+        /*        // VEF: retrieve CompFlavor from cache when meal is removed from processor
+                public static void HarmonyPatch_VEF_HandleIngredientsAndQualityPostfix(ref Thing outThing, ref PipeSystem.Process __instance)
+                {
+                    if (outThing.TryGetComp(out CompFlavor outCompFlavor))
+                    {
+                        string processorID = __instance.advancedProcessor.parent.ThingID;
+                        var activeProcesses = __instance.advancedProcessor.parent.MapHeld.GetComponent<CompFlavorUtility>().ActiveProcesses;
+                        activeProcesses.TryGetValue(processorID, out CompFlavorData cachedCompFlavorData);
 
-                Log.Message($"Changing old CompFlavor {outCompFlavor.ToStringSafe()} with iteration {outCompFlavor.Iteration.ToStringSafe()} to cached CompFlavor {cachedCompFlavorData.ToStringSafe()} with processor ID {processorID.ToStringSafe()} and iteration {cachedCompFlavorData.iteration.ToStringSafe()}");
-                outCompFlavor.Iteration = cachedCompFlavorData.iteration;
-                outCompFlavor.CookID = cachedCompFlavorData.cookID;
-                outCompFlavor.MealTags = cachedCompFlavorData.mealTags;
-                activeProcesses.Remove(processorID);
+                        Log.Message($"Changing old CompFlavor {outCompFlavor.ToStringSafe()} with iteration {outCompFlavor.Iteration.ToStringSafe()} to cached CompFlavor {cachedCompFlavorData.ToStringSafe()} with processor ID {processorID.ToStringSafe()} and iteration {cachedCompFlavorData.iteration.ToStringSafe()}");
+                        outCompFlavor.Iteration = cachedCompFlavorData.iteration;
+                        outCompFlavor.CookID = cachedCompFlavorData.cookID;
+                        outCompFlavor.MealTags = cachedCompFlavorData.mealTags;
+                        activeProcesses.Remove(processorID);
 
 
-            }
-        }*/
+                    }
+                }*/
 
         //VEF: add CompFlavor data
         public static void HarmonyPatch_VEF_SpawnOrPushToNetPostfix(ref Pawn extractor, ref List<Thing> outThings, ref PipeSystem.Process __instance)
