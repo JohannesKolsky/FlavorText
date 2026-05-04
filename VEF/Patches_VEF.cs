@@ -95,7 +95,7 @@ namespace VEF
                        if (ModsConfig.BiotechActive && extractor?.genes is not null && extractor.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
 
-                        Rand.PushState(Find.World.info.Seed + CompFlavorUtility.Iterations);
+                        Rand.PushState(Find.World.info.Seed + GameComponentFlavorText.Iterations);
                         if (Rand.Range(0, 20) == 0)
                         {
                             outCompFlavor.MealTags.Add("hairy");

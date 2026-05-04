@@ -95,7 +95,7 @@ internal static class CategoryUtility
         PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
         DefDatabase<FlavorDef>.ResolveAllReferences();
 
-        CompFlavorUtility.BuildMealRecipeDatabase();
+        GameComponentFlavorText.BuildMealRecipeDatabase();
 
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();

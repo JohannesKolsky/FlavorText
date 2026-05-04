@@ -71,7 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CompFlavor.cs" />
-    <Compile Include="CompFlavorUtility.cs" />
+    <Compile Include="GameComponentFlavorText.cs" />
     <Compile Include="FlavorTextMod.cs" />
     <Compile Include="FlavorTextSettings.cs" />
     <Compile Include="DefInflectionsData.cs" />

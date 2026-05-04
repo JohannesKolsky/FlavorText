@@ -24,14 +24,21 @@ namespace FlavorText
 /*
     public delegate void Notify();*/
 
-    public class CompFlavorUtility(Map map) : MapComponent(map)
+    public class GameComponentFlavorText : GameComponent
     {
-/*        public event Notify RecipeDatabaseNotifyMods;
+        /*        public event Notify RecipeDatabaseNotifyMods;
 
-        protected virtual void OnRecipeDatabaseNotifyMods()
+                protected virtual void OnRecipeDatabaseNotifyMods()
+                {
+                    RecipeDatabaseNotifyMods?.Invoke();
+                }*/
+
+        public static GameComponentFlavorText instance;
+
+        public GameComponentFlavorText(Game game)
         {
-            RecipeDatabaseNotifyMods?.Invoke();
-        }*/
+            instance = this;
+        }
 
         private static int iterations = 0;
         public static int Iterations { get => iterations; private set => iterations = value; }
