@@ -138,7 +138,7 @@ public class FlavorCategoryDef : Def
         }
     }
 
-    internal HashSet<ThingDef> DescendantThingDefs
+    public HashSet<ThingDef> DescendantThingDefs
     {
         get
         {

@@ -72,6 +72,7 @@
   <ItemGroup>
     <Compile Include="CompFlavor.cs" />
     <Compile Include="CompFlavorUtility.cs" />
+    <Compile Include="FlavorTextMod.cs" />
     <Compile Include="FlavorTextSettings.cs" />
     <Compile Include="DefInflectionsData.cs" />
     <Compile Include="FlavorCategoryDef.cs" />
@@ -79,7 +80,6 @@
     <Compile Include="InflectionUtility.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="CategoryUtility.cs" />
-    <Compile Include="FlavorText.cs" />
     <Compile Include="FlavorDef.cs" />
     <Compile Include="CompProperties_Flavor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

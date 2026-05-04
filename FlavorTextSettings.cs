@@ -49,28 +49,4 @@ namespace FlavorText
             Scribe_Values.Look(ref flavorTextForStacks, "flavorTextForStacks", defaultValue: true, forceSave: true);
         }
     }
-
-    public class FlavorTextMod : Mod
-    {
-        private static FlavorTextSettings flavorTextSettings;
-        public FlavorTextMod(ModContentPack content) : base(content)
-        {
-            flavorTextSettings = GetSettings<FlavorTextSettings>();
-        }
-
-        public override string SettingsCategory()
-        {
-            return "Flavor Text";
-        }
-
-        public override void DoSettingsWindowContents(Rect inRect)
-        {
-            flavorTextSettings.DoWindowContents(inRect);
-        }
-        public override void WriteSettings()
-        {
-            base.WriteSettings();
-            //CategoryUtility.Reinitialize();
-        }
-    }
 }

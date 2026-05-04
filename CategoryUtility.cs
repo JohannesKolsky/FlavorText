@@ -100,24 +100,26 @@ internal static class CategoryUtility
         FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
         //Debug();
+        
+        Log.Warning($"[Flavor Text] mod is now active: {FlavorDef.ActiveFlavorDefs.Count()} active FlavorDefs for the current modlist found out of {DefDatabase<FlavorDef>.AllDefs.Count()} total FlavorDefs");
     }
 
-/*    private static void Reinitialize()
-    {
-        XmlInheritance.Clear();
-        DefDatabase<FlavorCategoryDef>.Clear();
-        DefDatabase<FlavorDef>.Clear();
-        FlavorTextMod.flavorTextSettings.Mod.Content.ClearDefs();
-        List<LoadableXmlAsset> flavorTextXML = [.. FlavorTextMod.flavorTextSettings.Mod.Content.LoadDefs(hotReload: true)];
-        Dictionary<XmlNode, LoadableXmlAsset> assetlookup = [];
-        XmlDocument xmlDocument = LoadedModManager.CombineIntoUnifiedXML(flavorTextXML, assetlookup);
-        LoadedModManager.ParseAndProcessXML(xmlDocument, assetlookup, hotReload: true);
-        XmlInheritance.Clear();
-        Log.Warning($"initializing CategoryUtility");
-        Initialize();  //TODO: parents are still null where parents were removed before
-        Log.Warning("finished initializing CategoryUtility");
-        
-    }*/
+    /*    private static void Reinitialize()
+        {
+            XmlInheritance.Clear();
+            DefDatabase<FlavorCategoryDef>.Clear();
+            DefDatabase<FlavorDef>.Clear();
+            FlavorTextMod.flavorTextSettings.Mod.Content.ClearDefs();
+            List<LoadableXmlAsset> flavorTextXML = [.. FlavorTextMod.flavorTextSettings.Mod.Content.LoadDefs(hotReload: true)];
+            Dictionary<XmlNode, LoadableXmlAsset> assetlookup = [];
+            XmlDocument xmlDocument = LoadedModManager.CombineIntoUnifiedXML(flavorTextXML, assetlookup);
+            LoadedModManager.ParseAndProcessXML(xmlDocument, assetlookup, hotReload: true);
+            XmlInheritance.Clear();
+            Log.Warning($"initializing CategoryUtility");
+            Initialize();  //TODO: parents are still null where parents were removed before
+            Log.Warning("finished initializing CategoryUtility");
+
+        }*/
 
     private static void Debug()
     {

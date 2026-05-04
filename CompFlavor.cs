@@ -131,6 +131,7 @@ using static FlavorText.DietKind;
 //RELEASE: check updating FlavorText on save
 //RELEASE: check save and reload game
 //RELEASE: check all meal types
+//RELEASE: check without DLCs or mods
 //RELEASE: check food modlist
 //RELEASE: check your own saves
 //RELEASE: check CommonSense: starting spawned/drop-podded, drop pod meals, trader meals
@@ -482,7 +483,7 @@ public class CompFlavor : ThingComp, IExposable
         {
             try
             {
-                bestFlavors = (!ingredientChunks.Empty()) ? ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch)).ToList() : [GetBestFlavorDef([], flavorDefsToSearch)];
+                bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch))];
             }
             catch (Exception ex2) when (ex2 is NullReferenceException or InvalidOperationException)
             {
@@ -970,7 +971,7 @@ public class CompFlavor : ThingComp, IExposable
         IEnumerable<ThingDef> recipeAllowedDefs = [];
         recipeAllowedDefs = CompFlavorUtility.MealRecipeDatabase[parent.def];
 
-        //Log.Message($"ghostCategories were [{ghostCategories.ToStringSafeEnumerable()}]");
+        Log.Message($"ghostCategories were [{ghostCategories.ToStringSafeEnumerable()}]");
         List<ThingDef> ings;
         if (ghostBools.Any(boo => boo == true))
         {
@@ -993,7 +994,7 @@ public class CompFlavor : ThingComp, IExposable
             if (ings.Count() == 0) return;
             int r = Rand.Range(0, ings.Count());
             parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
-            //Log.Message($"added {ings[r]} to ingredients");
+            Log.Message($"added {ings[r]} to ingredients");
         }
     }
 

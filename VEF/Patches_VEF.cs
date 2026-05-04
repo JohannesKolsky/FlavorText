@@ -21,21 +21,20 @@ namespace VEF
     /// patches for processor buildings from VEF
     /// </summary>
     [StaticConstructorOnStartup]
-    public static class HarmonyPatches_VEF
+    public static class Patches_VEF
     {
-        static HarmonyPatches_VEF()
+        static Patches_VEF()
         {
-            var patchType = typeof(HarmonyPatches_VEF);
+            var patchType = typeof(Patches_VEF);
             Harmony harmony = new("rimworld.hekmo.VEF");
             {
                 harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.Process"), "SpawnOrPushToNet"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_SpawnOrPushToNetPostfix"));
- /*               harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.AdvancedProcessorsManager"), "AddIngredient"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_AddIngredientPrefix"));
-                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.Process"), "HandleIngredientsAndQuality"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_HandleIngredientsAndQualityPostfix"));
-                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.Process"), "ResetProcess"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_ResetProcessPrefix"));*/
+/*                harmony.Patch(AccessTools.Method(AccessTools.TypeByName("FlavorText.CompFlavorUtility"), "BuildMealRecipeDatabase"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_BuildMealRecipeDatabasePostfix"));*/
+                /*               harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.AdvancedProcessorsManager"), "AddIngredient"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_AddIngredientPrefix"));
+                               harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.Process"), "HandleIngredientsAndQuality"), postfix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_HandleIngredientsAndQualityPostfix"));
+                               harmony.Patch(AccessTools.Method(AccessTools.TypeByName("PipeSystem.Process"), "ResetProcess"), prefix: new HarmonyMethod(patchType, "HarmonyPatch_VEF_ResetProcessPrefix"));*/
             }
         }
-
-        //PipeSystem.Process.ResetProcess
 
         /*        // VEF: cache CompFlavor when meal is added to processor
                 public static void HarmonyPatch_VEF_AddIngredientPrefix(ref ThingComp comp, ref Thing thing)
@@ -85,7 +84,6 @@ namespace VEF
         //VEF: add CompFlavor data
         public static void HarmonyPatch_VEF_SpawnOrPushToNetPostfix(ref Pawn extractor, ref List<Thing> outThings, ref PipeSystem.Process __instance)
         {
-            Log.Message($"outThings was [{outThings.ToStringSafeEnumerable()}]");
             foreach (var outThing in outThings)
             {
                 if (outThing.TryGetComp(out CompFlavor outCompFlavor))
@@ -108,14 +106,17 @@ namespace VEF
             }
         }
 
-/*        // VEF: remove item from CompFlavorUtility if the process is reset for any reason (despawn, spoil)
-        public static void HarmonyPatch_VEF_ResetProcessPrefix(ref PipeSystem.Process __instance)
-        {
-            //TODO: can this be done without reflection? I wrote this b/c at this stage the processor is despawned and thus has no map
-            var managerForMap = (AdvancedProcessorsManager)__instance.GetType().GetField("advancedProcessorsManager", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(__instance);
-            var activeProcesses = managerForMap.map.GetComponent<CompFlavorUtility>().ActiveProcesses;
-            activeProcesses.Remove(__instance?.advancedProcessor?.parent?.ThingID);
-            Log.Warning($"after resetting process, activeProcesses were [{activeProcesses.Select(kvp => kvp.Key.ToStringSafe() + " : " + kvp.Value?.iteration.ToStringSafe()).ToStringSafeEnumerable()}]");
-        }*/
+
+
+
+        /*        // VEF: remove item from CompFlavorUtility if the process is reset for any reason (despawn, spoil)
+                public static void HarmonyPatch_VEF_ResetProcessPrefix(ref PipeSystem.Process __instance)
+                {
+                    //TODO: can this be done without reflection? I wrote this b/c at this stage the processor is despawned and thus has no map
+                    var managerForMap = (AdvancedProcessorsManager)__instance.GetType().GetField("advancedProcessorsManager", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(__instance);
+                    var activeProcesses = managerForMap.map.GetComponent<CompFlavorUtility>().ActiveProcesses;
+                    activeProcesses.Remove(__instance?.advancedProcessor?.parent?.ThingID);
+                    Log.Warning($"after resetting process, activeProcesses were [{activeProcesses.Select(kvp => kvp.Key.ToStringSafe() + " : " + kvp.Value?.iteration.ToStringSafe()).ToStringSafeEnumerable()}]");
+                }*/
     }
 }
