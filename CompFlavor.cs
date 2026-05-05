@@ -337,32 +337,36 @@ public class CompFlavor : ThingComp, IExposable
         {
             base.PreAbsorbStack(otherStack, count);
             TryGetFlavorText();
+
             CompFlavor otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
-            if (!otherFlavorComp.TriedFlavorText)
-            {
-                //otherFlavorComp.TryGetFlavorText();
-                // on the possibility of you generating ghost ingredients, try absorbing ingredients again
-                //CompIngredients.PreAbsorbStack(otherStack, count);
-                otherFlavorComp.Iteration = GameComponentFlavorText.Iterate();
-            }
+            Log.Message($"{parent.ThingID.ToStringSafe()} {TriedFlavorText.ToStringSafe()} {GeneratedGhostIngredients.ToStringSafe()}\n{otherStack.ThingID.ToStringSafe()} {otherFlavorComp.TriedFlavorText.ToStringSafe()} {otherFlavorComp.GeneratedGhostIngredients.ToStringSafe()}");
             Rand.PushState(FlavorSeed);
-            CookingStation = Rand.Element(CookingStation, otherFlavorComp.CookingStation);
-            HourOfDay = Rand.Element(HourOfDay, otherFlavorComp.HourOfDay);
-            TickCreated = Rand.Element(TickCreated, otherFlavorComp.TickCreated);
-            CookID = Rand.Element(CookID, otherFlavorComp.CookID);
-            Iteration = Rand.Element(Iteration, otherFlavorComp.Iteration);
+
+            IEnumerable<CompFlavor> bothComps = [this, otherFlavorComp];
+
+            Iteration = bothComps.Select(comp => comp.Iteration).Where(iteration => iteration != null).OrderBy(ele => Rand.Value).FirstOrFallback(null);
+            HourOfDay = bothComps.Select(comp => comp.HourOfDay).Where(hourOfDay => hourOfDay != null).OrderBy(ele => Rand.Value).FirstOrFallback(null);
+            TickCreated = bothComps.Select(comp => comp.TickCreated).Where(tickCreated => tickCreated != null).OrderBy(ele => Rand.Value).FirstOrFallback(null);
+            CookingStation = bothComps.Select(comp => comp.CookingStation).Where(cookingStation => cookingStation != null).OrderBy(ele => Rand.Value).FirstOrFallback(null);
+            CookID = bothComps.Select(comp => comp.CookID).Where(cookID => cookID != "").OrderBy(ele => Rand.Value).FirstOrFallback("");
             try
             {
-                List<string> mealTags1 = MealTags;
-                List<string> mealTags2 = otherFlavorComp.MealTags;
-                List<string> list = [.. mealTags1, .. mealTags2];
-                List<string> mergedTags = list;
-                mergedTags.RemoveAll((mealTag) => mergedTags.Count(t => t == mealTag) < 2 && Rand.Range(0, 10) == 0);
-                MealTags = [.. mergedTags.Distinct()];
-                foreach (var tag in otherFlavorComp.MealTags)
+                List<string> mergedTags = [];
+                List<string> mergedTagsCleaned = [];
+                if (!MealTags.NullOrEmpty()) mergedTags.AddRange(MealTags);
+                if (!otherFlavorComp.MealTags.NullOrEmpty()) mergedTags.AddRange(otherFlavorComp.MealTags);
+                foreach (var tag in mergedTags)
                 {
-                    MealTags.AddDistinct(tag);
+                    if (mergedTags.Count(m => m == tag) >= 2) // 100% to keep tag if it's in both lists
+                    {
+                        mergedTagsCleaned.AddDistinct(tag);
+                    }
+                    else if (Rand.Range(0, 10) > 0)  // 90% to keep tag if it's only in 1 list
+                    {
+                        mergedTagsCleaned.AddDistinct(tag);
+                    }
                 }
+                MealTags = mergedTagsCleaned;
             }
             catch (NullReferenceException)
             {
@@ -432,6 +436,7 @@ public class CompFlavor : ThingComp, IExposable
 
             //set restrictions based on the FoodKind of the meal and weird ingredients
             CalculateMealDiet();
+            Log.Warning($"diet for {parent.ThingID} at {parent.PositionHeld} is {mealDiet}");
             TryAddGhostIngredients();
             TriedFlavorText = true;
 
@@ -1010,6 +1015,7 @@ public class CompFlavor : ThingComp, IExposable
             if (ings.Count() == 0) return;
             int r = Rand.Range(0, ings.Count());
             parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
+            Log.Message($"added {ings[r]}");
         }
     }
 

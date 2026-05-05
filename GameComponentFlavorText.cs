@@ -184,26 +184,33 @@ namespace FlavorText
 */
     }
 
-/*    public class CompFlavorData : IExposable
+/*    public class FlavorData
     {
-    public int? iteration;
-    public string cookID;
-    public List<string> mealTags;
+        public int? iteration;
+        public int? hourOfDay;
+        public int? tickCreated;
+        public string cookID;
+        public ThingDef cookingStation;
+        public List<string> mealTags;
 
-        public CompFlavorData() { }
+        public FlavorData() { }
 
-        public CompFlavorData(CompFlavor compFlavor)
+        public FlavorData(CompFlavor compFlavor)
         {
             iteration = compFlavor.Iteration;
+            hourOfDay = compFlavor.HourOfDay;
+            tickCreated = compFlavor.TickCreated;
+            cookingStation = compFlavor.CookingStation;
             cookID = compFlavor.CookID;
             mealTags = compFlavor.MealTags;
+
         }
 
-        public void ExposeData()
+*//*        public void ExposeData()
         {
             Scribe_Values.Look(ref iteration, "iteration");
             Scribe_Values.Look(ref cookID, "cookID");
             Scribe_Collections.Look(ref mealTags, "tags", LookMode.Undefined);
-        }
+        }*//*
     }*/
 }
