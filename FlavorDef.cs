@@ -100,7 +100,7 @@ public class FlavorDef : Def
                             .All(ingredientSlot => ingredientSlot.AllowedThingDefs.Any()));
 
     public string varietyTexture;
-    public string VarietyTexture { get {Log.Message($"VarietyTexture was {varietyTexture.ToStringSafe()}"); return varietyTexture; } }
+    public string VarietyTexture { get {return varietyTexture; } }
 
     public List<IngredientSlot> ingredients = [];
     internal List<IngredientSlot> Ingredients { get => ingredients; set => ingredients = value; }

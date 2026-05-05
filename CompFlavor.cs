@@ -127,7 +127,7 @@ using static FlavorText.DietKind;
 //RELEASED: check all with v1.6
 //RELEASED: update XML files
 //RELEASED: check new game
-//RELEASE: check add to game
+//RELEASED: check add to game
 //RELEASED: check remove from game
 //RELEASED: check updating FlavorText on save
 //RELEASED: check save and reload game
@@ -135,11 +135,12 @@ using static FlavorText.DietKind;
 //RELEASED: check without DLCs or mods
 //RELEASED: check food modlist
 //RELEASE: check your own saves
-//RELEASE: check starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: check starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASE: test FTV
-//RELEASE: test C# meats
+//RELEASED: test C# meats
 //RELEASED: test medieval overhaul
 //RELEASE: test multi-map and map destroy
+//RELEASE: test translations
 //RELEASED: check speed
 //RELEASED: disable log messages
 
@@ -339,7 +340,7 @@ public class CompFlavor : ThingComp, IExposable
             TryGetFlavorText();
 
             CompFlavor otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
-            Log.Message($"{parent.ThingID.ToStringSafe()} {TriedFlavorText.ToStringSafe()} {GeneratedGhostIngredients.ToStringSafe()}\n{otherStack.ThingID.ToStringSafe()} {otherFlavorComp.TriedFlavorText.ToStringSafe()} {otherFlavorComp.GeneratedGhostIngredients.ToStringSafe()}");
+            //Log.Message($"{parent.ThingID.ToStringSafe()} {TriedFlavorText.ToStringSafe()} {GeneratedGhostIngredients.ToStringSafe()}\n{otherStack.ThingID.ToStringSafe()} {otherFlavorComp.TriedFlavorText.ToStringSafe()} {otherFlavorComp.GeneratedGhostIngredients.ToStringSafe()}");
             Rand.PushState(FlavorSeed);
 
             IEnumerable<CompFlavor> bothComps = [this, otherFlavorComp];
@@ -436,7 +437,7 @@ public class CompFlavor : ThingComp, IExposable
 
             //set restrictions based on the FoodKind of the meal and weird ingredients
             CalculateMealDiet();
-            Log.Warning($"diet for {parent.ThingID} at {parent.PositionHeld} is {mealDiet}");
+            //Log.Warning($"diet for {parent.ThingID} at {parent.PositionHeld} is {mealDiet}");
             TryAddGhostIngredients();
             TriedFlavorText = true;
 
@@ -1015,7 +1016,7 @@ public class CompFlavor : ThingComp, IExposable
             if (ings.Count() == 0) return;
             int r = Rand.Range(0, ings.Count());
             parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
-            Log.Message($"added {ings[r]}");
+            //Log.Message($"added {ings[r]}");
         }
     }
 
