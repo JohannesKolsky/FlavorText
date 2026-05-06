@@ -190,13 +190,19 @@ internal static class CategoryUtility
         {
             try
             {
+                //tag = food.defName.ToLower().Contains("candycane");
                 if (!food.IsHumanFood()) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
                 ThingParentCategories.Add(food, []);
                 Dictionary<FlavorCategoryDef, int> newParents = null;
                 List<FlavorCategoryDef> bestParentsList = null;
-                
-                newParents = GetBestFlavorCategory(food, FlavorCategoryDefOf.FT_Items);
+
+                FlavorCategoryDef topLevelCategory;
+
+                if (FlavorTextSettings.dynamicMealIncorporation && food.HasComp<CompIngredients>()) topLevelCategory = FlavorCategoryDefOf.FT_Items;
+                else topLevelCategory = FlavorCategoryDefOf.FT_Ingredients;
+                newParents = GetBestFlavorCategory(food, topLevelCategory);
+
                 if (newParents.Count == 0) continue;  // skip if no parents found (e.g. ThingDef had null ModContentPack)
                 int bestScore = newParents.Max(element => element.Value);
                 if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
@@ -384,21 +390,11 @@ internal static class CategoryUtility
             }
             if (tag) { Log.Message($"bestFlavorCategories for {searchedDef.defName} were [{bestFlavorCategories.Select(kvp => kvp.Key.ToStringSafe()).ToStringSafeEnumerable()}]"); }
 
-            // if the best category was FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, put the thing in FT_FoodMeals
+            // if the best category was in FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, put the thing in FT_FoodMeals
+            // this is placed here b/c you need the score
             if (bestFlavorCategories.Count > 0)
             {
-                var bestCategory = bestFlavorCategories.MaxBy(element => element.Value);
-                {
-                    if (FlavorCategoryDefOf.FT_MealsWithCompFlavor.ContainedInThisOrDescendant(bestCategory.Key))
-                    {
-                        if (!searchedDef.HasComp<CompIngredients>() || bestCategory.Value < minMealsWithCompFlavorScore || !FlavorTextSettings.dynamicMealIncorporation)
-                        {
-                            bestFlavorCategories.Remove(bestCategory.Key);
-                            bestFlavorCategories.SetOrAdd(FlavorCategoryDef.Named("FT_FoodMeals"), bestCategory.Value);
-                            if (tag) Log.Message($"{searchedDef.defName} had score of {bestCategory.Value.ToStringSafe()}");
-                        }
-                    }
-                }
+                bestFlavorCategories.RemoveAll(ele =>  ele.Value < minMealsWithCompFlavorScore && FlavorCategoryDefOf.FT_MealsWithCompFlavor.ContainedInThisOrDescendant(ele.Key));
             }
 
             //TODO: can you allow getting a CompFlavor via this method, maybe if the match is strong enough combined with the defName/label?

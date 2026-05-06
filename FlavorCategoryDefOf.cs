@@ -7,7 +7,8 @@ public static class FlavorCategoryDefOf
 {
     public static FlavorCategoryDef FT_Root;  // topmost category for FlavorText
     public static FlavorCategoryDef FT_Items; // non-buildings
-    public static FlavorCategoryDef FT_Foods; // topmost category used for meal ingredients; contains everything in vanilla Foods ThingCategoryDef
+    public static FlavorCategoryDef FT_Ingredients; // any item that could be used inside a meal that has a compFlavor
+    public static FlavorCategoryDef FT_Foods; // topmost category used for meal ingredients; contains everything in vanilla Foods ThingCategoryDef outside of meal with compFlavor (unless they fit both)
     public static FlavorCategoryDef FT_FoodRaw;
     public static FlavorCategoryDef FT_PlantFoodRaw;
     public static FlavorCategoryDef FT_MeatRaw;
