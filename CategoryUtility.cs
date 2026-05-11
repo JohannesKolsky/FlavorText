@@ -190,8 +190,9 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("candycane");
-                if (!food.IsHumanFood()) continue;
+                //tag = food.defName.ToLower().Contains("molasses");
+                tag = food.thingCategories.Contains(ThingCategoryDef.Named("AC_ArtisanProducts"));
+                if (!IsFlavorTextIngredient(food)) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
                 ThingParentCategories.Add(food, []);
                 Dictionary<FlavorCategoryDef, int> newParents = null;
@@ -235,6 +236,30 @@ internal static class CategoryUtility
                 Log.Error($"{food?.ToStringSafe()} from mod {food?.modContentPack?.PackageId?.ToStringSafe()} had an error");
                 throw;
             }
+        }
+
+
+
+
+        static bool IsFlavorTextIngredient(ThingDef thingDef)
+        {
+            if (thingDef.ingestible == null)
+            {
+                return false;
+            }
+
+            if (!thingDef.ingestible.HumanEdible)
+            {
+                return false;
+            }
+
+            if (thingDef.ingestible.preferability == FoodPreferability.Undefined)
+            {
+                Log.Error($"{thingDef.ToStringSafe()} had FoodPreferability.Undefined. This should not cause issues, but please report it so I can check.");
+                return false;
+            }
+
+            return true;
         }
 
         // if ThingDef should have CompFlavor
@@ -289,6 +314,7 @@ internal static class CategoryUtility
                 throw;
             }
         }
+
     }
 
 
@@ -314,7 +340,7 @@ internal static class CategoryUtility
     private static void AbsorbChildrenFromXML()
     {
         // make a thingDefs of which ThingDefs belong in which FlavorCategoryDefs
-        var allFlavorCategoryDefs = FlavorCategoryDef.Named("FT_Root").ThisAndDescendants;
+        var allFlavorCategoryDefs = FlavorCategoryDefOf.FT_Root.ThisAndDescendants;
         allFlavorCategoryDefs = allFlavorCategoryDefs.Reverse();  // by reversing, you start at the lowest categories and work your way up  // this allows absorbing specific ThingDefs before the whole group in a higher Flavor Category
         foreach (var flavorCategory in allFlavorCategoryDefs)
         {
@@ -365,7 +391,7 @@ internal static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
-        //tag = searchedDef.defName.ToLower().Contains("lunch");
+        //tag = searchedDef.defName.ToLower().Contains("molasses");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);
@@ -388,7 +414,7 @@ internal static class CategoryUtility
                     if (categoryScore > 0) bestFlavorCategories.Add(flavorCategory, categoryScore);
                 }
             }
-            if (tag) { Log.Message($"bestFlavorCategories for {searchedDef.defName} were [{bestFlavorCategories.Select(kvp => kvp.Key.ToStringSafe()).ToStringSafeEnumerable()}]"); }
+            if (tag) { Log.Message($"bestFlavorCategories for {searchedDef.defName} were [{bestFlavorCategories.OrderBy(kvp => kvp.Value).Select(kvp => kvp.Key.ToStringSafe()).ToStringSafeEnumerable()}]"); }
 
             // if the best category was in FT_MealsWithCompFlavor but its score wasn't high enough or Dynamic Meal Incorporation setting is off, put the thing in FT_FoodMeals
             // this is placed here b/c you need the score
@@ -460,7 +486,7 @@ internal static class CategoryUtility
         {
             // get a score based on how well the flavorCategory keywords match the searchedDef's names
             categoryScore = 0;
-            if (tag) Log.Warning($"keywords for {flavorCategory}");
+            //if (tag) Log.Warning($"keywords for {flavorCategory}");
             List<string> keywords = flavorCategory.Keywords;
             foreach (string keyword in keywords)
             {
@@ -510,16 +536,17 @@ internal static class CategoryUtility
             keywordScore += 1;
             if (tag) Log.Message($"+1 to {name} == {keyword}");
         }
-        // contains keyword phrase: +6 to score each time the keyword matches a substring of splitNames when they're all combined with spaces (e.g. 1x 'sugar pumpkin' in "pumpkin orange smoothie sugar pumpkins")
-        // this effectively checks for multi-word keywords if nothing else matched
-        if (keywordScore == 0)
+        // contains keyword phrase: +6 to score each time the keyword matches a multi-word substring of splitNames when they're all combined with spaces (e.g. 1x 'sugar pumpkin' in "pumpkin orange smoothie sugar pumpkins")
+        // this effectively checks for multi-word keywords
+        //if (keywordScore == 0)
         {
             int count = 0;
             string joinedNames = string.Join(" ", splitNames);
             for (int i = 0; i < joinedNames.Length - keyword.Length + 1; i++)
             {
                 if (tag2) Log.Message($"checking if {joinedNames} has substring {keyword}");
-                if (joinedNames.Substring(i, keyword.Length) == keyword)
+                var subString = joinedNames.Substring(i, keyword.Length);
+                if (subString.Contains(" ") && subString == keyword)
                 {
                     count++;
                     if (tag) Log.Message($"+6 to {joinedNames} substring {keyword}");

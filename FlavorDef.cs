@@ -23,6 +23,8 @@ using static FlavorText.DietKind;
 //DONE: stuff like FT_SugarCandy has allowedDietKind hypercarnivore and carnivore
 //DONE: Fried_Foods doesn't have Diet.omnivore
 
+//TODO: soylent green appears 99% of the time for cannibal paste, because 1 vs 50^2 specificity
+
 namespace FlavorText;
 
 internal class DietKind
@@ -360,7 +362,7 @@ public class FlavorDef : Def
 
             // higher restrictions: more broad (more ingredients, more cooking stations, etc)
             // higher specificity: more narrow
-            if (restrictions > 0) flavorDef.Specificity = 10000 / Mathf.Pow(restrictions, 2);
+            if (restrictions > 0) flavorDef.Specificity = 10000 / Mathf.Sqrt(restrictions);
 
 
             // get each category and its parents

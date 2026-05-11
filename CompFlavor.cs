@@ -157,6 +157,8 @@ using static FlavorText.DietKind;
 //TODO: add list operators, like {0_plur_ALL}
 //TODO: full modlist small chance ghost ingredient simple meal spawns with 0 ingredients: deep fried big meat
 //TODO: error spawnMode near
+//TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
+//TODO: bad cooks make weirder meals
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -430,7 +432,7 @@ public class CompFlavor : ThingComp, IExposable
             HourOfDay ??= Rand.Range(0, 24);
             if (CookingStation == null)
             {
-                List<ThingDef> allCookingStations = [.. FlavorCategoryDef.Named("FT_CookingStations").DescendantThingDefs.Distinct()];
+                List<ThingDef> allCookingStations = [.. FlavorCategoryDefOf.FT_CookingStations.DescendantThingDefs.Distinct()];
                 CookingStation = allCookingStations[Rand.Range(0, allCookingStations.Count - 1)];
             }
             Rand.PopState();

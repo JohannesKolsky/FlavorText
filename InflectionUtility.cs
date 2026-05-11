@@ -109,7 +109,7 @@ internal static class InflectionUtility
            .SelectMany(dict => dict.dictionary);
             foreach (var kvp in thingInflectionsList)
             {
-                var key = DefDatabase<ThingDef>.GetNamed(kvp.Key);
+                var key = DefDatabase<ThingDef>.GetNamedSilentFail(kvp.Key);
                 if (key == null) 
                 {
                     Log.Error($"{kvp.Key.ToStringSafe()} returned a key value of null when searched. The ThingDef has been deleted by another mod. Ignoring."); 
