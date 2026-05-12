@@ -243,14 +243,6 @@ public class FlavorDef : Def
     {
         foreach (var flavorDef in ActiveFlavorDefs)
         {
-
-            // {Meat, Egg, Grain} => [[Meat], [Animal], [Plant]] => [omnivore]
-            // {Egg, Grain/Fungus} => [[Animal], [Fungus, Plant]] => [fungus, vegetarian]
-            // {Egg, Fungus} => [[Animal], [Fungus]] => [fungus]
-            // {Egg, Fungus/Twisted} => [[Animal], [Fungus, Twisted]] => [fungus, twisted]
-
-            // (fungus, twisted meat) meal => [omnivore, twisted, fungus]
-
             // calculate if the FlavorDef could match a meat/vegan/vegetarian meal (can have multiple)
             if (flavorDef.Ingredients.Empty()) continue;
             List<List<FlavorCategoryDef>> slotAllowedCategories = [.. Enumerable.Repeat(new List<FlavorCategoryDef>(), flavorDef.Ingredients.Count())];
