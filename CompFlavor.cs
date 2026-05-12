@@ -124,25 +124,25 @@ using static FlavorText.DietKind;
 //DONE: spawned bread is becoming sourdough
 //DONE: sort error ghost ingredients
 
-//RELEASED: check all with v1.6
+//RELEASE: check all with v1.5
 //RELEASED: update XML files
-//RELEASED: check new game
-//RELEASED: check add to game
+//RELEASE: check new game
+//RELEASE: check add to game
 //RELEASED: check remove from game
 //RELEASED: check updating FlavorText on save
-//RELEASED: check save and reload game
+//RELEASE: check save and reload game
 //RELEASED: check all meal types
-//RELEASED: check without DLCs or mods
-//RELEASED: check food modlist
+//RELEASE: check without DLCs or mods
+//RELEASE: check food modlist
 //RELEASE: check your own saves
-//RELEASED: check starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASE: check starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASE: test FTV
-//RELEASED: test C# meats
-//RELEASED: test medieval overhaul
+//RELEASE: test C# meats
+//RELEASE: test medieval overhaul
 //RELEASE: test multi-map and map destroy
 //RELEASE: test translations
-//RELEASED: check speed
-//RELEASED: disable log messages
+//RELEASE: check speed
+//RELEASE: disable log messages
 
 
 //TODO: variety matters warnings and errors?
@@ -228,7 +228,7 @@ public class CompFlavor : ThingComp, IExposable
         get
         {
             Iteration ??= GameComponentFlavorText.Iterate();
-            if (ingredientsCached == null) { Rand.PushState(FlavorSeed);  ingredientsCached = [..parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(i)).OrderBy(def => Rand.Value)] ; Rand.PopState(); }
+            if (ingredientsCached == null) { Rand.PushState(FlavorSeed);  ingredientsCached = [..parent.TryGetComp<CompIngredients>().ingredients.FindAll(i => i != null && FlavorCategoryDefOf.FT_Ingredients.ContainedInThisOrDescendant(i)).OrderBy(def => Rand.Value)] ; Rand.PopState(); }
             return ingredientsCached;
         }
     }
@@ -716,7 +716,7 @@ public class CompFlavor : ThingComp, IExposable
                 // when generating from 0 ingredients, ensure there's viable options for all slots
                 if (ingredients.Count() == 0)
                 {
-                    if (flavorDef.Ingredients.Any((IngredientSlot slot) => slot.AllowedCategories.Where(cat => cat.ChildThingDefs.Any()).All(activeCat => activeCat.DescendantOf(excludedCategories))))
+                    if (flavorDef.Ingredients.Any((IngredientSlot slot) => slot.AllowedCategories.Where(cat => cat.ChildThingDefs.Any()).All(activeCat => activeCat.InListOrDescendantOf(excludedCategories))))
                     {
                         return null;
                     }
@@ -907,7 +907,7 @@ public class CompFlavor : ThingComp, IExposable
     {
         ThingDef ghost = null;
         List<ThingDef> ghostIngredients = [.. slot.AllowedThingDefs.Where(ing => !excludedCategories.Any(ecat => ecat.ContainedInThisOrDescendant(ing)))];
-        List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
+        List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InListOrDescendantOf(slot.DisallowedCategories) && !childCat.InListOrDescendantOf(excludedCategories)))];
         if (ghostCategories.Empty())  // if you'd fail to generate, recalculate diet from ingredients instead of meal
         {
             Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.Categories.ToStringSafeEnumerable()}], the restrictions prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
@@ -916,13 +916,13 @@ public class CompFlavor : ThingComp, IExposable
             {
                 excludedCategories.AddDistinct(dietCat);
             }
-            ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.DescendantOf(slot.DisallowedCategories) && !childCat.DescendantOf(excludedCategories)))];
+            ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InListOrDescendantOf(slot.DisallowedCategories) && !childCat.InListOrDescendantOf(excludedCategories)))];
 
         }
         if (!generatedCoreFlavorDef)
         {
             List<FlavorCategoryDef> coreCats = dietIncludedCategories[mealDiet];
-            List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.DescendantOf(coreCats))];
+            List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.InListOrDescendantOf(coreCats))];
             if (!coreGhostCategories.Empty())
             {
                 generatedCoreFlavorDef = true;

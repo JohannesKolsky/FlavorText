@@ -169,7 +169,7 @@ public class FlavorCategoryDef : Def
     }
 
     // is this in the list or a descendant of one of the list members?
-    internal bool DescendantOf(List<FlavorCategoryDef> list)
+    internal bool InListOrDescendantOf(List<FlavorCategoryDef> list)
     {
         foreach (var cat in ThisAndAncestors)
         {
@@ -205,5 +205,11 @@ public class FlavorCategoryDef : Def
             allDef.Parents?.ForEach(parent => parent.ChildCategories.Add(allDef));
         }
         SetNestLevelRecursive(FlavorCategoryDefOf.FT_Root, 0);
+    }
+
+    public override void ClearCachedData()
+    {
+        base.ClearCachedData();
+        descendantThingDefsCached = null;
     }
 }

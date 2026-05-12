@@ -124,7 +124,7 @@ public class FlavorDef : Def
     {
         try
         {
-            RemoveInactiveCategories();
+            RemoveUnusedSlotCategories();
             SetAllowedIngredients();
             SetActiveMealKinds();
             SetDiets();
@@ -139,7 +139,7 @@ public class FlavorDef : Def
     }
 
     // remove categories that contain no descendant ThingDefs
-    private static void RemoveInactiveCategories()
+    private static void RemoveUnusedSlotCategories()
     {
         foreach (var flavorDef in DefDatabase<FlavorDef>.AllDefs)
         {
@@ -180,28 +180,60 @@ public class FlavorDef : Def
     // if this means a FlavorDef has no mealKind, add FT_MealsNonSpecial to it, so it can be used by normal meals and survival pack meals
     private static void SetActiveMealKinds()
     {
-        List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndDescendants.Where(cat => cat.DescendantThingDefs.Count() == 0)];
+        List<FlavorCategoryDef> emptyMealKinds = [.. FlavorCategoryDefOf.FT_MealsKinds.ThisAndDescendants.Where(cat => !cat.DescendantThingDefs.Any())];
         foreach (var flavorDef in ActiveFlavorDefs)
         {
             // get lowest child categories of all active mealKinds in the def
             List<FlavorCategoryDef> defActiveMealKinds = [.. flavorDef.MealKinds.Except(emptyMealKinds)];
-            flavorDef.MealKinds.Clear();
 
-            if (defActiveMealKinds.Empty() || (FlavorTextSettings.laxRecipeMatching && defActiveMealKinds.Intersect(FlavorCategoryDefOf.FT_MealsNonSpecial.ThisAndDescendants).Count() == 0 && defActiveMealKinds.Any(mealKind => mealKind.ThisAndAncestors.Contains(FlavorCategoryDefOf.FT_MealsCooked))))
+
+            //+ [Soup, Survival, Paste] => true, true
+            //+ [Soup, Survival] => true, true
+            //- [Soup] => false, true
+            //+ [Survival] => true, true
+            //+ [Paste] => false, false
+            //- [Soup, Paste] => false, true
+            //+ [] => true, false
+
+            //+ [Soup, Survival, Paste] => true, true
+            //+ [Soup, Survival] => true, true
+            //+ [Soup] => true, true
+            //+ [Survival] => true, true
+            //+ [Paste] => true, false
+            //+ [Soup, Paste] => true, true
+            //+ [] => true, false
+            //+ [Normal] => true, true
+            //+ [NonSpecial] => true, true
+
+            //+ [Soup, Survival, Paste] => false, true
+            //+ [Soup, Survival] => false, true
+            //+ [Soup] => false, true
+            //+ [Survival] => false, true
+            //+ [Paste] => false, false
+            //+ [Soup, Paste] => false, true
+            //+ [] => true, false
+            //+ [Normal] => false, true
+            //+ [NonSpecial] => false, true
+
+
+            if ((defActiveMealKinds.Empty() || FlavorTextSettings.laxRecipeMatching)
+                && flavorDef.MealKinds.Any(FlavorCategoryDefOf.FT_MealsCooked.ContainedInThisOrDescendant))
             {
-                flavorDef.MealKinds.AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories);
+                flavorDef.MealKinds.Clear();
+                flavorDef.MealKinds.AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories.Where(child => child.DescendantThingDefs.Any()));
             }
+            else flavorDef.MealKinds.Clear();
 
             foreach (var kind in defActiveMealKinds)
             {
                 foreach (var child in kind.LowestChildCategories)
                 {
-                    flavorDef.MealKinds.AddDistinct(child);
+                    if (child.DescendantThingDefs.Any()) flavorDef.MealKinds.AddDistinct(child);
                 }
             }
 
             flavorDef.MealKinds.ForEach(mealKind => activeMealKinds.AddDistinct(mealKind));
-            //Log.Message($"{flavorDef.ToStringSafe()} had mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
+            //Log.Message($"{flavorDef.ToStringSafe()} had mealKinds [{flavorDef.MealKinds.ToStringSafeEnumerable()}] and defActiveMealKinds [{defActiveMealKinds.ToStringSafeEnumerable()}]");
 
         }
     }
@@ -234,7 +266,7 @@ public class FlavorDef : Def
 
                     // [Foods <Meat>]
 
-                    if (!FlavorCategoryDefOf.FT_Foods.ContainedInThisOrDescendant(cat)) { Log.Error($"{cat.ToStringSafe()} had ancestors [{cat.ThisAndAncestors.ToStringSafeEnumerable()}]"); throw new ArgumentOutOfRangeException($"{cat.ToStringSafe()} was used for slot #{i.ToStringSafe()} of {flavorDef.ToStringSafe()}, but it is not a category under FT_Foods. Terminating FlavorDef setup.");}
+                    if (!FlavorCategoryDefOf.FT_Ingredients.ContainedInThisOrDescendant(cat)) { Log.Error($"{cat.ToStringSafe()} had ancestors [{cat.ThisAndAncestors.ToStringSafeEnumerable()}]"); throw new ArgumentOutOfRangeException($"{cat.ToStringSafe()} was used for slot #{i.ToStringSafe()} of {flavorDef.ToStringSafe()}, but it is not a category under FT_Ingredients. Terminating FlavorDef setup.");}
 
                     // figure out whether cat belongs under plant/animal/meat
                     bool categorized = false;
@@ -335,7 +367,6 @@ public class FlavorDef : Def
             {
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
             }
-
 
             float restrictions = flavorDef.Ingredients.Sum(ing => Mathf.Sqrt(ing.AllowedThingDefs.Count()));  //sqrt to reduce impact of high ingredient counts
 

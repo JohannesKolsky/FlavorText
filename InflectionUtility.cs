@@ -59,7 +59,7 @@ internal static class InflectionUtility
         }
 
         GetPredefinedThingInflections();
-        foreach (ThingDef ingredient in FlavorCategoryDefOf.FT_Foods.DescendantThingDefs.Distinct().ToList())
+        foreach (ThingDef ingredient in FlavorCategoryDefOf.FT_Ingredients.DescendantThingDefs.Distinct().ToList())
         {
             try
             {                

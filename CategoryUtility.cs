@@ -2,6 +2,7 @@
 using RimWorld;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -40,6 +41,7 @@ using static FlavorText.CategoryUtility;
 
 //TODO: examine more items that may be food: anything that has nutrition (drugs, alcohol)
 //TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
+//TODO: make MealsQualities its own thing
 
 namespace FlavorText;
 
@@ -90,17 +92,19 @@ internal static class CategoryUtility
         InheritParentData(); // FT_Categories inherit some data from parents
 
         AssignToFlavorCategories(); // assign all relevant ThingsDefs to a FlavorText FlavorCategoryDef
-        // can't do this until now, needs previous method and a built DefDatabase
-        DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
+        //DefDatabase<FlavorDef>.ResolveAllReferences();
+        FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
+
+        // can't do this until now, needs AssignToFlavorCategories and a built DefDatabase
+        //DefDatabase<FlavorCategoryDef>.ResolveAllReferences();
         PruneInactiveFlavorCategoriesRecursive(FlavorCategoryDefOf.FT_Root); // remove links to all FlavorCategoryDefs that don't have a descendant ThingDef
-        DefDatabase<FlavorDef>.ResolveAllReferences();
+        DefDatabase<FlavorCategoryDef>.ClearCachedData();
 
         GameComponentFlavorText.BuildMealRecipeDatabase();
 
-        FlavorDef.SetStaticData(); // get total specificity for each FlavorDef; get other static data
         InflectionUtility.AssignIngredientInflections();
         //Debug();
-        
+
         Log.Warning($"[Flavor Text] mod is now active: {FlavorDef.ActiveFlavorDefs.Count()} active FlavorDefs for the current modlist found out of {DefDatabase<FlavorDef>.AllDefs.Count()} total FlavorDefs");
     }
 
@@ -126,10 +130,10 @@ internal static class CategoryUtility
 /*        var test = DefDatabase<FlavorDef>.GetNamed("FlavorText_Foods_Jjigae");
         Log.Warning($"{test.ToStringSafe()} had slots [{test.Ingredients.Select(slot => "[" + slot.AllowedCategories.ToStringSafe() + " : " + slot.AllowedThingDefs.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]");*/
         int count = FlavorCategoryDefOf.FT_Root.DescendantThingDefs.Count();
-        Log.Warning($"found {count} food items");
+        Log.Warning($"found {count} FlavorText-relevant ThingDefs");
         foreach (var thing in FlavorCategoryDefOf.FT_Root.DescendantThingDefs)
         {
-            tag = thing.defName.ToLower().Contains("egg");
+            tag = thing.defName.ToLower().Contains("pack");
             if (tag) Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}").ToStringSafeEnumerable()}]");
         }
     }
@@ -190,8 +194,8 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("molasses");
-                tag = food.thingCategories.Contains(ThingCategoryDef.Named("AC_ArtisanProducts"));
+                //tag = food.defName.ToLower().Contains("stirfry");
+                //tag = food.thingCategories.Contains(ThingCategoryDef.Named("AC_ArtisanProducts"));
                 if (!IsFlavorTextIngredient(food)) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
                 ThingParentCategories.Add(food, []);
@@ -209,6 +213,11 @@ internal static class CategoryUtility
                 if (bestScore >= 2 * goodScoreForCategorization)  // accept all parent categories with a high enough score
                 {
                     bestParentsList = [.. newParents.Where(element => element.Value >= 2 * goodScoreForCategorization).Select(element => element.Key)];
+                    if (bestParentsList.Count > 1)
+                    {
+                        bestParentsList = [.. bestParentsList.Where(cat => !bestParentsList.Any(child => cat.DescendantCategories.Contains(child)))];
+                        if (bestParentsList.Empty()) throw new InvalidEnumArgumentException($"bestParentList for {food.ToStringSafe()} was null after removing nested results. Original newParents list was [{newParents.Select(ele => ele.Key.ToStringSafe()).ToStringSafeEnumerable()}]. Please report.");
+                    }
                 }
                 else  // else accept the highest scored parent category
                 {
@@ -279,11 +288,12 @@ internal static class CategoryUtility
                 }
 
                 //TODO: is this redundant with flavorDef.mealKinds?
-                // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNormal
-                if (ThingParentCategories[meal].Empty() || (FlavorTextSettings.laxRecipeMatching && ThingParentCategories[meal].Contains(FlavorCategoryDefOf.FT_MealsCooked)))
+                // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
+                if ((ThingParentCategories[meal].Empty() || FlavorTextSettings.laxRecipeMatching) && ThingParentCategories[meal].Contains(FlavorCategoryDefOf.FT_MealsCooked))
                 {
-                    ThingParentCategories[meal].Add(FlavorCategoryDefOf.FT_MealsNormal);
-                    FlavorCategoryDefOf.FT_MealsNormal.ChildThingDefs.Add(meal);
+                    Log.Message($"added MealsNormal to {meal.ToStringSafe()} with current ThingParentCategories {ThingParentCategories[meal].ToStringSafe()}");
+                    ThingParentCategories[meal].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+                    FlavorCategoryDefOf.FT_MealsNonSpecial.ChildThingDefs.Add(meal);
                 }
             }
         }
@@ -392,7 +402,7 @@ internal static class CategoryUtility
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
         //tag = searchedDef.defName.ToLower().Contains("molasses");
-        if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.defName}"); }
+        if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.ToStringSafe()} with topLevelCategory {topLevelCategory.ToStringSafe()}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);
         int categoryScore = 0;
