@@ -123,6 +123,7 @@ using static FlavorText.DietKind;
 //DONE: check how disallowed slot categories are handled
 //DONE: spawned bread is becoming sourdough
 //DONE: sort error ghost ingredients
+//DONE: certain spawned meals still cause an error on first save and reload
 
 //RELEASED: update XML files
 //RELEASED: check new game
@@ -130,18 +131,18 @@ using static FlavorText.DietKind;
 //RELEASED: check remove from game
 //RELEASED: check updating FlavorText on save
 //RELEASED: check save and reload game
-//RELEASE: check all meal types
-//RELEASE: check without DLCs or mods
-//RELEASE: check food modlist
+//RELEASED: check all meal types
+//RELEASED: check without DLCs or mods
+//RELEASED: check food modlist
 //RELEASE: check your own saves
-//RELEASE: check starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASE: test FTV
+//RELEASED: check starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: test FTV
 //RELEASE: test C# meats
 //RELEASE: test medieval overhaul
-//RELEASE: test multi-map and map destroy
+//RELEASED: test multi-map and map destroy
 //RELEASE: test translations
 //RELEASE: check speed
-//RELEASE: disable log messages
+//RELEASED: disable log messages
 
 
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
@@ -157,7 +158,6 @@ using static FlavorText.DietKind;
 //TODO: error spawnMode near
 //TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
 //TODO: bad cooks make weirder meals
-//TODO: certain spawned meals still cause an error on first save and reload
 //TODO: variety matters warnings and errors?
 
 /// <summary>
@@ -521,13 +521,12 @@ public class CompFlavor : ThingComp, IExposable
 
     }
 
-    //TODO: noIngredientsFoodKind is for fine/lavish veg/carn meals
     private void CalculateMealDiet()
     {
         if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
         {
             mealDiet = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat
-                ? Diet.hyperCarnivore
+                ? Diet.carnivore  //TODO: this doesn't include hypercarnivore atm b/c it will never appear
                 : Ingredients.Any(ing => FoodUtility.GetFoodKind(ing) == FoodKind.NonMeat) ? Diet.omnivore : Diet.carnivore;
         }
         else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
@@ -559,7 +558,7 @@ public class CompFlavor : ThingComp, IExposable
             }
         }
 
-        Log.Warning($"mealDiet was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
+        //Log.Warning($"mealDiet was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
     }
 
 

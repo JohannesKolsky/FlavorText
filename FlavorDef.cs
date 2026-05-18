@@ -312,7 +312,6 @@ public class FlavorDef : Def
             {
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
             }
-
             //TODO: do you want carnivore to include hypercarnivore? because rn it does
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
             if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
@@ -345,6 +344,8 @@ public class FlavorDef : Def
                 DietIndex[diet].Add(flavorDef);
             }
         }
+
+        //Log.Warning($"DietIndex: [{DietIndex.Select(entry => $"{entry.Key.ToStringSafe()} had {entry.Value.Count} entries\n").ToStringSafeEnumerable()}]");
     }
     private static void SetSpecificities()
     {

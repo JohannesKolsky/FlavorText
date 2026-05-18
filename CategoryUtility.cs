@@ -194,8 +194,8 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("fine");
-                //tag = food.thingCategories.Contains(ThingCategoryDef.Named("AC_ArtisanProducts"));
+                //tag = food.defName.ToLower().Contains("flour");
+                if (tag) Log.Warning($"testing {food.ToStringSafe()}");
                 if (!IsFlavorTextIngredient(food)) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
                 ThingParentCategories.Add(food, []);
@@ -257,11 +257,6 @@ internal static class CategoryUtility
                 return false;
             }
 
-            if (!thingDef.ingestible.HumanEdible)
-            {
-                return false;
-            }
-
             if (thingDef.ingestible.preferability == FoodPreferability.Undefined)
             {
                 Log.Error($"{thingDef.ToStringSafe()} had FoodPreferability.Undefined. This should not cause issues, but please report it so I can check.");
@@ -289,10 +284,10 @@ internal static class CategoryUtility
 
                 //TODO: is this redundant with flavorDef.mealKinds?
                 // move meal quality categories to a special dictionary; if this means the meal has no regular categories left, add it to FT_MealsNonSpecial
-                if ((ThingParentCategories[meal].Empty() || FlavorTextSettings.laxRecipeMatching) && ThingParentCategories[meal].Contains(FlavorCategoryDefOf.FT_MealsCooked))
+                if (ThingParentCategories[meal].Empty())
                 {
-                    Log.Message($"added MealsNormal to {meal.ToStringSafe()} with current ThingParentCategories {ThingParentCategories[meal].ToStringSafe()}");
-                    ThingParentCategories[meal].Add(FlavorCategoryDefOf.FT_MealsNonSpecial);
+                    //Log.Message($"added MealsNonSpecial to {meal.ToStringSafe()} with current ThingParentCategories {ThingParentCategories[meal].ToStringSafe()}");
+                    ThingParentCategories[meal].AddRange(FlavorCategoryDefOf.FT_MealsNonSpecial.LowestChildCategories.Where(child => child.DescendantThingDefs.Any()));
                     FlavorCategoryDefOf.FT_MealsNonSpecial.ChildThingDefs.Add(meal);
                 }
             }
@@ -401,7 +396,7 @@ internal static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
-        //tag = searchedDef.defName.ToLower().Contains("fine");
+        //tag = searchedDef.defName.ToLower().Contains("flour");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.ToStringSafe()} with topLevelCategory {topLevelCategory.ToStringSafe()}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);
