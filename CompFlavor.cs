@@ -124,13 +124,12 @@ using static FlavorText.DietKind;
 //DONE: spawned bread is becoming sourdough
 //DONE: sort error ghost ingredients
 
-//RELEASE: check all with v1.5
-//RELEASE: update XML files
-//RELEASE: check new game
-//RELEASE: check add to game
-//RELEASE: check remove from game
-//RELEASE: check updating FlavorText on save
-//RELEASE: check save and reload game
+//RELEASED: update XML files
+//RELEASED: check new game
+//RELEASED: check add to game
+//RELEASED: check remove from game
+//RELEASED: check updating FlavorText on save
+//RELEASED: check save and reload game
 //RELEASE: check all meal types
 //RELEASE: check without DLCs or mods
 //RELEASE: check food modlist
@@ -145,7 +144,6 @@ using static FlavorText.DietKind;
 //RELEASE: disable log messages
 
 
-//TODO: variety matters warnings and errors?
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
 //TODO: sidedishclauses for single flavordef descriptions
@@ -159,6 +157,8 @@ using static FlavorText.DietKind;
 //TODO: error spawnMode near
 //TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
 //TODO: bad cooks make weirder meals
+//TODO: certain spawned meals still cause an error on first save and reload
+//TODO: variety matters warnings and errors?
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -170,6 +170,11 @@ using static FlavorText.DietKind;
 ///     
 ///     1-ingredient meal: 1 ms
 ///     40-ingredient meal: 31 ms
+///     
+///     during gameplay TryGetFlavorText is only called when needed:
+///         making a product from a cooking station
+///         merging stacks for absorbing stack
+///         loading game from save if TriedFlavorText == true
 /// </summary>
 /// 
 
@@ -300,8 +305,12 @@ public class CompFlavor : ThingComp, IExposable
         }
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
-            TriedFlavorText = false;
-            TryGetFlavorText(finalFlavorDefs);
+            // retry flavor text, ignoring meals where it hasn't been triggered yet
+            if (TriedFlavorText)
+            {
+                TriedFlavorText = false;
+                TryGetFlavorText(finalFlavorDefs);
+            }
         }
     }
 
@@ -415,8 +424,8 @@ public class CompFlavor : ThingComp, IExposable
     {
         if (TriedFlavorText) return;
         TriedFlavorText = true;
-        Stopwatch stopwatch = new();
-        stopwatch.Start();
+        //Stopwatch stopwatch = new();
+        //stopwatch.Start();
         try
         {
             if (Ingredients == null) throw new NullReferenceException($"Ingredients for {parent.ThingID.ToStringSafe()} were null. Please report.");
@@ -462,14 +471,14 @@ public class CompFlavor : ThingComp, IExposable
             ex.Data.Add("allIngredients", flavorSummary);
             Log.Error(string.Format("Error: {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}", ex, ex.Data["flavorSummary"], ex.Data["flavorDef"], ex.Data["ingredients"], ex.Data["diets"], ex.Data["meal"], ex.Data["flavorDefsToSearch"]));
         }
-        finally
-        {
-            if (Prefs.DevMode)
-            {
-                stopwatch.Stop();
-                Log.Message("[Flavor Text] TryGetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-            }
-        }
+        //finally
+        //{
+        //    if (Prefs.DevMode)
+        //    {
+        //        stopwatch.Stop();
+        //        Log.Message("[Flavor Text] TryGetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
+        //    }
+        //}
     }
 
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
@@ -512,6 +521,7 @@ public class CompFlavor : ThingComp, IExposable
 
     }
 
+    //TODO: noIngredientsFoodKind is for fine/lavish veg/carn meals
     private void CalculateMealDiet()
     {
         if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
@@ -548,6 +558,8 @@ public class CompFlavor : ThingComp, IExposable
                 if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
             }
         }
+
+        Log.Warning($"mealDiet was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
     }
 
 

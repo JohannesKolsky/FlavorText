@@ -1,18 +1,21 @@
 using FlavorText;
 using HarmonyLib;
 using PipeSystem;
-using System.Collections.Generic;
-using System.Linq;
-using Verse;
-using System.Diagnostics;
-using System;
-using System.Reflection;
 using RimWorld;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using Verse;
+using static PipeSystem.ProcessDef;
 
 //DONE: cover meals in inventories of spawned non-trader pawns (PawnInventoryGenerator)
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
 //DONE: spoiled soup causes error on next insert
 //DONE: pawn pathfinding error on destroying ElectricPot while processing b/c ElectricPot is no longer on a map (SYR is fine)
+
+//TODO: add TryGetFlavorTextFromSubmeals
 
 
 namespace VEF

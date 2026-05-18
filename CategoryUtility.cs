@@ -133,7 +133,7 @@ internal static class CategoryUtility
         Log.Warning($"found {count} FlavorText-relevant ThingDefs");
         foreach (var thing in FlavorCategoryDefOf.FT_Root.DescendantThingDefs)
         {
-            tag = thing.defName.ToLower().Contains("pack");
+            tag = thing.defName.ToLower().Contains("meal");
             if (tag) Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}").ToStringSafeEnumerable()}]");
         }
     }
@@ -194,7 +194,7 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("stirfry");
+                //tag = food.defName.ToLower().Contains("fine");
                 //tag = food.thingCategories.Contains(ThingCategoryDef.Named("AC_ArtisanProducts"));
                 if (!IsFlavorTextIngredient(food)) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
@@ -401,7 +401,7 @@ internal static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
-        //tag = searchedDef.defName.ToLower().Contains("molasses");
+        //tag = searchedDef.defName.ToLower().Contains("fine");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.ToStringSafe()} with topLevelCategory {topLevelCategory.ToStringSafe()}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);

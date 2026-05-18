@@ -54,7 +54,7 @@ public static class HarmonyPatches
                     compFlavor.CookID = worker?.ThingID;
                     if (ModsConfig.BiotechActive && worker?.genes is not null && worker.genes.HasActiveGene(DefDatabase<GeneDef>.GetNamed("Furskin"))) // don't ask
                     {
-                        
+
                         Rand.PushState(Find.World.info.Seed + GameComponentFlavorText.Iterations);
                         if (Rand.Range(0, 20) == 0)
                         {
@@ -62,20 +62,25 @@ public static class HarmonyPatches
                         }
                         Rand.PopState();
                     }
-                } 
-                
-                // check for CompFlavored ingredients and try to use those FlavorDefs
-                List<FlavorDef> ingredientFlavorDefs = [];
-                foreach (var ing in ingredients)
-                {
-                    if (ing.TryGetComp(out CompFlavor ingCompFlavor))
-                    {
-                        ingredientFlavorDefs.AddRange(ingCompFlavor.FinalFlavorDefs);
-                    }
                 }
-                compFlavor.TryGetFlavorText(ingredientFlavorDefs);
+
+                TryGetFlavorTextWithSubMeals(ingredients, compFlavor);
             }
             yield return product;
         }
+    }
+
+    // check for CompFlavored ingredients and try to use those FlavorDefs
+    public static void TryGetFlavorTextWithSubMeals(List<Thing> ingredients, CompFlavor compFlavor)
+    {
+        List<FlavorDef> ingredientFlavorDefs = [];
+        foreach (var ing in ingredients)
+        {
+            if (ing.TryGetComp(out CompFlavor ingCompFlavor))
+            {
+                ingredientFlavorDefs.AddRange(ingCompFlavor.FinalFlavorDefs);
+            }
+        }
+        compFlavor.TryGetFlavorText(ingredientFlavorDefs);
     }
 }

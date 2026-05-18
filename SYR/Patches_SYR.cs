@@ -12,6 +12,7 @@ using Verse.AI;
 //DONE: you want to find something for a ThingWithComps or ThingComp that runs once; maybe something graphics-related?
 
 //TODO: cookID isn't added, might need transpiler; CompProcessor.TakeOutProduct can't access the pawn, and JobDriver_EmptyProcessor can't access the Thing (to add the pawn data to)
+//TODO: add TryGetFlavorTextFromSubmeals
 
 
 namespace SYR

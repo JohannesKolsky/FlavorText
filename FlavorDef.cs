@@ -313,7 +313,7 @@ public class FlavorDef : Def
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
             }
 
-
+            //TODO: do you want carnivore to include hypercarnivore? because rn it does
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
             if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
 
@@ -385,7 +385,8 @@ public class FlavorDef : Def
 
             // higher restrictions: more broad (more ingredients, more cooking stations, etc)
             // higher specificity: more narrow
-            if (restrictions > 0) flavorDef.Specificity = 10000 / Mathf.Sqrt(restrictions);
+            // ingredients # is already sqrted by this stage
+            if (restrictions > 0) flavorDef.Specificity = 10000 / restrictions;
 
 
             // get each category and its parents
