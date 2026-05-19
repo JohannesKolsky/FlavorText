@@ -29,11 +29,10 @@ namespace FlavorText;
 
 internal class DietKind
 {
-
-	// basic diet types based on possible ingredients
-	// this is exclusive: omnivore requires a plant ingredient, vegetarian requires an animal ingredient
-	// this order is strict, because a subrange of this can be used in searches
-	internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan }
+    // basic diet types based on possible ingredients
+    // this is exclusive: omnivore requires a plant ingredient, vegetarian requires an animal ingredient
+    // this order is strict, because a subrange of this can be used in searches
+	internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan, animalProduct, animalFree}
 
 	internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
     {
@@ -41,7 +40,9 @@ internal class DietKind
      {Diet.carnivore, [FlavorCategoryDefOf.FT_PlantFoodRaw]},
      {Diet.omnivore, []},
      {Diet.vegetarian, [FlavorCategoryDefOf.FT_MeatRaw]},
-     {Diet.vegan, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]}
+     {Diet.animalProduct, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
+     {Diet.vegan, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]},
+     {Diet.animalFree, [FlavorCategoryDefOf.FT_AnimalProductRaw] }
     };
 
 	internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietIncludedCategories = new()
@@ -50,7 +51,9 @@ internal class DietKind
      {Diet.carnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw]},
      {Diet.vegetarian, [FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
      {Diet.vegan, [FlavorCategoryDefOf.FT_PlantFoodRaw]},
-     {Diet.omnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw]}
+     {Diet.omnivore, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] },
+     {Diet.animalProduct, [FlavorCategoryDefOf.FT_AnimalProductRaw] },
+     {Diet.animalFree, [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_PlantFoodRaw] }
     };
 
 	internal static readonly List<FlavorCategoryDef> NormalDietCategories = [FlavorCategoryDefOf.FT_MeatRaw, FlavorCategoryDefOf.FT_AnimalProductRaw, FlavorCategoryDefOf.FT_PlantFoodRaw];
@@ -187,35 +190,6 @@ public class FlavorDef : Def
             List<FlavorCategoryDef> defActiveMealKinds = [.. flavorDef.MealKinds.Except(emptyMealKinds)];
 
 
-            //+ [Soup, Survival, Paste] => true, true
-            //+ [Soup, Survival] => true, true
-            //- [Soup] => false, true
-            //+ [Survival] => true, true
-            //+ [Paste] => false, false
-            //- [Soup, Paste] => false, true
-            //+ [] => true, false
-
-            //+ [Soup, Survival, Paste] => true, true
-            //+ [Soup, Survival] => true, true
-            //+ [Soup] => true, true
-            //+ [Survival] => true, true
-            //+ [Paste] => true, false
-            //+ [Soup, Paste] => true, true
-            //+ [] => true, false
-            //+ [Normal] => true, true
-            //+ [NonSpecial] => true, true
-
-            //+ [Soup, Survival, Paste] => false, true
-            //+ [Soup, Survival] => false, true
-            //+ [Soup] => false, true
-            //+ [Survival] => false, true
-            //+ [Paste] => false, false
-            //+ [Soup, Paste] => false, true
-            //+ [] => true, false
-            //+ [Normal] => false, true
-            //+ [NonSpecial] => false, true
-
-
             if ((defActiveMealKinds.Empty() || FlavorTextSettings.laxRecipeMatching)
                 && flavorDef.MealKinds.Any(FlavorCategoryDefOf.FT_MealsCooked.ContainedInThisOrDescendant))
             {
@@ -308,22 +282,27 @@ public class FlavorDef : Def
                 }
             }
 
+            /// [MA, AP, MP]
+            /// [MAP, MP, P]
+
             foreach (var sketchy in SketchyDietCategories)
             {
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
             }
-            //TODO: do you want carnivore to include hypercarnivore? because rn it does
+
+            // TODO: [M, M, MAP] will currently appear as omnivore but is not; this won't break anything, but makes TryGetFlavorText() less efficient
+
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
-            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
-
-            if (
-                (slotAllowedCategories.Count == 1 && slotAllowedCategories[0].All(NormalDietCategories.Contains))
-                || (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)))
-                )
-                flavorDef.allowedDiets.Add(Diet.omnivore);
-
-            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
+            if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.animalProduct);
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
+
+            if (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
+
+            if (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
+
+            if (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.animalFree);
+
+            if (slotAllowedCategories.Count > 2 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);
 
             //Log.Message($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]. NormalDietCategories were [{NormalDietCategories.ToStringSafeEnumerable()}]. Had {slotAllowedCategories.Count} slots");
 
@@ -345,7 +324,7 @@ public class FlavorDef : Def
             }
         }
 
-        //Log.Warning($"DietIndex: [{DietIndex.Select(entry => $"{entry.Key.ToStringSafe()} had {entry.Value.Count} entries\n").ToStringSafeEnumerable()}]");
+        Log.Warning($"DietIndex: [{DietIndex.Select(entry => $"{entry.Key.ToStringSafe()} had {entry.Value.Count} entries\n").ToStringSafeEnumerable()}]");
     }
     private static void SetSpecificities()
     {

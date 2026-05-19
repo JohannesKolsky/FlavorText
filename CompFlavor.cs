@@ -424,8 +424,8 @@ public class CompFlavor : ThingComp, IExposable
     {
         if (TriedFlavorText) return;
         TriedFlavorText = true;
-        //Stopwatch stopwatch = new();
-        //stopwatch.Start();
+        Stopwatch stopwatch = new();
+        stopwatch.Start();
         try
         {
             if (Ingredients == null) throw new NullReferenceException($"Ingredients for {parent.ThingID.ToStringSafe()} were null. Please report.");
@@ -445,7 +445,7 @@ public class CompFlavor : ThingComp, IExposable
             Rand.PopState();
 
             //set restrictions based on the FoodKind of the meal and weird ingredients
-            CalculateMealDiet();
+            SetMealDiet();
             //Log.Warning($"diet for {parent.ThingID} at {parent.PositionHeld} is {mealDiet}");
             TryAddGhostIngredients();
             TriedFlavorText = true;
@@ -471,14 +471,14 @@ public class CompFlavor : ThingComp, IExposable
             ex.Data.Add("allIngredients", flavorSummary);
             Log.Error(string.Format("Error: {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}", ex, ex.Data["flavorSummary"], ex.Data["flavorDef"], ex.Data["ingredients"], ex.Data["diets"], ex.Data["meal"], ex.Data["flavorDefsToSearch"]));
         }
-        //finally
-        //{
-        //    if (Prefs.DevMode)
-        //    {
-        //        stopwatch.Stop();
-        //        Log.Message("[Flavor Text] TryGetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-        //    }
-        //}
+        finally
+        {
+            if (Prefs.DevMode)
+            {
+                stopwatch.Stop();
+                Log.Message("[Flavor Text] TryGetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
+            }
+        }
     }
 
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
@@ -521,26 +521,18 @@ public class CompFlavor : ThingComp, IExposable
 
     }
 
-    private void CalculateMealDiet()
+    private void SetMealDiet()
     {
-        if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat)
-        {
-            mealDiet = CompIngredients.Props.noIngredientsFoodKind == FoodKind.Meat
-                ? Diet.carnivore  //TODO: this doesn't include hypercarnivore atm b/c it will never appear
-                : Ingredients.Any(ing => FoodUtility.GetFoodKind(ing) == FoodKind.NonMeat) ? Diet.omnivore : Diet.carnivore;
-        }
-        else if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
+        if (Ingredients.Count == 0) return;
+        if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
         {
             mealDiet = Diet.vegan;
         }
         else
         {
-            if (FoodUtility.GetFoodKind(parent) != FoodKind.Any)
-            {
-                throw new ArgumentException("Unrecognized FoodKind for meal. FoodKind: " + FoodUtility.GetFoodKind(parent).ToStringSafe());
-            }
-            mealDiet = Diet.vegetarian;
+            mealDiet = CalculateIngredientDiet(Ingredients);
         }
+        Log.Message($"{parent.ToStringSafe()} had mealDiet = {mealDiet.ToStringSafe()}");
 
         excludedCategories = [.. Props.defaultGhostExcludedCategories];
         foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
@@ -565,13 +557,27 @@ public class CompFlavor : ThingComp, IExposable
     // determine what FlavorDefs the given ingredient list matches
     private Diet CalculateIngredientDiet(List<ThingDef> ingredients)
     {
-        if (ingredients.Empty()) throw new NullReferenceException($"CalculateIngredientKind was passed an empty list of ingredients");
-        if (ingredients.All(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant)) return Diet.hyperCarnivore;
-        if (ingredients.All(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.vegan;
-        if (ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing))) return Diet.carnivore;
-        if (ingredients.Count() > 1 && ingredients.Any(FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant) && ingredients.Any(FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant)) return Diet.omnivore;
-        if (ingredients.Any(FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant) && ingredients.All(ing => FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing) || FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing))) return Diet.vegetarian;
-        return Diet.omnivore;
+        (bool, bool, bool) dietTuple = (false, false, false);
+        foreach (var ing in ingredients)
+        {
+            if (FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item1 = true; continue; }
+            if (FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item2 = true; continue; }
+            if (FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item3 = true; continue; }
+        }
+
+       
+        switch (dietTuple)
+        {
+            case (false, false, false): throw new ArgumentOutOfRangeException($"dietTuple for {parent.ToStringSafe()} was (false, false, false), which should not be possible.");
+            case (true, false, false): return Diet.hyperCarnivore;
+            case (false, true, false): return Diet.animalProduct;
+            case (false, false, true): return Diet.vegan;
+            case (true, true, false): return Diet.carnivore;
+            case (true, false, true): return Diet.animalFree;
+            case (false, true, true): return Diet.vegetarian;
+            case (true, true, true): return Diet.omnivore;
+        }
+
     }
 
     // split ingredients into chunks of size 3 (default)
