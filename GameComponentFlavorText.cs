@@ -1,12 +1,9 @@
-﻿using RimWorld.BaseGen;
+﻿using LudeonTK;
+using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using UnityEngine;
 using Verse;
-using ProcessorFramework;
-using PipeSystem;
 
 //DONE: CompFlavorData constructor not found error on load of save
 //DONE: error on adding FlavorText while meal is processing, then taking it out when finished
@@ -98,90 +95,112 @@ namespace FlavorText
             else return allowedThingDefs;
         }
 
- /*       // add VEF process products to database of meal recipes
-        public static void VEF_BuildMealRecipeDatabase()
+        [DebugAction("Flavor Text", null, false, false, false, false, false, 0, false, actionType = DebugActionType.ToolMap, allowedGameStates = AllowedGameStates.PlayingOnMap, name = "Spawn a meal for each FlavorDef")]
+        private static void Debug_SpawnMealsWithAllFlavorDefs()
         {
-            Log.Warning("VEF_BuildMealRecipeDatabase");
-            foreach (var meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
+            foreach (FlavorDef flavorDef in FlavorDef.ActiveFlavorDefs)
             {
-                var newAllowedThingDefs = VEF_AllProcessesWithThisAsProduct(meal);
-                if (!newAllowedThingDefs.Empty())
+                Thing meal = ThingMaker.MakeThing(ThingDefOf.MealSimple);
+                CompFlavor compFlavor = meal.TryGetComp<CompFlavor>();
+                compFlavor.excludedCategories = [];
+                CompIngredients compIngredients = meal.TryGetComp<CompIngredients>();
+                List<int> slotIndices = [.. Enumerable.Range(0, flavorDef.ingredients.Count)];
+
+                for (int i = 0; i < flavorDef.ingredients.Count; i++)
                 {
-                    Log.Message($"adding [{newAllowedThingDefs.ToStringSafeEnumerable()}] to {meal.ToStringSafe()}");
-                    if (MealRecipeDatabase.TryGetValue(meal, out var currentAllowedThingDefs))
-                    {
-                        currentAllowedThingDefs.AddRangeUnique(newAllowedThingDefs);
-                        MealRecipeDatabase[meal] = currentAllowedThingDefs;
-                    }
-                    else
-                    {
-                        MealRecipeDatabase.Add(meal, newAllowedThingDefs);
-                    }
+                    Log.Message($"checking [{flavorDef.ingredients[i].Categories.ToStringSafeEnumerable()}]");
+                    compIngredients.RegisterIngredient(compFlavor.GenerateGhostIngredientsManuallyDebug((flavorDef, slotIndices), compIngredients.ingredients, i, flavorDef.ingredients[i]));
+
                 }
+                compFlavor.TryGetFlavorText([flavorDef]);
+                GenPlace.TryPlaceThing(meal, UI.MouseCell(), Find.CurrentMap, ThingPlaceMode.Near, extraValidator: (IntVec3 c) => c.GetAllItemsStackCount(Find.CurrentMap, meal.def) == 0);
             }
         }
 
-        static List<ThingDef> VEF_AllProcessesWithThisAsProduct(ThingDef def)
-        {
-            List<PipeSystem.ProcessDef> processesForThing = [];
-            List<PipeSystem.ProcessDef> allDefsListForReading = DefDatabase<PipeSystem.ProcessDef>.AllDefsListForReading;
-            for (int j = 0; j < allDefsListForReading.Count; j++)
-            {
-                if (allDefsListForReading[j].results != null && allDefsListForReading[j].results.Any(result => result.thing == def))
-                {
-                    Log.Message($"adding {allDefsListForReading[j].ToStringSafe()} for {def.ToStringSafe()}");
-                    processesForThing.Add(allDefsListForReading[j]);
-                }
-            }
-            List<ThingDef> allowedThingDefs = [.. processesForThing.SelectMany(process => process.ingredients.Select(ing => ing.thing))];
-            allowedThingDefs.RemoveDuplicates();
-            if (processesForThing.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{def.ToStringSafe()} had {processesForThing.Count} processes, but across all those processes there were no allowedThingDefs to use.");
-            else return allowedThingDefs;
-        }
+        /*       // add VEF process products to database of meal recipes
+               public static void VEF_BuildMealRecipeDatabase()
+               {
+                   Log.Warning("VEF_BuildMealRecipeDatabase");
+                   foreach (var meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
+                   {
+                       var newAllowedThingDefs = VEF_AllProcessesWithThisAsProduct(meal);
+                       if (!newAllowedThingDefs.Empty())
+                       {
+                           Log.Message($"adding [{newAllowedThingDefs.ToStringSafeEnumerable()}] to {meal.ToStringSafe()}");
+                           if (MealRecipeDatabase.TryGetValue(meal, out var currentAllowedThingDefs))
+                           {
+                               currentAllowedThingDefs.AddRangeUnique(newAllowedThingDefs);
+                               MealRecipeDatabase[meal] = currentAllowedThingDefs;
+                           }
+                           else
+                           {
+                               MealRecipeDatabase.Add(meal, newAllowedThingDefs);
+                           }
+                       }
+                   }
+               }
+
+               static List<ThingDef> VEF_AllProcessesWithThisAsProduct(ThingDef def)
+               {
+                   List<PipeSystem.ProcessDef> processesForThing = [];
+                   List<PipeSystem.ProcessDef> allDefsListForReading = DefDatabase<PipeSystem.ProcessDef>.AllDefsListForReading;
+                   for (int j = 0; j < allDefsListForReading.Count; j++)
+                   {
+                       if (allDefsListForReading[j].results != null && allDefsListForReading[j].results.Any(result => result.thing == def))
+                       {
+                           Log.Message($"adding {allDefsListForReading[j].ToStringSafe()} for {def.ToStringSafe()}");
+                           processesForThing.Add(allDefsListForReading[j]);
+                       }
+                   }
+                   List<ThingDef> allowedThingDefs = [.. processesForThing.SelectMany(process => process.ingredients.Select(ing => ing.thing))];
+                   allowedThingDefs.RemoveDuplicates();
+                   if (processesForThing.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{def.ToStringSafe()} had {processesForThing.Count} processes, but across all those processes there were no allowedThingDefs to use.");
+                   else return allowedThingDefs;
+               }
 
 
 
 
-        // add SYR process products to database of meal recipes
-        public static void SYR_BuildMealRecipeDatabase()
-        {
-            Log.Warning($"SYR_BuildMealRecipeDatabase");
-            foreach (var meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
-            {
-                var newAllowedThingDefs = SYR_AllProcessesWithThisAsProduct(meal);
-                if (!newAllowedThingDefs.Empty())
-                {
-                    if (MealRecipeDatabase.TryGetValue(meal, out var currentAllowedThingDefs))
-                    {
-                        currentAllowedThingDefs.AddRangeUnique(newAllowedThingDefs);
-                        MealRecipeDatabase[meal] = currentAllowedThingDefs;
-                    }
-                    else
-                    {
-                        MealRecipeDatabase.Add(meal, newAllowedThingDefs);
-                    }
-                }
-            }
-        }
+               // add SYR process products to database of meal recipes
+               public static void SYR_BuildMealRecipeDatabase()
+               {
+                   Log.Warning($"SYR_BuildMealRecipeDatabase");
+                   foreach (var meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
+                   {
+                       var newAllowedThingDefs = SYR_AllProcessesWithThisAsProduct(meal);
+                       if (!newAllowedThingDefs.Empty())
+                       {
+                           if (MealRecipeDatabase.TryGetValue(meal, out var currentAllowedThingDefs))
+                           {
+                               currentAllowedThingDefs.AddRangeUnique(newAllowedThingDefs);
+                               MealRecipeDatabase[meal] = currentAllowedThingDefs;
+                           }
+                           else
+                           {
+                               MealRecipeDatabase.Add(meal, newAllowedThingDefs);
+                           }
+                       }
+                   }
+               }
 
 
-        static List<ThingDef> SYR_AllProcessesWithThisAsProduct(ThingDef def)
-        {
-            List<ProcessorFramework.ProcessDef> processesForThing = [];
-            List<ProcessorFramework.ProcessDef> allDefsListForReading = DefDatabase<ProcessorFramework.ProcessDef>.AllDefsListForReading;
-            for (int j = 0; j < allDefsListForReading.Count; j++)
-            {
-                if (allDefsListForReading[j].thingDef != null && allDefsListForReading[j].thingDef == def)
-                {
-                    processesForThing.Add(allDefsListForReading[j]);
-                }
-            }
-            List<ThingDef> allowedThingDefs = [.. processesForThing.SelectMany(process => process.ingredientFilter.AllowedThingDefs)];
-            allowedThingDefs.RemoveDuplicates();
-            if (processesForThing.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{def.ToStringSafe()} had {processesForThing.Count} processes, but across all those processes there were no allowedThingDefs to use.");
-            else return allowedThingDefs;
-        }
-*/
+               static List<ThingDef> SYR_AllProcessesWithThisAsProduct(ThingDef def)
+               {
+                   List<ProcessorFramework.ProcessDef> processesForThing = [];
+                   List<ProcessorFramework.ProcessDef> allDefsListForReading = DefDatabase<ProcessorFramework.ProcessDef>.AllDefsListForReading;
+                   for (int j = 0; j < allDefsListForReading.Count; j++)
+                   {
+                       if (allDefsListForReading[j].thingDef != null && allDefsListForReading[j].thingDef == def)
+                       {
+                           processesForThing.Add(allDefsListForReading[j]);
+                       }
+                   }
+                   List<ThingDef> allowedThingDefs = [.. processesForThing.SelectMany(process => process.ingredientFilter.AllowedThingDefs)];
+                   allowedThingDefs.RemoveDuplicates();
+                   if (processesForThing.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{def.ToStringSafe()} had {processesForThing.Count} processes, but across all those processes there were no allowedThingDefs to use.");
+                   else return allowedThingDefs;
+               }
+       */
     }
 
 /*    public class FlavorData

@@ -207,7 +207,7 @@ public class CompFlavor : ThingComp, IExposable
 
     private readonly List<FlavorCategoryDef> sketchyIngredients = [];
 
-    private List<FlavorCategoryDef> excludedCategories;
+    internal List<FlavorCategoryDef> excludedCategories;
 
 
     private ThingDef cookingStation;
@@ -563,6 +563,8 @@ public class CompFlavor : ThingComp, IExposable
             if (FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item1 = true; continue; }
             if (FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item2 = true; continue; }
             if (FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item3 = true; continue; }
+            dietTuple = (true, true, true);  // if condiment/drink/meal are all the ingredients
+            break;
         }
 
        
@@ -658,7 +660,7 @@ public class CompFlavor : ThingComp, IExposable
                     ? ((FlavorDef, List<int>))bestFlavor
                     : throw new NullReferenceException("Failed to find a matching Flavor Def. The best Flavor Def [" + bestFlavor.def.ToStringSafe() + "] or its list of indices [" + bestFlavor.indices.ToStringSafeEnumerable() + "] was null.");
             }
-            throw new InvalidOperationException("Failed to find a matching Flavor Def. There were no matching Flavor Defs found.");
+            throw new InvalidOperationException($"Failed to find a matching Flavor Def. There were no matching Flavor Defs found. Received {flavorDefsToSearch?.Count} flavorDefsToSearch and there were {validFlavorDefsToSearch?.Count} validFlavorDefsToSearch. All flavorDefsToSearch list:\n[{flavorDefsToSearch.ToStringSafeEnumerable()}]");
         }
         catch (Exception ex)
         {
@@ -919,7 +921,7 @@ public class CompFlavor : ThingComp, IExposable
         }
     }
 
-    private ThingDef GenerateGhostIngredientDeprecated((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
+    internal ThingDef GenerateGhostIngredientsManuallyDebug((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, int slotIndex, IngredientSlot slot)
     {
         ThingDef ghost = null;
         List<ThingDef> ghostIngredients = [.. slot.AllowedThingDefs.Where(ing => !excludedCategories.Any(ecat => ecat.ContainedInThisOrDescendant(ing)))];

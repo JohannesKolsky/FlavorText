@@ -282,9 +282,6 @@ public class FlavorDef : Def
                 }
             }
 
-            /// [MA, AP, MP]
-            /// [MAP, MP, P]
-
             foreach (var sketchy in SketchyDietCategories)
             {
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
@@ -296,13 +293,16 @@ public class FlavorDef : Def
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.animalProduct);
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.vegan);
 
-            if (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
 
-            if (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
+            // these don't mandate a certain # slots b/c these are effectively backup options for TryGetFlavorText() if only condiments/drinks are used as ingredients
 
-            if (slotAllowedCategories.Count > 1 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.animalFree);
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.carnivore);
 
-            if (slotAllowedCategories.Count > 2 && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw) || diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.vegetarian);
+
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.animalFree);
+
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);
 
             //Log.Message($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]. NormalDietCategories were [{NormalDietCategories.ToStringSafeEnumerable()}]. Had {slotAllowedCategories.Count} slots");
 
