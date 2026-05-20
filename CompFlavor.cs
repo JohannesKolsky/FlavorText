@@ -159,6 +159,8 @@ using static FlavorText.DietKind;
 //TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
 //TODO: bad cooks make weirder meals
 //TODO: variety matters warnings and errors?
+//TODO: remove "chopped" "shredded" etc from slots with FT_Ingredients or other places they could mismatch
+//TODO: 4-6 FlavorDefs bug out on Debug meal spawn
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -523,32 +525,36 @@ public class CompFlavor : ThingComp, IExposable
 
     private void SetMealDiet()
     {
-        if (Ingredients.Count == 0) return;
-        if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
-        {
-            mealDiet = Diet.vegan;
-        }
+        excludedCategories = [.. Props.defaultGhostExcludedCategories];
+        if (Ingredients.Count == 0) mealDiet = Diet.vegetarian;
         else
         {
-            mealDiet = CalculateIngredientDiet(Ingredients);
-        }
-        Log.Message($"{parent.ToStringSafe()} had mealDiet = {mealDiet.ToStringSafe()}");
-
-        excludedCategories = [.. Props.defaultGhostExcludedCategories];
-        foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
-        {
-            excludedCategories.AddDistinct(dietCat);
-        }
-
-
-        // check for sketchy ingredients like insect meat and fungus
-        foreach (var ing in Ingredients)
-        {
-            foreach (var sketchy in SketchyDietCategories)
+            if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
             {
-                if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
+                mealDiet = Diet.vegan;
+            }
+            else
+            {
+                mealDiet = CalculateIngredientDiet(Ingredients);
+            }
+            Log.Message($"{parent.ToStringSafe()} had mealDiet = {mealDiet.ToStringSafe()}");
+
+
+            // check for sketchy ingredients like insect meat and fungus
+            foreach (var ing in Ingredients)
+            {
+                foreach (var sketchy in SketchyDietCategories)
+                {
+                    if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
+                }
+            }
+
+            foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
+            {
+                excludedCategories.AddDistinct(dietCat);
             }
         }
+
 
         //Log.Warning($"mealDiet was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
     }
@@ -987,14 +993,14 @@ public class CompFlavor : ThingComp, IExposable
         if (GeneratedGhostIngredients) return;
         else
         {
-            if (Ingredients.Count >= FlavorTextSettings.numAllowedMissingIngredients)
+            if (Ingredients.Count >= FlavorTextSettings.ghostIngredientCap)
             {
                 GeneratedGhostIngredients = true;
                 return;
             }
         }
         Rand.PushState(FlavorSeed);
-        List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.numAllowedMissingIngredients - Ingredients.Count).Select(e => Rand.Bool)];
+        List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.ghostIngredientCap - Ingredients.Count).Select(e => Rand.Bool)];
 
 
         List<FlavorCategoryDef> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet).Where(cat => cat.DescendantThingDefs.Count > 0)

@@ -12,7 +12,7 @@ namespace FlavorText
     public class FlavorTextSettings : ModSettings
     {
 
-        public static int numAllowedMissingIngredients = 0; // how many ingredients is it ok to be missing to match a flavor def?
+        public static int ghostIngredientCap = 0; // how many ingredients is it ok to be missing to match a flavor def?
 
         public static bool randomizedRecipeOutput = true; // true: randomizes the recipe when multiple recipes match // false: always chooses the most specific recipe'
 
@@ -27,8 +27,8 @@ namespace FlavorText
             Listing_Standard listing_Standard = new();
             listing_Standard.Begin(inRect);
             listing_Standard.Gap();
-            //numAllowedMissingIngredients = (int)listing_Standard.SliderLabeled("numAllowedMissingIngredients".Translate(numAllowedMissingIngredients), numAllowedMissingIngredients, 0, 6, labelPct: 0.7f, tooltip: "numAllowedMissingIngredientsTooltip".Translate());
-            //listing_Standard.Gap();
+            ghostIngredientCap = (int)listing_Standard.SliderLabeled("numAllowedMissingIngredients".Translate(ghostIngredientCap), ghostIngredientCap, 0, 6, labelPct: 0.7f, tooltip: "numAllowedMissingIngredientsTooltip".Translate(ghostIngredientCap));
+            listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("randomizedRecipeOutput".Translate(), ref randomizedRecipeOutput, "randomizedRecipeOutputTooltip".Translate());
             listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("flavorTextForStacks".Translate(), ref flavorTextForStacks, "flavorTextForStacksTooltip".Translate());
@@ -42,7 +42,7 @@ namespace FlavorText
         public override void ExposeData()
         {
             base.ExposeData();
-            //Scribe_Values.Look(ref numAllowedMissingIngredients, "numAllowedMissingIngredients", defaultValue: 0, forceSave: true);
+            Scribe_Values.Look(ref ghostIngredientCap, "numAllowedMissingIngredients", defaultValue: 0, forceSave: true);
             Scribe_Values.Look(ref randomizedRecipeOutput, "randomizedRecipeOutput", defaultValue: true, forceSave: true);
             Scribe_Values.Look(ref laxRecipeMatching, "laxRecipeMatching", defaultValue: true, forceSave: true);
             Scribe_Values.Look(ref dynamicMealIncorporation, "dynamicMealIncorporation", defaultValue: true, forceSave: true);
