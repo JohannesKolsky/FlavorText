@@ -3,9 +3,9 @@ using RimWorld;
 using Verse;
 
 //DONE: reload flavor text on settings change  // happens on reload of save
+//DONE: always randomized recipe output?
 
 //TODO: reinitialize Defs when settings change so you don't require a restart (laxRecipeMatching, dynamicMealIncorporation)
-//TODO: always randomized recipe output?
 
 namespace FlavorText
 {

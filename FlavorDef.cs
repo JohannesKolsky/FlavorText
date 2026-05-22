@@ -111,7 +111,7 @@ public class FlavorDef : Def
     internal List<IngredientSlot> Ingredients { get => ingredients; set => ingredients = value; }
     internal List<int> FormattingIndices { get => formattingIndices; set => formattingIndices = value; }
     internal float Specificity { get => specificity; set => specificity = value; }
-    internal List<FlavorCategoryDef> RequiredSketchyIngredients { get => requiredSketchyIngredients; set => requiredSketchyIngredients = value; }
+    //internal List<FlavorCategoryDef> RequiredSketchyIngredients { get => requiredSketchyIngredients; set => requiredSketchyIngredients = value; }
     internal List<FlavorCategoryDef> MealKinds { get => mealKinds; set => mealKinds = value; }
     internal List<FlavorCategoryDef> MealQualities { get => mealQualities; set => mealQualities = value; }
     internal List<FlavorCategoryDef> CookingStations { get => cookingStations; set => cookingStations = value; }
@@ -281,11 +281,11 @@ public class FlavorDef : Def
                     slotAllowedCategories[i] = slotDietCopy;
                 }
             }
-
+/*
             foreach (var sketchy in SketchyDietCategories)
             {
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
-            }
+            }*/
 
             // TODO: [M, M, MAP] will currently appear as omnivore but is not; this won't break anything, but makes TryGetFlavorText() less efficient
 

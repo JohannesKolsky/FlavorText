@@ -124,6 +124,10 @@ using static FlavorText.DietKind;
 //DONE: spawned bread is becoming sourdough
 //DONE: sort error ghost ingredients
 //DONE: certain spawned meals still cause an error on first save and reload
+//DONE: 4-6 FlavorDefs bug out on Debug meal spawn (not enough types of ingredients, sketchy ingredient issues)
+//DONE: for ghost ingredients add 0-n random, then search
+//DONE: Vanilla Gourmet Parade meals are appearing as ghost ingredients
+//DONE: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
 
 //RELEASED: update XML files
 //RELEASED: check new game
@@ -148,11 +152,6 @@ using static FlavorText.DietKind;
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
 //TODO: sidedishclauses for single flavordef descriptions
-//TODO: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
-//TODO: test speed wih non-random flavor text generation and full search
-//TODO: Vanilla Gourmet Parade meals are appearing as ghost ingredients
-//TODO: for ghost ingredients add 0-n random, then search
-//TODO: if not changing ghost ingredient generation, sort ghost ingredients using MeatComparer
 //TODO: add list operators, like {0_plur_ALL}
 //TODO: full modlist small chance ghost ingredient simple meal spawns with 0 ingredients: deep fried big meat
 //TODO: error spawnMode near
@@ -160,7 +159,6 @@ using static FlavorText.DietKind;
 //TODO: bad cooks make weirder meals
 //TODO: variety matters warnings and errors?
 //TODO: remove "chopped" "shredded" etc from slots with FT_Ingredients or other places they could mismatch
-//TODO: 4-6 FlavorDefs bug out on Debug meal spawn
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -526,7 +524,12 @@ public class CompFlavor : ThingComp, IExposable
     private void SetMealDiet()
     {
         excludedCategories = [.. Props.defaultGhostExcludedCategories];
-        if (Ingredients.Count == 0) mealDiet = Diet.vegetarian;
+        if (Ingredients.Count == 0)
+        {
+            if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat) mealDiet = Diet.vegan;
+            else if (FoodUtility.GetFoodKind(parent) == FoodKind.Meat) mealDiet = Diet.carnivore;
+            else mealDiet = Diet.vegetarian;
+        }
         else
         {
             if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat)
@@ -637,7 +640,7 @@ public class CompFlavor : ThingComp, IExposable
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
-                    //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
+                    Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
                 if (FlavorTextSettings.randomizedRecipeOutput == true && matchingFlavors.Count >= numFlavorDefsBeforeBreak) break;
@@ -699,7 +702,7 @@ public class CompFlavor : ThingComp, IExposable
                 // if flavorDef is null, skip
                 if (flavorDef == null)
                 {
-                    if (Prefs.DevMode) Log.Warning("Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
+                    Log.Warning("Found a null FlavorDef in list of FinalFlavorDefs to search for a meal. Probably deprecated from an older version of FlavorText. Skipping...");
                     return null;
                 }
                 // if flavorDef length doesn't match ingredient list length, skip
@@ -714,7 +717,7 @@ public class CompFlavor : ThingComp, IExposable
                 {
                     if (ingredients.Empty())
                     {
-                        //Log.Message($"{flavorDef.ToStringSafe()} failed due to empty allowedDiets and ingredients");
+                        Log.Warning($"{flavorDef.ToStringSafe()} failed due to empty allowedDiets and ingredients");
                         return null;
                     }
                 }
@@ -723,14 +726,14 @@ public class CompFlavor : ThingComp, IExposable
                 // (fungus, insect meat) xx [Egg, Fungus]
                 // (fungus, insect meat) <=> [Meat, Fungus]
                 // if sketchy ingredients (fungus, insect meat, etc) are in the ingredients, ensure they appear
-                if (!flavorDef.RequiredSketchyIngredients.Empty())
+/*                if (!flavorDef.RequiredSketchyIngredients.Empty())
                 {
                     if (flavorDef.RequiredSketchyIngredients.Intersect(sketchyIngredients).Count() != flavorDef.RequiredSketchyIngredients.Count())
                     {
-                        //Log.Message($"{flavorDef.ToStringSafe()} failed due to requiredSketchyIngredients [{flavorDef.requiredSketchyIngredients.ToStringSafeEnumerable()}]");
+                        Log.Message($"{flavorDef.ToStringSafe()} failed due to requiredSketchyIngredients [{flavorDef.RequiredSketchyIngredients.ToStringSafeEnumerable()}]");
                         return null;
                     }
-                }
+                }*/
 
 
                 // {Food, Vegetable, Rice} => {Rice, Vegetable, Food} {2, 1, 0} with [berries, mushrooms] => [0, -1, 1]
