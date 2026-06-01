@@ -14,7 +14,7 @@ namespace FlavorText
 
         public static int ghostIngredientCap = 0; // how many ingredients is it ok to be missing to match a flavor def?
 
-        public static bool randomizedRecipeOutput = true; // true: randomizes the recipe when multiple recipes match // false: always chooses the most specific recipe'
+        public static bool quickSearch = false; // true: randomizes the recipe when multiple recipes match // false: always chooses the most specific recipe'
 
         public static bool laxRecipeMatching = true;  // true: if modded soups are present, soup-type labels will still appear for normal meals; requires restart
 
@@ -29,7 +29,7 @@ namespace FlavorText
             listing_Standard.Gap();
             ghostIngredientCap = (int)listing_Standard.SliderLabeled("numAllowedMissingIngredients".Translate(ghostIngredientCap), ghostIngredientCap, 0, 6, labelPct: 0.7f, tooltip: "numAllowedMissingIngredientsTooltip".Translate(ghostIngredientCap));
             listing_Standard.Gap();
-            listing_Standard.CheckboxLabeled("randomizedRecipeOutput".Translate(), ref randomizedRecipeOutput, "randomizedRecipeOutputTooltip".Translate());
+            listing_Standard.CheckboxLabeled("quickSearch".Translate(), ref quickSearch, "quickSearchTooltip".Translate());
             listing_Standard.Gap();
             listing_Standard.CheckboxLabeled("flavorTextForStacks".Translate(), ref flavorTextForStacks, "flavorTextForStacksTooltip".Translate());
             listing_Standard.Gap();
@@ -43,7 +43,7 @@ namespace FlavorText
         {
             base.ExposeData();
             Scribe_Values.Look(ref ghostIngredientCap, "numAllowedMissingIngredients", defaultValue: 0, forceSave: true);
-            Scribe_Values.Look(ref randomizedRecipeOutput, "randomizedRecipeOutput", defaultValue: true, forceSave: true);
+            Scribe_Values.Look(ref quickSearch, "quickSearch", defaultValue: false, forceSave: true);
             Scribe_Values.Look(ref laxRecipeMatching, "laxRecipeMatching", defaultValue: true, forceSave: true);
             Scribe_Values.Look(ref dynamicMealIncorporation, "dynamicMealIncorporation", defaultValue: true, forceSave: true);
             Scribe_Values.Look(ref flavorTextForStacks, "flavorTextForStacks", defaultValue: true, forceSave: true);

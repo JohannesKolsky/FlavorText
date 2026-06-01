@@ -287,7 +287,7 @@ public class FlavorDef : Def
                 if (slotSketchyCategories.Any(diet => diet.Contains(sketchy))) flavorDef.RequiredSketchyIngredients.Add(sketchy);
             }*/
 
-            // TODO: [M, M, MAP] will currently appear as omnivore but is not; this won't break anything, but makes TryGetFlavorText() less efficient
+            // TODO: [M, M, MAP] will currently appear as omnivore but is not; this won't break anything, but makes TryGetFlavorText() less efficient (see below)
 
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw))) flavorDef.allowedDiets.Add(Diet.hyperCarnivore);
             if (slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw))) flavorDef.allowedDiets.Add(Diet.animalProduct);
@@ -340,7 +340,7 @@ public class FlavorDef : Def
                 Log.Error($"The FlavorDef {flavorDef.defName} did not have any MealKinds, it will never appear in-game. Please report.");
             }
 
-            float restrictions = flavorDef.Ingredients.Sum(ing => Mathf.Sqrt(ing.AllowedThingDefs.Count()));  //sqrt to reduce impact of high ingredient counts
+            float restrictions = flavorDef.Ingredients.Sum(ing => ing.AllowedThingDefs.Count());
 
             // more specific if it has a required meal type, weighted to half-impact
             restrictions = restrictions * ((flavorDef.MealKinds.Sum(mealCategory => (float)mealCategory.DescendantThingDefs.Count()) / totalMealTypes) + 1) / 2;
@@ -365,7 +365,6 @@ public class FlavorDef : Def
 
             // higher restrictions: more broad (more ingredients, more cooking stations, etc)
             // higher specificity: more narrow
-            // ingredients # is already sqrted by this stage
             if (restrictions > 0) flavorDef.Specificity = 10000 / restrictions;
 
 

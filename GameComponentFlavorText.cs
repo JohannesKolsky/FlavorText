@@ -95,6 +95,7 @@ namespace FlavorText
             else return allowedThingDefs;
         }
 
+        // can spawn some warnings, for meals that are counted as active but not enough types of ingredients exist in the modlist (vanilla: dango, condiment_dressing, pinakbet_2)
         [DebugAction("Flavor Text", null, false, false, false, false, false, 0, false, actionType = DebugActionType.ToolMap, allowedGameStates = AllowedGameStates.PlayingOnMap, name = "Spawn a meal for each FlavorDef")]
         private static void Debug_SpawnMealsWithAllFlavorDefs()
         {

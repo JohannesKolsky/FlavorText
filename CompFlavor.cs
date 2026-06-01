@@ -128,6 +128,7 @@ using static FlavorText.DietKind;
 //DONE: for ghost ingredients add 0-n random, then search
 //DONE: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //DONE: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
+//--TODO: variety matters warnings and errors?  // from Variety Matters Redux, not Flavor Text
 
 //RELEASED: update XML files
 //RELEASED: check new game
@@ -139,14 +140,14 @@ using static FlavorText.DietKind;
 //RELEASED: check without DLCs or mods
 //RELEASED: check food modlist
 //RELEASE: check your own saves
-//RELEASED: check starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASE: check starting spawned/drop-podded, drop pod meals, trader meals
 //RELEASED: test FTV
-//RELEASE: test C# meats
-//RELEASE: test medieval overhaul
-//RELEASED: test multi-map and map destroy
+//RELEASED: test C# meats
+//RELEASED: test medieval overhaul
 //RELEASE: test translations
 //RELEASE: check speed
-//RELEASED: disable log messages
+//RELEASE: disable log messages
+//RELEASE: TryAddGhostIngredients should attempt to fill out the recipe if the meal has no ingredients
 
 
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
@@ -154,11 +155,10 @@ using static FlavorText.DietKind;
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: add list operators, like {0_plur_ALL}
 //TODO: full modlist small chance ghost ingredient simple meal spawns with 0 ingredients: deep fried big meat
-//TODO: error spawnMode near
 //TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
-//TODO: bad cooks make weirder meals
-//TODO: variety matters warnings and errors?
+//TODO: bad cooks make weirder meals?
 //TODO: remove "chopped" "shredded" etc from slots with FT_Ingredients or other places they could mismatch
+//TODO: error spawnMode near
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -503,7 +503,7 @@ public class CompFlavor : ThingComp, IExposable
             }
             catch (Exception ex2) when (ex2 is NullReferenceException or InvalidOperationException)
             {
-                if (Prefs.DevMode) Log.Warning($"Saved Flavor Text no longer matches for meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with ingredients [{Ingredients.ToStringSafeEnumerable()}], probably due to a settings change or an old version of FlavorText. Will attempt to get new Flavor Text. Error: \n\n{ex2}");
+                if (Prefs.DevMode) Log.Warning($"Saved FlavorDefs [{flavorDefsToSearch.ToStringSafeEnumerable()}] no longer matches for meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with ingredients [{Ingredients.ToStringSafeEnumerable()}], probably due to a settings change or an old version of FlavorText. Will attempt to get new Flavor Text. Error: \n\n{ex2}");
                 bestFlavors = [];
             }
         }
@@ -540,7 +540,7 @@ public class CompFlavor : ThingComp, IExposable
             {
                 mealDiet = CalculateIngredientDiet(Ingredients);
             }
-            Log.Message($"{parent.ToStringSafe()} had mealDiet = {mealDiet.ToStringSafe()}");
+            //Log.Message($"{parent.ToStringSafe()} had mealDiet = {mealDiet.ToStringSafe()}");
 
 
             // check for sketchy ingredients like insect meat and fungus
@@ -640,10 +640,10 @@ public class CompFlavor : ThingComp, IExposable
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
-                    Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
+                    //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
-                if (FlavorTextSettings.randomizedRecipeOutput == true && matchingFlavors.Count >= numFlavorDefsBeforeBreak) break;
+                if (FlavorTextSettings.quickSearch == true && matchingFlavors.Count >= numFlavorDefsBeforeBreak) break;
             }
             Rand.PopState();
 
@@ -653,17 +653,11 @@ public class CompFlavor : ThingComp, IExposable
             {
                 //foreach (var (def, indices) in matchingFlavors) { Log.Message(def.defName + " = " + def.specificity); }
                 (FlavorDef def, List<int> indices) bestFlavor;
-                if (FlavorTextSettings.randomizedRecipeOutput)
-                {
-                    Rand.PushState(FlavorSeed);
-                    bestFlavor = matchingFlavors.RandomElementByWeight(((FlavorDef def, List<int> indices) matchingFlavor) => matchingFlavor.def.Specificity);
-                    Rand.PopState();
-                }
-                else
-                {
-                    matchingFlavors = [.. matchingFlavors.OrderByDescending(entry => entry.def.Specificity)];
-                    bestFlavor = matchingFlavors.First();
-                }
+                
+                Rand.PushState(FlavorSeed);
+                bestFlavor = matchingFlavors.RandomElementByWeight(((FlavorDef def, List<int> indices) matchingFlavor) => matchingFlavor.def.Specificity);
+                Rand.PopState(); bestFlavor = matchingFlavors.First();
+                
                 //Log.Warning($"best FlavorDef {bestFlavor.def.ToStringSafe()} matched ingredients [{ingredients.ToStringSafeEnumerable()}] using indices [{bestFlavor.indices.ToStringSafeEnumerable()}] to [{bestFlavor.def.ingredients.Select(slot => "[" + slot.categories.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]\nFlavorDet diet = [{bestFlavor.def.allowedDiets.ToStringSafeEnumerable()}]\nghostExcludedCategories = [{excludedCategories.ToStringSafeEnumerable()}]");
                 return bestFlavor.def != null && bestFlavor.indices != null
                     ? ((FlavorDef, List<int>))bestFlavor

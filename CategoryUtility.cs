@@ -106,6 +106,7 @@ internal static class CategoryUtility
         //Debug();
 
         Log.Warning($"[Flavor Text] mod is now active: {FlavorDef.ActiveFlavorDefs.Count()} active FlavorDefs for the current modlist found out of {DefDatabase<FlavorDef>.AllDefs.Count()} total FlavorDefs");
+        //Log.Warning($"{FlavorDef.ActiveFlavorDefs.Select(def => $"{def.defName} {def.Specificity.ToStringSafe()}").ToStringSafeEnumerable()}");
     }
 
     /*    private static void Reinitialize()
@@ -133,8 +134,7 @@ internal static class CategoryUtility
         Log.Warning($"found {count} FlavorText-relevant ThingDefs");
         foreach (var thing in FlavorCategoryDefOf.FT_Root.DescendantThingDefs)
         {
-            tag = thing.defName.ToLower().Contains("meal");
-            if (tag) Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}").ToStringSafeEnumerable()}]");
+            Log.Message($">{thing.defName} with parent categories [{ThingParentCategories[thing].Select(parent => $"{parent.ToStringSafe()}").ToStringSafeEnumerable()}]");
         }
     }
 
