@@ -112,7 +112,7 @@ internal static class InflectionUtility
                 var key = DefDatabase<ThingDef>.GetNamedSilentFail(kvp.Key);
                 if (key == null) 
                 {
-                    Log.Error($"{kvp.Key.ToStringSafe()} returned a key value of null when searched. The ThingDef has been deleted by another mod. Ignoring."); 
+                    Log.Error($"{kvp.Key.ToStringSafe()} returned a key value of null when searched. This ThingDef doesn't exist, either the name is incorrect or it was deleted by another mod. Ignoring."); 
                     continue; 
                 }
                 ThingInflectionsDictionary.AddDistinct(key, kvp.Value);

@@ -130,26 +130,29 @@ using static FlavorText.DietKind;
 //DONE: Vanilla Gourmet Parade meals are appearing as ghost ingredients
 //DONE: holding only 5 random fitting FlavorDefs prevents non-random flavor text generation from working properly
 //--TODO: variety matters warnings and errors?  // from Variety Matters Redux, not Flavor Text
+//DONE: bad cooks make weirder meals?
+//RELEASED: TryAddGhostIngredients should attempt to fill out the recipe if the meal has no ingredients
+//DONE: simple dessert doesn't seem to add as many ing as it should on average
 
-//RELEASED: update XML files
-//RELEASED: check new game
-//RELEASED: check add to game
-//RELEASED: check remove from game
-//RELEASED: check updating FlavorText on save
-//RELEASED: check save and reload game
-//RELEASED: check all meal types
-//RELEASED: check without DLCs or mods
-//RELEASED: check food modlist
+//RELEASE: update XML files
+//RELEASE: check new game
+//RELEASE: check add to game
+//RELEASE: check remove from game
+//RELEASE: check updating FlavorText on save
+//RELEASE: check save and reload game
+//RELEASE: check all meal types
+//RELEASE: check without DLCs or mods
+//RELEASE: check food modlist
 //RELEASE: check your own saves
 //RELEASE: check starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASED: test FTV
-//RELEASED: test C# meats
-//RELEASED: test medieval overhaul
+//RELEASE: test FTV
+//RELEASE: test C# meats
+//RELEASE: test medieval overhaul
 //RELEASE: test translations
 //RELEASE: check speed
 //RELEASE: disable log messages
-//RELEASE: TryAddGhostIngredients should attempt to fill out the recipe if the meal has no ingredients
-
+//TODO: error spawnMode near, most likely from mismatched diet kinds
+//TODO: FT_Coconut being in FT_Fruit and FT_Nut causes weird behavior for spawning every FlavorDef
 
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
@@ -158,8 +161,6 @@ using static FlavorText.DietKind;
 //TODO: full modlist small chance ghost ingredient simple meal spawns with 0 ingredients: deep fried big meat
 //TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
 //TODO: bad cooks make weirder meals?
-//TODO: remove "chopped" "shredded" etc from slots with FT_Ingredients or other places they could mismatch
-//TODO: error spawnMode near
 //TODO: can mealTags replace sketchyIngredients?
 
 /// <summary>
@@ -1007,6 +1008,7 @@ public class CompFlavor : ThingComp, IExposable
         Rand.PopState();
     }
     
+    //TODO: this stacks up when meals are repeatedly spawned
     // fill up blank meal with random ingredients matching its recipe
     private void FillInRecipe(RecipeDef mealRecipe)
     {
@@ -1039,14 +1041,19 @@ public class CompFlavor : ThingComp, IExposable
         recipeAllowedDefs.RemoveDuplicates();
         if (recipeAllowedDefs.Empty()) throw new NullReferenceException($"{recipe.ToStringSafe()} had no allowedThingDefs.");
 
-
         List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.ghostIngredientCap - Ingredients.Count).Select(e => Rand.Bool)];
+        Log.Message($"ghostBools were [{ghostBools.ToStringSafeEnumerable()}]");
 
 
-        List<FlavorCategoryDef> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet).Where(cat => cat.DescendantThingDefs.Count > 0)
+        List<List<ThingDef>> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet)
+            .Where(cat => cat.DescendantThingDefs.Count > 0)
             .SelectMany(cat => cat.ThisAndDescendants)
-            .Where(desc => desc.ChildThingDefs.Count > 0 && !desc.ThisAndAncestors.Any(excludedCategories.Contains))];
-        List<FlavorCategoryDef> ghostCategoriesSorted = [];
+            .Distinct()
+            .Where(desc => desc.ChildThingDefs.Count > 0 && !desc.ThisAndAncestors.Any(excludedCategories.Contains))
+            .Select(desc => desc.ChildThingDefs)
+            .Select<List<ThingDef>, List<ThingDef>>(things => [.. things.Intersect(recipeAllowedDefs)])
+            .Where(things => things.Any())];
+        List<List<ThingDef>> ghostCategoriesSorted = [];
         try
         {
             ghostCategoriesSorted = [.. ghostCategories.OrderBy(c => Rand.Value)];  // sort in random order so you can iterate over it
@@ -1057,6 +1064,8 @@ public class CompFlavor : ThingComp, IExposable
             throw;
         }
 
+        Log.Warning($"ghostCategoriesSorted: [{ghostCategoriesSorted.Select(cat => $"[{cat.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+
         // iterate over a randomly sorted list of categories
         // gives more variety by avoiding things like FT_MeatRaw dominating the list of ingredients
         List<ThingDef> ings;
@@ -1065,8 +1074,12 @@ public class CompFlavor : ThingComp, IExposable
             for (int i = 0; i < ghostBools.Count; i++)
             {
                 int j = i % ghostCategoriesSorted.Count;  // wrap around ghostCategories
-                ings = [.. ghostCategoriesSorted[j].DescendantThingDefs.Where(thing => !Ingredients.Contains(thing) && (recipeAllowedDefs.Count() == 0 || recipeAllowedDefs.Contains(thing)))];
-                if (ghostBools[j]) AddGhostIngredientSingle(ings);
+                if (ghostBools[i])
+                {
+                    ings = [.. ghostCategoriesSorted[j].Where(thing => !Ingredients.Contains(thing))];
+                    Log.Message($"[{ings.ToStringSafeEnumerable()}] are possible extra ghost ingredients");
+                    AddGhostIngredientSingle(ings);
+                }
             }
         }
         GeneratedGhostIngredients = true;
