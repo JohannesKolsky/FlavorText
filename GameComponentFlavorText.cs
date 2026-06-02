@@ -58,7 +58,7 @@ namespace FlavorText
         }
 
 
-        public static Dictionary<ThingDef, List<ThingDef>> MealRecipeDatabase = [];  // dictionary of what actual recipes (not FlavorDefs) are used for what meals
+        public static Dictionary<ThingDef, List<RecipeDef>> MealRecipeDatabase = [];  // dictionary of what actual recipes (not FlavorDefs) are used for what meals
 
         internal static void BuildMealRecipeDatabase()
         {
@@ -71,14 +71,23 @@ namespace FlavorText
         {
             foreach (var meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
             {
-                var allowedThingDefs = AllRecipesWithThisAsProduct(meal);
-                if (!allowedThingDefs.Empty()) MealRecipeDatabase.Add(meal, allowedThingDefs);
+                var recipes = AllRecipesWithThisAsProduct(meal);
+                MealRecipeDatabase.Add(meal, recipes);
             }
         }
 
 
         //TODO: this doesn't cover processes, but how often is that really needed?
-        private static List<ThingDef> AllRecipesWithThisAsProduct(ThingDef def)
+        internal static List<ThingDef> AllowedThingDefsFromRecipes(ThingDef def)
+        {
+            var recipesForThing = MealRecipeDatabase[def];
+            List<ThingDef> allowedThingDefs = [.. recipesForThing.SelectMany(recipe => recipe.ingredients.SelectMany(slot => slot.filter.AllowedThingDefs))];
+            allowedThingDefs.RemoveDuplicates();
+            if (recipesForThing.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{def.ToStringSafe()} had {recipesForThing.Count} recipes, but across all those recipes there were no allowedThingDefs to use.");
+            return allowedThingDefs;
+        }
+
+        private static List<RecipeDef> AllRecipesWithThisAsProduct(ThingDef def)
         {
             List<RecipeDef> recipesForThing = [];
             List<RecipeDef> allDefsListForReading = DefDatabase<RecipeDef>.AllDefsListForReading;
@@ -89,10 +98,7 @@ namespace FlavorText
                     recipesForThing.Add(allDefsListForReading[j]);
                 }
             }
-            List<ThingDef> allowedThingDefs = [.. recipesForThing.SelectMany(recipe => recipe.ingredients.SelectMany(slot => slot.filter.AllowedThingDefs))];
-            allowedThingDefs.RemoveDuplicates();
-            if (recipesForThing.Count > 0 && allowedThingDefs.Empty()) throw new NullReferenceException($"{def.ToStringSafe()} had {recipesForThing.Count} recipes, but across all those recipes there were no allowedThingDefs to use.");
-            else return allowedThingDefs;
+            return recipesForThing;
         }
 
         // can spawn some warnings, for meals that are counted as active but not enough types of ingredients exist in the modlist (vanilla: dango, condiment_dressing, pinakbet_2)

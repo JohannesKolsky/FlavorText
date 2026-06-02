@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Verse;
@@ -159,6 +160,7 @@ using static FlavorText.DietKind;
 //TODO: bad cooks make weirder meals?
 //TODO: remove "chopped" "shredded" etc from slots with FT_Ingredients or other places they could mismatch
 //TODO: error spawnMode near
+//TODO: can mealTags replace sketchyIngredients?
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -447,7 +449,8 @@ public class CompFlavor : ThingComp, IExposable
             //set restrictions based on the FoodKind of the meal and weird ingredients
             SetMealDiet();
             //Log.Warning($"diet for {parent.ThingID} at {parent.PositionHeld} is {mealDiet}");
-            TryAddGhostIngredients();
+
+            TryAddExtraIngredients();
             TriedFlavorText = true;
 
             // actually try to get some FlavorDefs and generate some flavor text from them
@@ -984,19 +987,59 @@ public class CompFlavor : ThingComp, IExposable
         return ghost ?? throw new NullReferenceException($"Failed to generate ghost ingredient for {flavorTuple.def.defName.ToStringSafe()}. Slot {slotIndex} with ghost categories [{ghostCategories.ToStringSafeEnumerable()}] in flavorDef {flavorTuple.def.defName.ToStringSafe()}");
     }
 
-    // add random ingredients if settings allow, 50% chance for each
-    internal void TryAddGhostIngredients()
+    private void TryAddExtraIngredients()
+    {
+        if (FlavorTextSettings.fillUpBlankMeals == false && FlavorTextSettings.ghostIngredientCap == 0) return;
+
+        Rand.PushState(FlavorSeed);
+
+        RecipeDef mealRecipe = null;
+        List<RecipeDef> mealRecipes = GameComponentFlavorText.MealRecipeDatabase.TryGetValue(parent.def);
+        if (!mealRecipes.NullOrEmpty())
+        {
+            int r = Rand.Range(0, mealRecipes.Count());
+            mealRecipe = mealRecipes[r];
+        }
+
+        FillInRecipe(mealRecipe);
+        AddGhostIngredients(mealRecipe);
+
+        Rand.PopState();
+    }
+    
+    // fill up blank meal with random ingredients matching its recipe
+    private void FillInRecipe(RecipeDef mealRecipe)
+    {
+        if (FlavorTextSettings.fillUpBlankMeals == true && mealRecipe != null && Ingredients.Count() == 0)
+        {
+            foreach (var slot in mealRecipe.ingredients)
+            {
+                // don't use categories here b/c its a private field and too annoying to get into
+                List<ThingDef> candidateIngredients = [.. slot.filter.AllowedThingDefs.Where(ing => !Ingredients.Contains(ing) && !excludedCategories.Any(ex => ex.ContainedInThisOrDescendant(ing)))];
+                AddGhostIngredientSingle(candidateIngredients);
+            }
+        }
+
+    }
+
+    // add random extra ingredients if settings allow, 50% chance for each
+    internal void AddGhostIngredients(RecipeDef recipe)
     {
         if (GeneratedGhostIngredients) return;
         else
         {
-            if (Ingredients.Count >= FlavorTextSettings.ghostIngredientCap)
+            if (Ingredients.Empty() || Ingredients.Count >= FlavorTextSettings.ghostIngredientCap)
             {
                 GeneratedGhostIngredients = true;
                 return;
             }
         }
-        Rand.PushState(FlavorSeed);
+
+        List<ThingDef> recipeAllowedDefs = [.. recipe.ingredients.SelectMany(slot => slot.filter.AllowedThingDefs)];
+        recipeAllowedDefs.RemoveDuplicates();
+        if (recipeAllowedDefs.Empty()) throw new NullReferenceException($"{recipe.ToStringSafe()} had no allowedThingDefs.");
+
+
         List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.ghostIngredientCap - Ingredients.Count).Select(e => Rand.Bool)];
 
 
@@ -1014,8 +1057,8 @@ public class CompFlavor : ThingComp, IExposable
             throw;
         }
 
-        IEnumerable<ThingDef> recipeAllowedDefs = GameComponentFlavorText.MealRecipeDatabase.TryGetValue(parent.def, []);
-
+        // iterate over a randomly sorted list of categories
+        // gives more variety by avoiding things like FT_MeatRaw dominating the list of ingredients
         List<ThingDef> ings;
         if (ghostBools.Any(boo => boo == true))
         {
@@ -1026,21 +1069,17 @@ public class CompFlavor : ThingComp, IExposable
                 if (ghostBools[j]) AddGhostIngredientSingle(ings);
             }
         }
-        if (Ingredients.Count == 0)  // if 0 ingredients ensure 1 generates
-        {
-            AddGhostIngredientSingle([.. ghostCategoriesSorted.SelectMany(cat => cat.DescendantThingDefs.Where(thing => recipeAllowedDefs.Count() == 0 || recipeAllowedDefs.Contains(thing)))]);
-        }
-        Rand.PopState();
         GeneratedGhostIngredients = true;
         return;
+    }
 
-        void AddGhostIngredientSingle(List<ThingDef> ings)
-        {
-            if (ings.Count() == 0) return;
-            int r = Rand.Range(0, ings.Count());
-            parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
-            //Log.Message($"added {ings[r]}");
-        }
+    // add a single random ingredient from the list
+    private void AddGhostIngredientSingle(List<ThingDef> ings)
+    {
+        if (ings.Count() == 0) return;
+        int r = Rand.Range(0, ings.Count());
+        parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
+        //Log.Message($"added {ings[r]}");
     }
 
     // compile the flavor labels into one long displayed flavor label
