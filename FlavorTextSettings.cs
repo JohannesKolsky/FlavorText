@@ -46,6 +46,7 @@ namespace FlavorText
         public override void ExposeData()
         {
             base.ExposeData();
+            Scribe_Values.Look(ref fillUpBlankMeals, "fillUpBlankMeals", defaultValue: false, forceSave: true);
             Scribe_Values.Look(ref ghostIngredientCap, "numAllowedMissingIngredients", defaultValue: 0, forceSave: true);
             Scribe_Values.Look(ref quickSearch, "quickSearch", defaultValue: false, forceSave: true);
             Scribe_Values.Look(ref laxRecipeMatching, "laxRecipeMatching", defaultValue: true, forceSave: true);

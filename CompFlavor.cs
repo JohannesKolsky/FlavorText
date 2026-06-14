@@ -133,6 +133,8 @@ using static FlavorText.DietKind;
 //DONE: bad cooks make weirder meals?
 //RELEASED: TryAddGhostIngredients should attempt to fill out the recipe if the meal has no ingredients
 //DONE: simple dessert doesn't seem to add as many ing as it should on average
+//DONE: fix pluralizations in side dish clauses
+//DONE: side dish label rulepacks are repetitive
 
 //RELEASE: update XML files
 //RELEASE: check new game
@@ -158,10 +160,11 @@ using static FlavorText.DietKind;
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
 //TODO: sidedishclauses for single flavordef descriptions
 //TODO: add list operators, like {0_plur_ALL}
-//TODO: full modlist small chance ghost ingredient simple meal spawns with 0 ingredients: deep fried big meat
 //TODO: AC hemp oil => oil when used as ingredient. Is there a way to use the hemp oil label?
 //TODO: bad cooks make weirder meals?
 //TODO: can mealTags replace sketchyIngredients?
+//TODO: spawnCaravanInventory meals have fewer ingredients on average than extraIngredientCap should make
+//TODO: sing/coll/adj inflections for FlavorDef labels: "a peach smoothie"/"peach smoothie"; "an apple fritter"/"apple fritters"/"apple fritter"
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -171,13 +174,14 @@ using static FlavorText.DietKind;
 ///     makes and stores new flavor descriptions
 ///     stores meal details like tick created and chef
 ///     
-///     1-ingredient meal: 1 ms
+///     1-ingredient meal: 3 ms
 ///     40-ingredient meal: 31 ms
 ///     
 ///     during gameplay TryGetFlavorText is only called when needed:
 ///         making a product from a cooking station
 ///         merging stacks for absorbing stack
 ///         loading game from save if TriedFlavorText == true
+///         selecting the meal
 /// </summary>
 /// 
 
@@ -1108,14 +1112,18 @@ public class CompFlavor : ThingComp, IExposable
                 request.Includes.Add(RulePackDef.Named("FT_Tags"));
                 stringBuilder.Append(GrammarResolver.Resolve("hairy", request));
             }
-            for (int j = 0; j < flavorLabels.Count; j++)
+
+            stringBuilder.Append(GenText.CapitalizeAsTitle(flavorLabels[0]));
+            GrammarRequest requestLabel = default;
+            requestLabel.Includes.Add(RulePackDef.Named("FT_SideDishLabels"));
+            if (flavorLabels.Count > 1)
             {
-                stringBuilder.AppendWithSeparator(j switch
+                Rand.PushState(FlavorSeed);
+                for (int j = 1; j < flavorLabels.Count; j++)
                 {
-                    1 => "with ",
-                    0 => "",
-                    _ => "and ",
-                } + GenText.CapitalizeAsTitle(flavorLabels[j]), " ");
+                    stringBuilder = new(string.Format(GrammarResolver.Resolve("label", requestLabel), stringBuilder.ToString(), GenText.CapitalizeAsTitle(flavorLabels[j])));
+                }
+                Rand.PopState();
             }
             finalFlavorLabel = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
         }
@@ -1131,20 +1139,17 @@ public class CompFlavor : ThingComp, IExposable
                 return;
             }
             Rand.PushState(Find.World.info.Seed + Iteration.Value);
-            RulePackDef sideDishClauses = RulePackDef.Named("FT_SideDishClauses");  // connector phrases for when meal has multiple FinalFlavorDefs
+            RulePackDef sideDishDescriptions = RulePackDef.Named("FT_SideDishDescriptions");  // connector phrases for when meal has multiple FinalFlavorDefs
             StringBuilder stringBuilder = new();
-            for (int j = 0; j < flavorDescriptions.Count; j++)
             {
-                if (j == 0)  // if it's the first description, just use the description
-                {
-                    stringBuilder.Append(CleanUpDescription(flavorDescriptions[j]));
-                }
-                if (j > 0)  // if it's the 2nd+ description, in a new paragraph, use a side dish connector clause with the label, then the description
+                GrammarRequest request = default;
+                request.Includes.Add(sideDishDescriptions);
+                stringBuilder.Append(CleanUpDescription(string.Format(GrammarResolver.Resolve("maindish", request), flavorLabels[0], flavorDescriptions[0])));
+                for (int j = 1; j < flavorDescriptions.Count; j++)
                 {
                     // connector clause with side dish label
-                    GrammarRequest request = default;  // get a random connector sentence
-                    request.Includes.Add(sideDishClauses);
-                    stringBuilder.AppendWithSeparator(CleanUpDescription(string.Format(GrammarResolver.Resolve("sidedish", request), flavorLabels[j], flavorDescriptions[j])), "\n\n");  // place the current flavor label in its placeholder spot within the sentence
+                    // place the current flavor label in its placeholder spot within the sentence
+                    stringBuilder.AppendWithSeparator(CleanUpDescription(string.Format(GrammarResolver.Resolve("sidedish", request), flavorLabels[j], flavorDescriptions[j])), "\n\n");
                 }
             }
             finalFlavorDescription = Find.ActiveLanguageWorker.PostProcessed(stringBuilder.ToString().TrimEndNewlines());
