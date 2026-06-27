@@ -302,7 +302,7 @@ public class FlavorDef : Def
 
             if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw)) && slotAllowedCategories.All(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw) || diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.animalFree);
 
-            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);
+            if (slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_MeatRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_AnimalProductRaw)) && slotAllowedCategories.Any(diet => diet.Contains(FlavorCategoryDefOf.FT_PlantFoodRaw))) flavorDef.allowedDiets.Add(Diet.omnivore);  //TODO: why does omnivore not have .All?
 
             //Log.Message($"{flavorDef.defName.ToStringSafe()} had allowedDietKinds [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and slotDiets [{slotAllowedCategories.Select(slot => $"[{slot.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]. NormalDietCategories were [{NormalDietCategories.ToStringSafeEnumerable()}]. Had {slotAllowedCategories.Count} slots");
 

@@ -113,6 +113,7 @@ namespace FlavorText
                 CompIngredients compIngredients = meal.TryGetComp<CompIngredients>();
                 List<int> slotIndices = [.. Enumerable.Range(0, flavorDef.ingredients.Count)];
 
+                Log.Message($"generated {flavorDef.ToStringSafe()}");
                 for (int i = 0; i < flavorDef.ingredients.Count; i++)
                 {
                     Log.Message($"checking [{flavorDef.ingredients[i].Categories.ToStringSafeEnumerable()}]");

@@ -153,7 +153,14 @@ using static FlavorText.DietKind;
 //RELEASE: test translations
 //RELEASE: check speed
 //RELEASE: disable log messages
-//TODO: error spawnMode near, most likely from mismatched diet kinds
+///TODO: error spawnMode Near when FT fillUpBlankMeals == true && CS fillMeals == false
+///when initially spawned, a meal is vegetarian; however FT puts an ingredient in it, which can change the diet kind
+///if the game attempts to spawn a vegetarian meal on a non-vegetarian meal, it throws the error
+///ultimately the issue is that by the time you hit PreAbsorbStack, you're committed to merging the meals, and adding new ingredients at that stage causes problems
+///clicking on the stack before spawning in the new meal makes it so the error doesn't trigger
+///A DIFFERENT ERROR when FT addExtraIngredients > 0 && (fillUpBlank Meals == true || CS fillMeals == true)
+///mealDiet is incorrect, which allows extra incorrect ingredients to be added, which changes the FoodKind
+///when this happens while stacks are committed to being merged, it causes issues
 //TODO: FT_Coconut being in FT_Fruit and FT_Nut causes weird behavior for spawning every FlavorDef
 
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
@@ -165,6 +172,7 @@ using static FlavorText.DietKind;
 //TODO: can mealTags replace sketchyIngredients?
 //TODO: spawnCaravanInventory meals have fewer ingredients on average than extraIngredientCap should make
 //TODO: sing/coll/adj inflections for FlavorDef labels: "a peach smoothie"/"peach smoothie"; "an apple fritter"/"apple fritters"/"apple fritter"
+//TODO: VNPE seems to pick the same FlavorDef repeatedly within a given meal, not always, but way more often than it should
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -354,6 +362,7 @@ public class CompFlavor : ThingComp, IExposable
     {
         try
         {
+            Log.Warning($"PreAbsorb stack start for {parent.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with mealKind={FoodUtility.GetFoodKind(parent)} and ingredients [{CompIngredients.ingredients.ToStringSafeEnumerable()}]\nOtherstack was {otherStack.ToStringSafe()} x{otherStack.stackCount.ToStringSafe()} spawned={otherStack.Spawned.ToStringSafe()} at {otherStack.PositionHeld.ToStringSafe()} with mealKind={FoodUtility.GetFoodKind(otherStack)} and ingredients [{otherStack.TryGetComp<CompIngredients>().ingredients.ToStringSafeEnumerable()}]");
             base.PreAbsorbStack(otherStack, count);
             TryGetFlavorText();
 
@@ -567,9 +576,8 @@ public class CompFlavor : ThingComp, IExposable
         }
 
 
-        //Log.Warning($"mealDiet was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
+        Log.Warning($"mealDiet for {parent.ThingID.ToStringSafe()} was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
     }
-
 
     // determine what FlavorDefs the given ingredient list matches
     private Diet CalculateIngredientDiet(List<ThingDef> ingredients)
@@ -577,17 +585,16 @@ public class CompFlavor : ThingComp, IExposable
         (bool, bool, bool) dietTuple = (false, false, false);
         foreach (var ing in ingredients)
         {
-            if (FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item1 = true; continue; }
-            if (FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item2 = true; continue; }
-            if (FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item3 = true; continue; }
-            dietTuple = (true, true, true);  // if condiment/drink/meal are all the ingredients
-            break;
+            if (FlavorCategoryDefOf.FT_MeatRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item1 = true; }
+            if (FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item2 = true; }
+            if (FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item3 = true; }
         }
 
+        Log.Message($"dietTuple was {dietTuple.ToStringSafe()}");
        
         switch (dietTuple)
         {
-            case (false, false, false): throw new ArgumentOutOfRangeException($"dietTuple for {parent.ToStringSafe()} was (false, false, false), which should not be possible.");
+            case (false, false, false): return Diet.vegan; // if everything is false (all condiments), default to the most restricted: vegan
             case (true, false, false): return Diet.hyperCarnivore;
             case (false, true, false): return Diet.animalProduct;
             case (false, false, true): return Diet.vegan;
@@ -994,6 +1001,7 @@ public class CompFlavor : ThingComp, IExposable
 
     private void TryAddExtraIngredients()
     {
+        Log.Warning($"TryAddExtraIngredients for {parent.ThingID.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with ingredients [{Ingredients.ToStringSafeEnumerable()}]");
         if (FlavorTextSettings.fillUpBlankMeals == false && FlavorTextSettings.ghostIngredientCap == 0) return;
 
         Rand.PushState(FlavorSeed);
@@ -1068,7 +1076,7 @@ public class CompFlavor : ThingComp, IExposable
             throw;
         }
 
-        Log.Warning($"ghostCategoriesSorted: [{ghostCategoriesSorted.Select(cat => $"[{cat.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+        Log.Message($"ghostCategoriesSorted: [{ghostCategoriesSorted.Select(cat => $"[{cat.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
 
         // iterate over a randomly sorted list of categories
         // gives more variety by avoiding things like FT_MeatRaw dominating the list of ingredients
@@ -1096,7 +1104,7 @@ public class CompFlavor : ThingComp, IExposable
         if (ings.Count() == 0) return;
         int r = Rand.Range(0, ings.Count());
         parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
-        //Log.Message($"added {ings[r]}");
+        Log.Message($"added {ings[r]}, FoodKind is now {FoodUtility.GetFoodKind(parent)}");
     }
 
     // compile the flavor labels into one long displayed flavor label
