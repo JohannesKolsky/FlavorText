@@ -27,12 +27,12 @@ using static FlavorText.DietKind;
 
 namespace FlavorText;
 
-internal class DietKind
+public class DietKind
 {
     // basic diet types based on possible ingredients
     // this is exclusive: omnivore requires a plant ingredient, vegetarian requires an animal ingredient
     // this order is strict, because a subrange of this can be used in searches
-	internal enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan, animalProduct, animalFree}
+	public enum Diet { hyperCarnivore, carnivore, omnivore, vegetarian, vegan, animalProduct, animalFree}
 
 	internal static readonly Dictionary<Diet, List<FlavorCategoryDef>> dietExcludedCategories = new()
     {

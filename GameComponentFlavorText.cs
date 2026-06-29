@@ -3,6 +3,7 @@ using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 using Verse;
 
 //DONE: CompFlavorData constructor not found error on load of save
@@ -123,6 +124,13 @@ namespace FlavorText
                 compFlavor.TryGetFlavorText([flavorDef]);
                 GenPlace.TryPlaceThing(meal, UI.MouseCell(), Find.CurrentMap, ThingPlaceMode.Near, extraValidator: (IntVec3 c) => c.GetAllItemsStackCount(Find.CurrentMap, meal.def) == 0);
             }
+        }
+
+
+        [DebugAction("Flavor Text", null, false, false, false, false, false, 0, false, actionType = DebugActionType.ToolMap, allowedGameStates = AllowedGameStates.PlayingOnMap, name = "Spawn meal x4")]
+        private static void Debug_Spawn4Meals()
+        {
+            DebugThingPlaceHelper.DebugSpawn(ThingDefOf.MealSimple, UI.MouseCell(), 4, false);
         }
 
         /*       // add VEF process products to database of meal recipes

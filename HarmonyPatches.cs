@@ -26,16 +26,25 @@ public static class HarmonyPatches
         var patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
         harmony.Patch(AccessTools.Method(typeof(CompIngredients), "RegisterIngredient"), postfix: new HarmonyMethod(patchType, "RegisterIngredientPostfix"));
+        //harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing"), postfix: new HarmonyMethod(patchType, "MakeThingPostfix"));
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), postfix: new HarmonyMethod(patchType, "MakeRecipeProductsPostfix"));
     }
 
     // dirty ingredient cache when a new ingredient is added, forcing a recheck once TryGetFlavorText is next called
+    // using this since it covers spawning a meal, cooking at a station, and dispensing nutrient paste simultaneously
+    //TODO: can this be converted to mergeCompatibilityTags?
     public static void RegisterIngredientPostfix(ref CompIngredients __instance)
     {
-        if (!__instance.parent.HasComp<CompFlavor>()) return;
         CompFlavor compFlavor = __instance.parent.TryGetComp<CompFlavor>();
         if (compFlavor != null) { compFlavor.TriedFlavorText = false; compFlavor.ingredientsCached = null; }
     }
+
+    //// trigger TryGetFlavorText() when a meal is created
+    //public static void MakeThingPostfix(ref Thing __result)
+    //{
+    //    CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
+    //    compFlavor?.TryGetFlavorText();
+    //}
 
 
     // after making a product with CompIngredients, add information about how it was cooked
@@ -71,6 +80,7 @@ public static class HarmonyPatches
     }
 
     // check for CompFlavored ingredients and try to use those FlavorDefs
+    //othwerwise, do TryGetFlavorText normally
     public static void TryGetFlavorTextWithSubMeals(List<Thing> ingredients, CompFlavor compFlavor)
     {
         List<FlavorDef> ingredientFlavorDefs = [];

@@ -135,6 +135,24 @@ using static FlavorText.DietKind;
 //DONE: simple dessert doesn't seem to add as many ing as it should on average
 //DONE: fix pluralizations in side dish clauses
 //DONE: side dish label rulepacks are repetitive
+///DONE: A DIFFERENT ERROR when FT addExtraIngredients > 0 && (fillUpBlank Meals == true || CS fillMeals == true)
+///mealDiet is incorrect, which allows extra incorrect ingredients to be added, which changes the FoodKind
+///when this happens while stacks are committed to being merged, it causes issues
+///--TODO: error spawnMode Near when FT fillUpBlankMeals == true && CS fillMeals == false  --DONE: removed fillUpBlankMeals; mod recommends CommonSense
+///when a blank meal is initially spawned, it is vegetarian; however FT puts an ingredient in it, which can change the diet kind
+///if the game attempts to spawn a vegetarian meal on a non-vegetarian meal, it throws the error
+///ultimately the issue is that by the time you hit PreAbsorbStack, you're committed to merging the meals, and adding new ingredients at that stage causes problems
+///clicking on the stack before spawning in the new meal makes it so the error doesn't trigger; however it will usually spawn to the side
+///partially fixed, however currently when attempting to spawn on a full stack, the meal defaults to vegetarian; if a vegetarian meal is adjacent it stacks on that, otherwise it spawns adjacent and gets random ingredients
+///DONE: when ghostIngredientCap > 0 and CommonSense.add_ingredients == true, sometimes when dev-spawning debug caravan inventory a meal fails to place  // DONE: some of this was from lentils being counted as meat by FoodKind, the others were not from FT
+///this appears to be caused by merging 2 meals, which then split off a substack which does NOT have the same FoodKind as the original
+///however the FoodKind is not updated and when a meal attempts to spawn on the substack it doesn't match and errors
+///this is an actual problem since it affects meals made on the stove
+///when stack of Meal B is added to stack of Meal A and fills the stack, a smaller stack of Meal B is split off before merging with Meal A
+///small stack B will get its own unique ghostingredients btw
+//DONE: add ghost ingredients is adding way more than it should
+//DONE: FT_Coconut being in FT_Fruit and FT_Nut causes weird behavior for spawning every FlavorDef  // that seems to be from how a predefined FlavorDef search can fail if the wrong ingredient gets picked for a slot, leaving a slot without a fitting ingredient
+//DONE: VNPE seems to pick the same FlavorDef repeatedly within a given meal, not always, but way more often than it should
 
 //RELEASE: update XML files
 //RELEASE: check new game
@@ -153,15 +171,6 @@ using static FlavorText.DietKind;
 //RELEASE: test translations
 //RELEASE: check speed
 //RELEASE: disable log messages
-///TODO: error spawnMode Near when FT fillUpBlankMeals == true && CS fillMeals == false
-///when initially spawned, a meal is vegetarian; however FT puts an ingredient in it, which can change the diet kind
-///if the game attempts to spawn a vegetarian meal on a non-vegetarian meal, it throws the error
-///ultimately the issue is that by the time you hit PreAbsorbStack, you're committed to merging the meals, and adding new ingredients at that stage causes problems
-///clicking on the stack before spawning in the new meal makes it so the error doesn't trigger
-///A DIFFERENT ERROR when FT addExtraIngredients > 0 && (fillUpBlank Meals == true || CS fillMeals == true)
-///mealDiet is incorrect, which allows extra incorrect ingredients to be added, which changes the FoodKind
-///when this happens while stacks are committed to being merged, it causes issues
-//TODO: FT_Coconut being in FT_Fruit and FT_Nut causes weird behavior for spawning every FlavorDef
 
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
@@ -172,7 +181,6 @@ using static FlavorText.DietKind;
 //TODO: can mealTags replace sketchyIngredients?
 //TODO: spawnCaravanInventory meals have fewer ingredients on average than extraIngredientCap should make
 //TODO: sing/coll/adj inflections for FlavorDef labels: "a peach smoothie"/"peach smoothie"; "an apple fritter"/"apple fritters"/"apple fritter"
-//TODO: VNPE seems to pick the same FlavorDef repeatedly within a given meal, not always, but way more often than it should
 
 /// <summary>
 ///  CompFlavor contains the primary code execution
@@ -184,12 +192,6 @@ using static FlavorText.DietKind;
 ///     
 ///     1-ingredient meal: 3 ms
 ///     40-ingredient meal: 31 ms
-///     
-///     during gameplay TryGetFlavorText is only called when needed:
-///         making a product from a cooking station
-///         merging stacks for absorbing stack
-///         loading game from save if TriedFlavorText == true
-///         selecting the meal
 /// </summary>
 /// 
 
@@ -350,6 +352,7 @@ public class CompFlavor : ThingComp, IExposable
                 otherCompFlavor.MealTags = MealTags;
                 otherCompFlavor.Iteration = Iteration;
                 otherCompFlavor.CookID = CookID;
+                TryGetFlavorText();
             }
         }
         catch (Exception arg)
@@ -362,11 +365,12 @@ public class CompFlavor : ThingComp, IExposable
     {
         try
         {
-            Log.Warning($"PreAbsorb stack start for {parent.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with mealKind={FoodUtility.GetFoodKind(parent)} and ingredients [{CompIngredients.ingredients.ToStringSafeEnumerable()}]\nOtherstack was {otherStack.ToStringSafe()} x{otherStack.stackCount.ToStringSafe()} spawned={otherStack.Spawned.ToStringSafe()} at {otherStack.PositionHeld.ToStringSafe()} with mealKind={FoodUtility.GetFoodKind(otherStack)} and ingredients [{otherStack.TryGetComp<CompIngredients>().ingredients.ToStringSafeEnumerable()}]");
+            //Log.Warning($"PreAbsorb stack start for {parent.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with mealKind={FoodUtility.GetFoodKind(parent)} and ingredients [{CompIngredients.ingredients.ToStringSafeEnumerable()}]\nOtherstack was {otherStack.ToStringSafe()} x{otherStack.stackCount.ToStringSafe()} spawned={otherStack.Spawned.ToStringSafe()} at {otherStack.PositionHeld.ToStringSafe()} with mealKind={FoodUtility.GetFoodKind(otherStack)} and ingredients [{otherStack.TryGetComp<CompIngredients>().ingredients.ToStringSafeEnumerable()}]");
             base.PreAbsorbStack(otherStack, count);
             TryGetFlavorText();
 
             CompFlavor otherFlavorComp = otherStack.TryGetComp<CompFlavor>();
+            otherFlavorComp.TryGetFlavorText();
             Rand.PushState(FlavorSeed);
 
             IEnumerable<CompFlavor> bothComps = [this, otherFlavorComp];
@@ -415,6 +419,8 @@ public class CompFlavor : ThingComp, IExposable
             }
             TriedFlavorText = otherFlavorComp.TriedFlavorText = false;
             ingredientsCached = otherFlavorComp.ingredientsCached = null;
+            TryGetFlavorText();
+            otherFlavorComp.TryGetFlavorText();
         }
         catch (Exception e)
         {
@@ -462,7 +468,6 @@ public class CompFlavor : ThingComp, IExposable
 
             //set restrictions based on the FoodKind of the meal and weird ingredients
             SetMealDiet();
-            //Log.Warning($"diet for {parent.ThingID} at {parent.PositionHeld} is {mealDiet}");
 
             TryAddExtraIngredients();
             TriedFlavorText = true;
@@ -516,7 +521,10 @@ public class CompFlavor : ThingComp, IExposable
         {
             try
             {
-                bestFlavors = [.. ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk, flavorDefsToSearch))];
+                for (int n = 0; n < ingredientChunks.Count; n++)
+                {
+                    bestFlavors.Add(GetBestFlavorDef(ingredientChunks[n], n, flavorDefsToSearch));
+                }
             }
             catch (Exception ex2) when (ex2 is NullReferenceException or InvalidOperationException)
             {
@@ -529,7 +537,13 @@ public class CompFlavor : ThingComp, IExposable
         //TODO: this may be able to be merged with the saved FlavorDefs search
         if (bestFlavors.Empty())
         {
-            bestFlavors = (!ingredientChunks.Empty()) ? ingredientChunks.Select(ingredientChunk => GetBestFlavorDef(ingredientChunk)).ToList() : [GetBestFlavorDef([])];
+            if (!ingredientChunks.Empty())
+            {
+                for (int n = 0; n < ingredientChunks.Count; n++)
+                {
+                    bestFlavors.Add(GetBestFlavorDef(ingredientChunks[n], n));
+                }
+            }
             if (bestFlavors.Empty()) throw new InvalidOperationException("Could not find any best Flavor Defs for meal " + parent.ThingID);
         }
 
@@ -541,6 +555,7 @@ public class CompFlavor : ThingComp, IExposable
     private void SetMealDiet()
     {
         excludedCategories = [.. Props.defaultGhostExcludedCategories];
+        
         if (Ingredients.Count == 0)
         {
             if (FoodUtility.GetFoodKind(parent) == FoodKind.NonMeat) mealDiet = Diet.vegan;
@@ -558,25 +573,26 @@ public class CompFlavor : ThingComp, IExposable
                 mealDiet = CalculateIngredientDiet(Ingredients);
             }
             //Log.Message($"{parent.ToStringSafe()} had mealDiet = {mealDiet.ToStringSafe()}");
+        }
+        
 
-
-            // check for sketchy ingredients like insect meat and fungus
-            foreach (var ing in Ingredients)
+        // check for sketchy ingredients like insect meat and fungus
+        foreach (var ing in Ingredients)
+        {
+            foreach (var sketchy in SketchyDietCategories)
             {
-                foreach (var sketchy in SketchyDietCategories)
-                {
-                    if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
-                }
-            }
-
-            foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
-            {
-                excludedCategories.AddDistinct(dietCat);
+                if (sketchy.ContainedInThisOrDescendant(ing)) sketchyIngredients.Add(sketchy);
             }
         }
 
+        foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(mealDiet))
+        {
+            excludedCategories.AddDistinct(dietCat);
+        }
+        
 
-        Log.Warning($"mealDiet for {parent.ThingID.ToStringSafe()} was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
+
+        //Log.Warning($"mealDiet for {parent.ThingID.ToStringSafe()} was {mealDiet.ToStringSafe()} and meal FoodKind was {FoodUtility.GetFoodKind(parent).ToStringSafe()} and noIngredientsFoodKind was {CompIngredients.Props.noIngredientsFoodKind.ToStringSafe()}");
     }
 
     // determine what FlavorDefs the given ingredient list matches
@@ -589,9 +605,8 @@ public class CompFlavor : ThingComp, IExposable
             if (FlavorCategoryDefOf.FT_AnimalProductRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item2 = true; }
             if (FlavorCategoryDefOf.FT_PlantFoodRaw.ContainedInThisOrDescendant(ing)) { dietTuple.Item3 = true; }
         }
-
-        Log.Message($"dietTuple was {dietTuple.ToStringSafe()}");
        
+        //Log.Message($"dietTuple was {dietTuple.ToStringSafe()}");
         switch (dietTuple)
         {
             case (false, false, false): return Diet.vegan; // if everything is false (all condiments), default to the most restricted: vegan
@@ -619,12 +634,12 @@ public class CompFlavor : ThingComp, IExposable
     }
 
     // see which FinalFlavorDefs match with the ingredients you have, and choose the most specific FlavorDef you find
-    private (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> ingredients, List<FlavorDef> flavorDefsToSearch = null)
+    private (FlavorDef, List<int>) GetBestFlavorDef(List<ThingDef> ingredients, int n, List<FlavorDef> flavorDefsToSearch = null)
     {
         string ingredientsDietString = "";
         try
         {
-            if (Ingredients.NullOrEmpty())
+            if (ingredients.NullOrEmpty())
             {
                 throw new ArgumentNullException("ingredients", "List of ingredients to search for is null or empty during GetBestFlavorDef(). Should have returned during TryGetFlavorText() or GetFlavorText(). Please report.");
             }
@@ -644,7 +659,7 @@ public class CompFlavor : ThingComp, IExposable
             
 
 
-            Rand.PushState(FlavorSeed);
+            Rand.PushState(FlavorSeed + n);
             int startIndex = Rand.Range(0, validFlavorDefsToSearch.Count);
 
             int j;
@@ -946,7 +961,7 @@ public class CompFlavor : ThingComp, IExposable
         List<FlavorCategoryDef> ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InListOrDescendantOf(slot.DisallowedCategories) && !childCat.InListOrDescendantOf(excludedCategories)))];
         if (ghostCategories.Empty())  // if you'd fail to generate, recalculate diet from ingredients instead of meal
         {
-            Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.Categories.ToStringSafeEnumerable()}], the restrictions prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
+            //Log.Message($"Meal {parent.ThingID.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with real ingredients [{ingredients.ToStringSafeEnumerable()}]. When generating ghost ingredients for {flavorTuple.def.ToStringSafe()}, slot {slotIndex} with categories [{slot.Categories.ToStringSafeEnumerable()}], the restrictions prevented any ghost ingredients from being generated. The ghost ingredients will now be regenerated with restrictions based on the ingredient categories from FlavorText instead of the vanilla meal FoodKinds.");
             excludedCategories = [.. Props.defaultGhostExcludedCategories];
             foreach (var dietCat in GetExcludedFlavorCategoriesFromDiet(CalculateIngredientDiet(ingredients)))
             {
@@ -1001,8 +1016,8 @@ public class CompFlavor : ThingComp, IExposable
 
     private void TryAddExtraIngredients()
     {
-        Log.Warning($"TryAddExtraIngredients for {parent.ThingID.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with ingredients [{Ingredients.ToStringSafeEnumerable()}]");
-        if (FlavorTextSettings.fillUpBlankMeals == false && FlavorTextSettings.ghostIngredientCap == 0) return;
+        //Log.Warning($"TryAddExtraIngredients for {parent.ThingID.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with ingredients [{Ingredients.ToStringSafeEnumerable()}]");
+        if (FlavorTextSettings.ghostIngredientCap == 0) return;
 
         Rand.PushState(FlavorSeed);
 
@@ -1014,17 +1029,17 @@ public class CompFlavor : ThingComp, IExposable
             mealRecipe = mealRecipes[r];
         }
 
-        FillInRecipe(mealRecipe);
+        //FillInRecipe(mealRecipe);
         AddGhostIngredients(mealRecipe);
 
         Rand.PopState();
     }
     
-    //TODO: this stacks up when meals are repeatedly spawned
     // fill up blank meal with random ingredients matching its recipe
+    // deprecated, FlavorText simply suggests using CommonSense mod
     private void FillInRecipe(RecipeDef mealRecipe)
     {
-        if (FlavorTextSettings.fillUpBlankMeals == true && mealRecipe != null && Ingredients.Count() == 0)
+        if (mealRecipe != null && Ingredients.Count() == 0)
         {
             foreach (var slot in mealRecipe.ingredients)
             {
@@ -1054,7 +1069,7 @@ public class CompFlavor : ThingComp, IExposable
         if (recipeAllowedDefs.Empty()) throw new NullReferenceException($"{recipe.ToStringSafe()} had no allowedThingDefs.");
 
         List<bool> ghostBools = [.. Enumerable.Repeat(false, FlavorTextSettings.ghostIngredientCap - Ingredients.Count).Select(e => Rand.Bool)];
-        Log.Message($"ghostBools were [{ghostBools.ToStringSafeEnumerable()}]");
+        //Log.Message($"ghostBools were [{ghostBools.ToStringSafeEnumerable()}]");
 
 
         List<List<ThingDef>> ghostCategories = [.. GetIncludedFlavorCategoriesFromDiet(mealDiet)
@@ -1063,7 +1078,7 @@ public class CompFlavor : ThingComp, IExposable
             .Distinct()
             .Where(desc => desc.ChildThingDefs.Count > 0 && !desc.ThisAndAncestors.Any(excludedCategories.Contains))
             .Select(desc => desc.ChildThingDefs)
-            .Select<List<ThingDef>, List<ThingDef>>(things => [.. things.Intersect(recipeAllowedDefs)])
+            .Select<List<ThingDef>, List<ThingDef>>(things => [.. things.Intersect(recipeAllowedDefs).Where(thing => FoodUtility.GetFoodKind(thing) == FoodUtility.GetFoodKind(parent))])
             .Where(things => things.Any())];
         List<List<ThingDef>> ghostCategoriesSorted = [];
         try
@@ -1076,7 +1091,7 @@ public class CompFlavor : ThingComp, IExposable
             throw;
         }
 
-        Log.Message($"ghostCategoriesSorted: [{ghostCategoriesSorted.Select(cat => $"[{cat.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
+        //Log.Message($"ghostCategoriesSorted: [{ghostCategoriesSorted.Select(cat => $"[{cat.ToStringSafeEnumerable()}]").ToStringSafeEnumerable()}]");
 
         // iterate over a randomly sorted list of categories
         // gives more variety by avoiding things like FT_MeatRaw dominating the list of ingredients
@@ -1085,11 +1100,12 @@ public class CompFlavor : ThingComp, IExposable
         {
             for (int i = 0; i < ghostBools.Count; i++)
             {
+                if (ghostCategoriesSorted.Count == 0) return;
                 int j = i % ghostCategoriesSorted.Count;  // wrap around ghostCategories
                 if (ghostBools[i])
                 {
                     ings = [.. ghostCategoriesSorted[j].Where(thing => !Ingredients.Contains(thing))];
-                    Log.Message($"[{ings.ToStringSafeEnumerable()}] are possible extra ghost ingredients");
+                    //Log.Message($"[{ings.ToStringSafeEnumerable()}] are possible extra ghost ingredients");
                     AddGhostIngredientSingle(ings);
                 }
             }
@@ -1104,7 +1120,7 @@ public class CompFlavor : ThingComp, IExposable
         if (ings.Count() == 0) return;
         int r = Rand.Range(0, ings.Count());
         parent.TryGetComp<CompIngredients>().RegisterIngredient(ings[r]);
-        Log.Message($"added {ings[r]}, FoodKind is now {FoodUtility.GetFoodKind(parent)}");
+        //Log.Message($"added {ings[r]}, FoodKind is now {FoodUtility.GetFoodKind(parent)}");
     }
 
     // compile the flavor labels into one long displayed flavor label
