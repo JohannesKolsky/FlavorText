@@ -74,7 +74,6 @@ namespace FlavorText
             {
                 var recipes = AllRecipesWithThisAsProduct(meal);
                 MealRecipeDatabase.Add(meal, recipes);
-                Log.Message($"{meal.ToStringSafe()} had recipes [{recipes.ToStringSafeEnumerable()}]");
             }
         }
 
