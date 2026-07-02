@@ -154,23 +154,23 @@ using static FlavorText.DietKind;
 //DONE: FT_Coconut being in FT_Fruit and FT_Nut causes weird behavior for spawning every FlavorDef  // that seems to be from how a predefined FlavorDef search can fail if the wrong ingredient gets picked for a slot, leaving a slot without a fitting ingredient
 //DONE: VNPE seems to pick the same FlavorDef repeatedly within a given meal, not always, but way more often than it should
 
-//RELEASE: update XML files
-//RELEASE: check new game
-//RELEASE: check add to game
-//RELEASE: check remove from game
-//RELEASE: check updating FlavorText on save
-//RELEASE: check save and reload game
-//RELEASE: check all meal types
-//RELEASE: check without DLCs or mods
-//RELEASE: check food modlist
-//RELEASE: check your own saves
-//RELEASE: check starting spawned/drop-podded, drop pod meals, trader meals
-//RELEASE: test FTV
-//RELEASE: test C# meats
-//RELEASE: test medieval overhaul
-//RELEASE: test translations
-//RELEASE: check speed
-//RELEASE: disable log messages
+//RELEASED: update XML files
+//RELEASED: check new game
+//RELEASED: check add to game
+//RELEASED: check remove from game
+//RELEASED: check updating FlavorText on save
+//RELEASED: check save and reload game
+//RELEASED: check all meal types
+//RELEASED: check without DLCs or mods
+//RELEASED: check food modlist
+//RELEASED: check your own saves
+//RELEASED: check starting spawned/drop-podded, drop pod meals, trader meals
+//RELEASED: test FTV
+//RELEASED: test C# meats
+//RELEASED: test processor stuff
+//RELEASED: test translations
+//RELEASED: check speed
+//RELEASED: disable log messages
 
 //TODO: milk/cheese problem; in a mod with specialty cheeses, that name should be included, but otherwise milk should sometimes produce the word "cheese" // what about a 5th inflection?
 //TODO: [Soy/Chicken, PlantFoodRaw] fails when searching [soy, chicken]
@@ -446,8 +446,8 @@ public class CompFlavor : ThingComp, IExposable
     {
         if (TriedFlavorText) return;
         TriedFlavorText = true;
-        Stopwatch stopwatch = new();
-        stopwatch.Start();
+        //Stopwatch stopwatch = new();
+        //stopwatch.Start();
         try
         {
             if (Ingredients == null) throw new NullReferenceException($"Ingredients for {parent.ThingID.ToStringSafe()} were null. Please report.");
@@ -493,14 +493,14 @@ public class CompFlavor : ThingComp, IExposable
             ex.Data.Add("allIngredients", flavorSummary);
             Log.Error(string.Format("Error: {0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}", ex, ex.Data["flavorSummary"], ex.Data["flavorDef"], ex.Data["ingredients"], ex.Data["diets"], ex.Data["meal"], ex.Data["flavorDefsToSearch"]));
         }
-        finally
-        {
-            if (Prefs.DevMode)
-            {
-                stopwatch.Stop();
-                Log.Message("[Flavor Text] TryGetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
-            }
-        }
+        //finally
+        //{
+        //    if (Prefs.DevMode)
+        //    {
+        //        stopwatch.Stop();
+        //        Log.Message("[Flavor Text] TryGetFlavorText ran in " + stopwatch.Elapsed.TotalMilliseconds + " milliseconds");
+        //    }
+        //}
     }
 
     //find the best flavorDefs for the parent meal and use them to generate flavor text label and description
@@ -1019,15 +1019,12 @@ public class CompFlavor : ThingComp, IExposable
         //Log.Warning($"TryAddExtraIngredients for {parent.ThingID.ToStringSafe()} x{parent.stackCount.ToStringSafe()} spawned={parent.Spawned.ToStringSafe()} at {parent.PositionHeld.ToStringSafe()} with ingredients [{Ingredients.ToStringSafeEnumerable()}]");
         if (FlavorTextSettings.ghostIngredientCap == 0) return;
 
-        Rand.PushState(FlavorSeed);
-
-        RecipeDef mealRecipe = null;
         List<RecipeDef> mealRecipes = GameComponentFlavorText.MealRecipeDatabase.TryGetValue(parent.def);
-        if (!mealRecipes.NullOrEmpty())
-        {
-            int r = Rand.Range(0, mealRecipes.Count());
-            mealRecipe = mealRecipes[r];
-        }
+        if (mealRecipes.NullOrEmpty()) { return; }
+
+        Rand.PushState(FlavorSeed);
+        int r = Rand.Range(0, mealRecipes.Count());
+        RecipeDef mealRecipe = mealRecipes[r];
 
         //FillInRecipe(mealRecipe);
         AddGhostIngredients(mealRecipe);

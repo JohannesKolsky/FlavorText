@@ -74,6 +74,7 @@ namespace FlavorText
             {
                 var recipes = AllRecipesWithThisAsProduct(meal);
                 MealRecipeDatabase.Add(meal, recipes);
+                Log.Message($"{meal.ToStringSafe()} had recipes [{recipes.ToStringSafeEnumerable()}]");
             }
         }
 
@@ -131,6 +132,15 @@ namespace FlavorText
         private static void Debug_Spawn4Meals()
         {
             DebugThingPlaceHelper.DebugSpawn(ThingDefOf.MealSimple, UI.MouseCell(), 4, false);
+        }
+
+        [DebugAction("Flavor Text", null, false, false, false, false, false, 0, false, actionType = DebugActionType.ToolMap, allowedGameStates = AllowedGameStates.PlayingOnMap, name = "Spawn each meal with CompFlavor")]
+        private static void Debug_SpawnEachMealCompFlavor()
+        {
+            foreach (ThingDef meal in FlavorCategoryDefOf.FT_MealsWithCompFlavor.DescendantThingDefs)
+            {
+                DebugThingPlaceHelper.DebugSpawn(meal, UI.MouseCell(), 1, false);
+            }
         }
 
         /*       // add VEF process products to database of meal recipes

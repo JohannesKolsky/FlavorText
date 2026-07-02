@@ -25,10 +25,20 @@ public static class HarmonyPatches
     {
         var patchType = typeof(HarmonyPatches);
         Harmony harmony = new("rimworld.hekmo.FlavorText");
+        //harmony.Patch(AccessTools.Method(typeof(CompIngredients), "AllowStackWith"), postfix: new HarmonyMethod(patchType, "AllowStackWithPostfix"));
         harmony.Patch(AccessTools.Method(typeof(CompIngredients), "RegisterIngredient"), postfix: new HarmonyMethod(patchType, "RegisterIngredientPostfix"));
-        //harmony.Patch(AccessTools.Method(typeof(ThingMaker), "MakeThing"), postfix: new HarmonyMethod(patchType, "MakeThingPostfix"));
         harmony.Patch(AccessTools.Method(typeof(GenRecipe), "MakeRecipeProducts"), postfix: new HarmonyMethod(patchType, "MakeRecipeProductsPostfix"));
     }
+
+    // trigger TryGetFlavorText() after a set of ingredients is added
+    // this isn't helpful b/c it doesn't trigger automatically after ingredients are finished being added
+/*    public static void AllowStackWithPostfix(ref CompIngredients __instance)
+    {
+        CompFlavor compFlavor = __instance.parent.TryGetComp<CompFlavor>();
+        if (compFlavor != null) { compFlavor.TriedFlavorText = false; compFlavor.ingredientsCached = null;
+            Log.Message("AllowStackWithPostfix");
+        }
+    }*/
 
     // dirty ingredient cache when a new ingredient is added, forcing a recheck once TryGetFlavorText is next called
     // using this since it covers spawning a meal, cooking at a station, and dispensing nutrient paste simultaneously
@@ -38,13 +48,6 @@ public static class HarmonyPatches
         CompFlavor compFlavor = __instance.parent.TryGetComp<CompFlavor>();
         if (compFlavor != null) { compFlavor.TriedFlavorText = false; compFlavor.ingredientsCached = null; }
     }
-
-    //// trigger TryGetFlavorText() when a meal is created
-    //public static void MakeThingPostfix(ref Thing __result)
-    //{
-    //    CompFlavor compFlavor = __result.TryGetComp<CompFlavor>();
-    //    compFlavor?.TryGetFlavorText();
-    //}
 
 
     // after making a product with CompIngredients, add information about how it was cooked

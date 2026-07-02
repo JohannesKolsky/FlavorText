@@ -176,6 +176,7 @@ internal static class CategoryUtility
             }
             //Log.Message($"{cat.ToStringSafe()} had inflectionsOverride = [{cat.inflectionsOverride.ToStringSafeEnumerable()}]");
 
+            cat.BlacklistedMods = [.. cat.BlacklistedMods.Select(mod => mod.ToLower())];
             cat.Parents.ForEach(parent => cat.blacklist.AddRangeUnique(parent.blacklist));  // inherit blacklists of parents
             cat.Parents.ForEach(parent => cat.BlacklistedMods.AddRangeUnique(parent.BlacklistedMods));  // inherit blacklisted mods of parents
         }
@@ -194,7 +195,7 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("flour");
+                //tag = food.defName.ToLower().Contains("soup");
                 if (tag) Log.Warning($"testing {food.ToStringSafe()}");
                 if (!IsFlavorTextIngredient(food)) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;
@@ -396,7 +397,7 @@ internal static class CategoryUtility
 
     private static Dictionary<FlavorCategoryDef, int> GetBestFlavorCategory(ThingDef searchedDef, FlavorCategoryDef topLevelCategory, int minMealsWithCompFlavorScore = goodScoreForCategorization)
     {
-        //tag = searchedDef.defName.ToLower().Contains("flour");
+        //tag = searchedDef.defName.ToLower().Contains("soup");
         if (tag) { Log.Message("------------------------"); Log.Warning($"Finding correct Flavor Category for {searchedDef.ToStringSafe()} with topLevelCategory {topLevelCategory.ToStringSafe()}"); }
 
         List<string> splitNames = ExtractNames(searchedDef);
@@ -406,6 +407,7 @@ internal static class CategoryUtility
         var categoriesToSearch = topLevelCategory.ThisAndDescendants.ToList();
         if (searchedDef.modContentPack == null || searchedDef.modContentPack.PackageId == null) { Log.Warning($"{searchedDef.ToStringSafe()} did not have an associated ModContentPack or PackageId. Report this to that mod's creator."); return []; }
         List<FlavorCategoryDef> categoriesToSkip = [.. categoriesToSearch.Where(cat => cat.BlacklistedMods.Contains(searchedDef.modContentPack.PackageId))];  // skip categories that have that mod blacklisted
+        if (tag) { Log.Warning($"categoriesToSkip for {searchedDef.defName.ToStringSafe()} from {searchedDef.modContentPack.PackageId.ToStringSafe()} were [{categoriesToSkip.ToStringSafeEnumerable()}]"); }
 
         try
         {
