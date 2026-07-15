@@ -195,7 +195,7 @@ internal static class CategoryUtility
         {
             try
             {
-                //tag = food.defName.ToLower().Contains("soup");
+                //tag = food.defName.ToLower().Contains("milk");
                 if (tag) Log.Warning($"testing {food.ToStringSafe()}");
                 if (!IsFlavorTextIngredient(food)) continue;
                 if (ThingParentCategories.ContainsKey(food)) continue;

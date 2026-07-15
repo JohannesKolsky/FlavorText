@@ -31,10 +31,10 @@ internal static class InflectionUtility
 {
     private static bool tag;
 
-    internal const int numInflections = 4;  // changing this requires rewriting this class, since currently it's designed for English and 4 grammatical forms
+    internal const int numInflections = 4;  // changing this probably requires reworking this class, since currently it's designed for English and 4 grammatical forms
     private const int minimumLengthForInflectionRoot = 3;
     internal static readonly List<string> grammaticalInflections = ["plur", "coll", "sing", "adj"];
-    internal static readonly List<string> grammaticalCollections = ["AND", "OR", "OTHER"];
+    internal static readonly List<string> grammaticalCollections = ["and", "or", "other"];
 
 
     internal static Dictionary<ThingDef, List<string>> ThingInflectionsDictionary = [];  // inflections for specific ThingDefs

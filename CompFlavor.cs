@@ -864,6 +864,7 @@ public class CompFlavor : ThingComp, IExposable
         }
     }
 
+    //TODO: GrammarRequest and GenerateBook seem to do a similar custom replacement thing here
     // replace placeholders in flavor label/description with the correctly inflected ingredient label
     private string FormatFlavorString((FlavorDef def, List<int> index) flavorTuple, List<ThingDef> ingredients, string flavorString)
     {
@@ -880,10 +881,7 @@ public class CompFlavor : ThingComp, IExposable
                 List<string> inflections = ingIndex != -1
                     ? InflectionUtility.ThingInflectionsDictionary[ingredients[ingIndex]]
                     : throw new ArgumentOutOfRangeException($"found a -1 index in {flavorTuple.def.defName.ToStringSafe()} with indices [{flavorTuple.index.ToStringSafeEnumerable()}] which should have been resolved by now");
-                if (inflections.Count != 4)
-                {
-                    throw new ArgumentOutOfRangeException($"Error formatting string for {flavorTuple}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
-                }
+                if (inflections.Count != 4) throw new ArgumentOutOfRangeException($"Error formatting string for {flavorTuple}. Should have {InflectionUtility.numInflections} inflections, but found {inflections.Count} inflections");
 
                 for (int j = 0; j < InflectionUtility.grammaticalInflections.Count; j++)
                 {
