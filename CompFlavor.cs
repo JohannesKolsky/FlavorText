@@ -670,7 +670,7 @@ public class CompFlavor : ThingComp, IExposable
                 List<int> matchedIndices = GetMatchIndices(ingredients, flavorDef);
                 if (!matchedIndices.NullOrEmpty())
                 {
-                    //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}]");
+                    //Log.Warning($"found match! {flavorDef.ToStringSafe()} with allowedDiets [{flavorDef.allowedDiets.ToStringSafeEnumerable()}] and mealKinds [{flavorDef.mealKinds.ToStringSafeEnumerable()}] and specificity {flavorDef.Specificity}");
                     matchingFlavors.Add((flavorDef, matchedIndices));
                 }
                 if (FlavorTextSettings.quickSearch == true && matchingFlavors.Count >= numFlavorDefsBeforeBreak) break;
@@ -686,7 +686,7 @@ public class CompFlavor : ThingComp, IExposable
                 
                 Rand.PushState(FlavorSeed);
                 bestFlavor = matchingFlavors.RandomElementByWeight(((FlavorDef def, List<int> indices) matchingFlavor) => matchingFlavor.def.Specificity);
-                Rand.PopState(); bestFlavor = matchingFlavors.First();
+                Rand.PopState();
                 
                 //Log.Warning($"best FlavorDef {bestFlavor.def.ToStringSafe()} matched ingredients [{ingredients.ToStringSafeEnumerable()}] using indices [{bestFlavor.indices.ToStringSafeEnumerable()}] to [{bestFlavor.def.ingredients.Select(slot => "[" + slot.categories.ToStringSafeEnumerable() + "]").ToStringSafeEnumerable()}]\nFlavorDet diet = [{bestFlavor.def.allowedDiets.ToStringSafeEnumerable()}]\nghostExcludedCategories = [{excludedCategories.ToStringSafeEnumerable()}]");
                 return bestFlavor.def != null && bestFlavor.indices != null
@@ -820,8 +820,8 @@ public class CompFlavor : ThingComp, IExposable
     {
         for (int i = 0; i < bestFlavors.Count; i++)
         {
-            var flavorTuple = bestFlavors[i];
-            if (flavorTuple.def == null || flavorTuple.index == null) throw new NullReferenceException($"A chosen FlavorDef with index of {i.ToStringSafe()} is null, cancelling the search. Please report.");
+            var (def, index) = bestFlavors[i];
+            if (def == null || index == null) throw new NullReferenceException($"A chosen FlavorDef with index of {i.ToStringSafe()} is null, cancelling the search. Please report.");
 
             finalFlavorDefs.Add(bestFlavors[i].def);
             List<ThingDef> ingredientChunk = [.. ingredientChunks[i]];

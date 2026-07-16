@@ -324,7 +324,7 @@ public class FlavorDef : Def
             }
         }
 
-        Log.Warning($"DietIndex: [{DietIndex.Select(entry => $"{entry.Key.ToStringSafe()} had {entry.Value.Count} entries\n").ToStringSafeEnumerable()}]");
+        //Log.Warning($"DietIndex: [{DietIndex.Select(entry => $"{entry.Key.ToStringSafe()} had {entry.Value.Count} entries\n").ToStringSafeEnumerable()}]");
     }
     private static void SetSpecificities()
     {
