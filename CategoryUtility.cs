@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
-using UnityEngine;
 using Verse;
 using static FlavorText.CategoryUtility;
 
@@ -42,6 +41,7 @@ using static FlavorText.CategoryUtility;
 //TODO: examine more items that may be food: anything that has nutrition (drugs, alcohol)
 //TODO: something like DankPyon_MealRations only scores 4 and isn't CompFlavored // re-add inheriting parent category scores?
 //TODO: make MealsQualities its own thing
+//TODO: if a def has no possible ingredients that could be used for a FlavorDef, exclude it from FT_MealsWithCompFlavor
 
 namespace FlavorText;
 
@@ -308,7 +308,8 @@ internal static class CategoryUtility
                     var newParents = GetBestFlavorCategory(building, FlavorCategoryDefOf.FT_CookingStations);
                     if (newParents.Count > 0)
                     {
-                        var newParent = newParents.MaxBy(element => element.Value).Key;
+                        newParents.TryMaxBy(element => element.Value, out KeyValuePair<FlavorCategoryDef, int> result);
+                        var newParent = result.Key;
                         ThingParentCategories[building].AddDistinct(newParent);
                         newParent.ChildThingDefs.Add(building);
                     }

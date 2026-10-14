@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using Verse;
+﻿using Verse;
+using UnityEngine;
 
 //DONE: reload flavor text on settings change  // happens on reload of save
 //--TODO: always randomized recipe output?
@@ -25,6 +25,7 @@ namespace FlavorText
         {
             flavorTextSettings.DoWindowContents(inRect);
         }
+
         public override void WriteSettings()
         {
             base.WriteSettings();

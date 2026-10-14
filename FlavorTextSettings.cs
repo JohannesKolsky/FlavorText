@@ -1,6 +1,7 @@
-﻿using UnityEngine;
+﻿
 using RimWorld;
 using Verse;
+using UnityEngine;
 
 //DONE: reload flavor text on settings change  // happens on reload of save
 //DONE: always randomized recipe output?

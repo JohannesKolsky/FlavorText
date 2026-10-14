@@ -202,7 +202,7 @@ public class CompFlavor : ThingComp, IExposable
 
     private readonly bool tag;
     private const int numFlavorDefsBeforeBreak = 10;
-    private bool generatedCoreFlavorDef = true;
+    private bool generatedCoreFlavorDefDebug = true;
 
     internal bool TriedFlavorText { get; set; }
 
@@ -968,13 +968,13 @@ public class CompFlavor : ThingComp, IExposable
             ghostCategories = [.. slot.Categories.SelectMany((FlavorCategoryDef cat) => cat.ThisAndDescendants.Where((FlavorCategoryDef childCat) => childCat.ChildThingDefs.Count > 0 && !childCat.InListOrDescendantOf(slot.DisallowedCategories) && !childCat.InListOrDescendantOf(excludedCategories)))];
 
         }
-        if (!generatedCoreFlavorDef)
+        if (!generatedCoreFlavorDefDebug)
         {
             List<FlavorCategoryDef> coreCats = dietIncludedCategories[mealDiet];
             List<FlavorCategoryDef> coreGhostCategories = [.. ghostCategories.Where((FlavorCategoryDef ghostCat) => ghostCat.InListOrDescendantOf(coreCats))];
             if (!coreGhostCategories.Empty())
             {
-                generatedCoreFlavorDef = true;
+                generatedCoreFlavorDefDebug = true;
                 ghostCategories = coreGhostCategories;
             }
         }
