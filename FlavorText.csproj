@@ -11,13 +11,17 @@
     <Copyright>Copyright ©  2024</Copyright>
     <AssemblyVersion>0.2.%2a</AssemblyVersion>
     <FileVersion>0.2.0.0</FileVersion>
-  </PropertyGroup>
+	  <BaseOutputPath>E:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Flavor Text\Current\Assemblies</BaseOutputPath>
+	  <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	  <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	  <GenerateDependencyFile>false</GenerateDependencyFile>
+</PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\1.6\Assemblies\</OutputPath>
+    <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\Current\Assemblies\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
-    <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\1.6\Assemblies\</OutputPath>
+	  <OutputPath>E:\Program Files %28x86%29\Steam\steamapps\common\RimWorld\Mods\Flavor Text\Current\Assemblies\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="SYR\**" />
@@ -36,8 +40,8 @@
     </Reference>
     <PackageReference Include="cldrjs" Version="0.5.1" />
     <PackageReference Include="jquery-globalize" Version="1.4.2" />
-    <PackageReference Include="Lib.Harmony.Ref" Version="2.4.2" />
-    <PackageReference Include="linq2db" Version="5.4.1" />
+    <PackageReference Include="Lib.Harmony" Version="2.4.3" />
+    <PackageReference Include="linq2db" Version="6.5.0" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.13" />
     <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
@@ -45,10 +49,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\upgrades\scenarios\dotnet-version-upgrade\scenario-instructions.md" />
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Scripts\cldr.js" />
